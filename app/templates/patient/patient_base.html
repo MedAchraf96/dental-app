@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="patient-container">
+  <!-- Patient Tabs Navigation -->
+  <div class="patient-tabs">
+    <a href="{{ url_for('patient.profile', patient_id=patient.id) }}" 
+       class="tab-btn {% if active_tab == 'profile' %}active{% endif %}">
+       <i class="bi bi-person"></i> Profile
+    </a>
+    
+    <a href="{{ url_for('patient.teeth_chart', patient_id=patient.id) }}"
+       class="tab-btn {% if active_tab == 'teeth_chart' %}active{% endif %}">
+       <i class="bi bi-tooth"></i> Teeth Chart
+    </a>
+    
+    <a href="{{ url_for('patient.treatments', patient_id=patient.id) }}"
+       class="tab-btn {% if active_tab == 'treatments' %}active{% endif %}">
+       <i class="bi bi-calendar2-check"></i> Treatments
+    </a>
+    
+    <a href="{{ url_for('patient.financial', patient_id=patient.id) }}"
+       class="tab-btn {% if active_tab == 'financial' %}active{% endif %}">
+       <i class="bi bi-cash-stack"></i> Financial
+    </a>
+    
+    <a href="{{ url_for('patient.documents', patient_id=patient.id) }}"
+       class="tab-btn {% if active_tab == 'documents' %}active{% endif %}">
+       <i class="bi bi-files"></i> Documents
+    </a>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="patient-content">
+    {% block patient_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

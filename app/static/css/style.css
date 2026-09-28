@@ -1,0 +1,183 @@
+@import url('base/_variables.css');
+@import url('base/_reset.css');
+@import url('layout/_structure.css');
+@import url('layout/_navigation.css');
+@import url('layout/_page_header.css');
+@import url('layout/_responsive.css');
+@import url('layout/_patient_nav.css');
+@import url('components/_alerts.css');
+@import url('components/_buttons.css');
+@import url('components/_forms.css');
+@import url('components/_tables.css');
+@import url('pages/_appointment_list.css');
+@import url('pages/_calendar.css');
+@import url('pages/_dashboard.css');
+@import url('pages/_patient_list.css');
+@import url('pages/_patient_profile.css');
+@import url('pages/_financial.css');
+@import url('pages/_teeth_chart.css');
+@import url('pages/_treatments.css');
+
+/* ======================
+   LOGIN STYLES
+   ====================== */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    background: var(--login-bg);
+    min-width: 100vw;
+    margin: 0;
+}
+
+.login-card {
+    background: white;
+    padding: 30px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+/* Form elements using theme variables */
+.login-card input {
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.login-card input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(34, 115, 168, 0.1);
+}
+
+.login-card .btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.login-card .btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+/* Header styling */
+.login-card h2 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+}
+
+/* Utility classes */
+.text-muted {
+    color: var(--muted-text);
+}
+
+.card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* ======================
+   APPOINTMENT HIGHLIGHTS
+   ====================== */
+.appointment.highlighted {
+    position: relative;
+    z-index: 100;
+    animation: pulse-highlight-green 2s 3;
+    background-color: #F0FFE0 !important;
+    transform: scale(1.02);
+    transition: var(--transition);
+}
+
+.appointment.highlighted::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border: 3px solid #4CAF50;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.appointment.highlighted::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: 0 0 0 3px rgb(76, 175, 80), 0 0 15px rgba(76, 175, 80, 0.5);
+    border-radius: 4px;
+    pointer-events: none;
+    animation: pulse-highlight-green 2s infinite;
+}
+
+@keyframes pulse-highlight-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+    }
+}
+
+.appointment.highlighted.status-scheduled,
+.appointment.highlighted.status-completed,
+.appointment.highlighted.status-cancelled {
+    background-color: #F0FFE0 !important;
+}
+
+/* ======================
+   UTILITY CLASSES
+   ====================== */
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+/* ======================
+   RESPONSIVE ADJUSTMENTS
+   ====================== */
+
+
+/* ======================
+   ACCESSIBILITY
+   ====================== */
+.nav-link:focus,
+.btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+
+
+@keyframes slideIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

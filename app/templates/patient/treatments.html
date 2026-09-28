@@ -1,0 +1,162 @@
+{% extends "patient/patient_base.html" %}
+
+{% block patient_content %}
+<div class="treatments-mockup">
+    <!-- Header Section -->
+    <div class="treatments-header">
+        <h2><i class="bi bi-calendar2-plus"></i> Patient Treatments</h2>
+        <div class="header-actions">
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> New Appointment
+            </button>
+            <button class="btn btn-outline-primary">
+                <i class="bi bi-file-earmark-medical"></i> Create Plan
+            </button>
+        </div>
+    </div>
+
+    <!-- Treatment Timeline -->
+    <div class="timeline-container">
+        <div class="timeline-header">
+            <h3>Treatment Timeline</h3>
+            <div class="view-options">
+                <span class="active">Upcoming</span>
+                <span>Completed</span>
+                <span>All</span>
+            </div>
+        </div>
+
+        <!-- Sample Timeline Items -->
+        <div class="timeline">
+            <!-- Upcoming Appointment -->
+            <div class="timeline-item upcoming">
+                <div class="timeline-badge">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-date">Tomorrow, 10:00 AM</div>
+                    <h4>Dental Cleaning</h4>
+                    <div class="timeline-meta">
+                        <span><i class="bi bi-person"></i> Dr. Smith</span>
+                        <span><i class="bi bi-clock"></i> 45 mins</span>
+                        <span><i class="bi bi-cash"></i> $120</span>
+                    </div>
+                    <div class="timeline-actions">
+                        <button class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-pencil"></i> Reschedule
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Treatment Plan -->
+            <div class="timeline-item plan">
+                <div class="timeline-badge">
+                    <i class="bi bi-clipboard2-pulse"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-date">Started 3 days ago</div>
+                    <h4>Restoration Plan</h4>
+                    <div class="plan-progress">
+                        <div class="progress-text">2 of 4 procedures completed</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="plan-procedures">
+                        <div class="procedure completed">
+                            <i class="bi bi-check-circle-fill"></i> Tooth 15 - Filling
+                        </div>
+                        <div class="procedure completed">
+                            <i class="bi bi-check-circle-fill"></i> Tooth 14 - Crown Prep
+                        </div>
+                        <div class="procedure upcoming">
+                            <i class="bi bi-circle"></i> Tooth 14 - Crown Placement
+                        </div>
+                        <div class="procedure upcoming">
+                            <i class="bi bi-circle"></i> Tooth 13 - Filling
+                        </div>
+                    </div>
+                    <div class="timeline-actions">
+                        <button class="btn btn-sm btn-primary">
+                            <i class="bi bi-eye"></i> View Plan
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completed Treatment -->
+            <div class="timeline-item completed">
+                <div class="timeline-badge">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-date">Last week</div>
+                    <h4>Root Canal Treatment</h4>
+                    <div class="timeline-meta">
+                        <span><i class="bi bi-person"></i> Dr. Johnson</span>
+                        <span><i class="bi bi-clock-history"></i> 2 hours</span>
+                        <span><i class="bi bi-cash"></i> $850</span>
+                    </div>
+                    <div class="treatment-notes">
+                        <strong>Notes:</strong> Patient tolerated procedure well. Recommended follow-up in 2 weeks.
+                    </div>
+                    <div class="timeline-actions">
+                        <button class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-receipt"></i> Invoice
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-file-earmark-text"></i> Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon upcoming">
+                <i class="bi bi-calendar2-event"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">3</div>
+                <div class="stat-label">Upcoming</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon active">
+                <i class="bi bi-clipboard2-pulse"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">2</div>
+                <div class="stat-label">Active Plans</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon completed">
+                <i class="bi bi-check2-all"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">12</div>
+                <div class="stat-label">Completed</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon revenue">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">$3,240</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

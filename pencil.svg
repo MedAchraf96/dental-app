@@ -1,0 +1,34 @@
+<svg width="200" height="40" viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
+  <!-- Pencil Structure -->
+  <linearGradient id="woodGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#e8c070" />
+    <stop offset="100%" stop-color="#d1a054" />
+  </linearGradient>
+  
+  <linearGradient id="metalGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#e0e0e0" />
+    <stop offset="100%" stop-color="#c0c0c0" />
+  </linearGradient>
+
+  <!-- Main Body -->
+  <rect x="25" y="10" width="150" height="20" rx="2" fill="url(#woodGradient)" stroke="#b08030" stroke-width="1"/>
+
+  <!-- Pointed Tip (Now Correctly Oriented) -->
+  <polygon points="175,10 195,20 175,30" fill="#555" stroke="#333" stroke-width="1"/>
+  <polygon points="175,12 193,20 175,28" fill="#2a2a2a" stroke="none"/>
+
+  <!-- Ferrule -->
+  <rect x="160" y="10" width="15" height="20" fill="url(#metalGradient)" stroke="#a0a0a0" stroke-width="1"/>
+  
+  <!-- Eraser -->
+  <rect x="25" y="10" width="15" height="20" fill="#ff6b9e" stroke="#d04d7a" stroke-width="1"/>
+  <rect x="25" y="12" width="15" height="3" fill="#ffd1dc" stroke="none"/>
+
+  <!-- Wood Grain -->
+  <path d="M40,15 L45,18 M60,12 L65,15 M80,17 L85,20 M100,13 L105,16 M120,18 L125,21 M140,14 L145,17" 
+        stroke="#b08030" stroke-width="0.5" stroke-linecap="round"/>
+
+  <!-- Hexagonal Outline -->
+  <path d="M25,10 L175,10 L180,15 L175,20 L25,20 L20,15 Z" 
+        fill="none" stroke="#000" stroke-opacity="0.1" stroke-width="0.5"/>
+</svg>

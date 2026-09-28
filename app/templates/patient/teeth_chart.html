@@ -1,0 +1,122 @@
+<div class="full-mouth-plan">
+  <!-- Header Section -->
+  <div class="plan-header">
+    <h2>Full Mouth Rehabilitation Plan</h2>
+    <div class="patient-summary">
+      <span class="badge phase-badge">Phase 1 of 3</span>
+      <span class="financial-summary">Estimated Total: 8,500 TND</span>
+      <span class="completed-progress">Completed: 23%</span>
+    </div>
+  </div>
+
+  <!-- Interactive Teeth Chart with Conditions -->
+  <div class="teeth-chart-overview">
+    <div class="jaw upper">
+      {% for tooth in [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28] %}
+      <div class="chart-tooth" data-tooth="{{ tooth }}" data-conditions="caries,missing">
+        <div class="tooth-number">{{ tooth }}</div>
+        <div class="tooth-status">
+          <div class="condition-dot caries"></div>
+          <div class="condition-dot missing"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="jaw lower">
+      {% for tooth in [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38] %}
+      <div class="chart-tooth" data-tooth="{{ tooth }}" data-conditions="fracture,restored">
+        <div class="tooth-number">{{ tooth }}</div>
+        <div class="tooth-status">
+          <div class="condition-dot fracture"></div>
+          <div class="condition-dot restored"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Treatment Plan Phases -->
+  <div class="treatment-phases">
+    <!-- Phase 1 -->
+    <div class="phase-card active">
+      <div class="phase-header">
+        <h3>Phase 1: Emergency Care & Stabilization</h3>
+        <span class="phase-cost">Estimated: 2,200 TND</span>
+      </div>
+      <div class="phase-procedures">
+        <div class="procedure">
+          <span class="tooth">14,15</span>
+          <span class="type">Root Canal Treatment</span>
+          <span class="status scheduled">Scheduled: 15/06</span>
+          <span class="cost">900 TND</span>
+        </div>
+        <div class="procedure">
+          <span class="tooth">36</span>
+          <span class="type">Temporary Crown</span>
+          <span class="status completed">Completed</span>
+          <span class="cost">300 TND</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 2 -->
+    <div class="phase-card">
+      <div class="phase-header">
+        <h3>Phase 2: Restorative Care</h3>
+        <span class="phase-cost">Estimated: 4,800 TND</span>
+      </div>
+      <div class="phase-procedures">
+        <div class="procedure">
+          <span class="tooth">14-24</span>
+          <span class="type">Ceramic Crowns</span>
+          <span class="status pending">Needs Lab Approval</span>
+          <span class="cost">2,400 TND</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Financial Overview -->
+  <div class="financial-overview">
+    <div class="cost-breakdown">
+      <h4>Cost Breakdown</h4>
+      <div class="cost-category">
+        <span>Restorative Work</span>
+        <span>5,200 TND</span>
+      </div>
+      <div class="cost-category">
+        <span>Cosmetic Work</span>
+        <span>2,800 TND</span>
+      </div>
+      <div class="cost-category total">
+        <span>Total</span>
+        <span>8,000 TND</span>
+      </div>
+    </div>
+
+    <div class="payment-tracking">
+      <h4>Payment Progress</h4>
+      <div class="payment-phase">
+        <span>Deposit Paid</span>
+        <div class="progress-bar" style="width: 30%"></div>
+        <span>1,500/5,000 TND</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plan Actions -->
+  <div class="plan-actions">
+    <button class="btn btn-icon">
+      <i class="bi bi-calendar2-plus"></i> Schedule Phase
+    </button>
+    <button class="btn btn-icon">
+      <i class="bi bi-printer"></i> Print Full Plan
+    </button>
+    <button class="btn btn-icon">
+      <i class="bi bi-share"></i> Share with Lab
+    </button>
+  </div>
+
+
+</div>

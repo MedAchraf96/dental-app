@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dental Practice Management System">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>{% block title %}Dental Practice{% endblock %}</title>
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <!-- Preload CSS for better performance -->
+    <link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+</head>
+
+<body class="{% if hide_nav %}hide-nav{% endif %}">
+
+    <!-- Theme/State initialization script (no flicker) -->
+    <script>
+        (function () {
+            if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                document.body.classList.add('sidebar-collapsed');
+            }
+        })();
+    </script>
+
+    {% if not hide_nav %}
+    <!-- Navigation -->
+    <nav class="main-nav" aria-label="Main navigation">
+        <div class="nav-brand">
+            <div class="brand-logo">
+                <svg width="1em" height="1em" viewBox="0 0 512 512" fill="currentColor" class="bi bi-tooth"
+                    aria-hidden="true">
+                    <path
+                        d="M292.7 16.9c-23 11.9-50.5 11.9-73.5 0C119.8-34.6.5 38 .5 150c0 70.5 58.5 362 149.9 362 32 0 61.2-32.7 89.2-100 6-14.5 26.8-14.5 32.8 0 28 67.3 57.1 100 89.2 100 90.5 0 149.9-289.2 149.9-362C511.5 38 392.2-34.7 292.7 16.9z" />
+                    <path
+                        d="M361.6 485.3c-19 0-42.5-30.4-64.6-83.5-15.2-36.5-66.9-36.5-82.1 0-22 53-45.6 83.5-64.6 83.5-58.4 0-123.2-252.5-123.2-335.3 0-92.2 98.2-151.7 179.7-109.4 30.7 15.9 67.4 15.9 98.1 0 81.5-42.3 179.7 17.1 179.7 109.4.1 82.8-64.7 335.7-123.1 335.7z"
+                        opacity="0.2" />
+                </svg>
+                <span class="brand-text">Dental Practice</span>
+            </div>
+            <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Toggle Sidebar">
+                <i class="bi bi-list"></i>
+            </button>
+        </div>
+        <ul class="nav-links">
+            <li>
+                <a href="{{ url_for('dashboard.dashboard_home') }}" class="nav-link" title="Dashboard">
+                    <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('patient.home') }}" class="nav-link" title="Patients">
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    <span class="nav-text">Patients</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('appointment.list_appointments') }}" class="nav-link" title="Appointments">
+                    <i class="bi bi-calendar-check" aria-hidden="true"></i>
+                    <span class="nav-text">Appointments</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('calendar_api.dashboard') }}" class="nav-link" title="Calendar">
+                    <i class="bi bi-calendar" aria-hidden="true"></i>
+                    <span class="nav-text">Calendar</span>
+                </a>
+            </li>
+            <li class="nav-spacer" aria-hidden="true"></li>
+            <li>
+                <a href="{{ url_for('finance.finance_page') }}" class="nav-link" title="Finance">
+                    <i class="bi bi-currency-exchange" aria-hidden="true"></i>
+                    <span class="nav-text">Finance</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('auth.logout') }}" class="nav-link" title="Logout">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="content-area {% if hide_nav %}full-width{% endif %}" id="main-content">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container" role="alert" aria-live="polite">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                <p>{{ message }}</p>
+                <button class="close-flash" aria-label="Close message">&times;</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Flash messages handling
+            const flashes = document.querySelectorAll('.alert');
+            flashes.forEach(flash => {
+                // Set timeout for auto-dismiss
+                const dismissTimer = setTimeout(() => {
+                    flash.style.transition = 'opacity 0.5s';
+                    flash.style.opacity = '0';
+                    setTimeout(() => flash.remove(), 500);
+                }, 5000);
+
+                // Clear timeout if user interacts with the message
+                flash.addEventListener('mouseenter', () => {
+                    clearTimeout(dismissTimer);
+                });
+
+                flash.addEventListener('mouseleave', () => {
+                    setTimeout(() => {
+                        flash.style.transition = 'opacity 0.5s';
+                        flash.style.opacity = '0';
+                        setTimeout(() => flash.remove(), 500);
+                    }, 3000);
+                });
+            });
+
+            // Close button functionality
+            document.querySelectorAll('.close-flash').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const alert = e.target.closest('.alert');
+                    alert.style.transition = 'opacity 0.3s';
+                    alert.style.opacity = '0';
+                    setTimeout(() => alert.remove(), 300);
+                });
+            });
+
+            // Set active nav link
+            const navLinks = document.querySelectorAll('.nav-link');
+            if (navLinks.length > 0) {
+                const currentPath = window.location.pathname;
+                navLinks.forEach(link => {
+                    if (link.getAttribute('href') === currentPath) {
+                        link.classList.add('active');
+                        link.setAttribute('aria-current', 'page');
+                    }
+                });
+            }
+
+            // Sidebar Collapse Functionality
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const body = document.body;
+
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function () {
+                    // Only allow toggle if we're not in mobile view (> 992px)
+                    if (window.innerWidth > 992) {
+                        body.classList.toggle('sidebar-collapsed');
+                        // Save preference
+                        localStorage.setItem('sidebar-collapsed', body.classList.contains('sidebar-collapsed'));
+                    }
+                });
+            }
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

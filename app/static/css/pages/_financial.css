@@ -1,0 +1,46 @@
+/* ======================
+   FINANCIAL PAGE STYLES
+   ====================== */
+.financial-container .financial-summary {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.financial-container .summary-card {
+    flex: 1;
+    padding: 15px;
+    border-radius: 5px;
+    background: #f8f9fa;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.financial-container .summary-card h3 {
+    margin-top: 0;
+    color: #555;
+}
+
+.financial-container .amount {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.financial-container .balance-due {
+    background: #fff8f8;
+    border-left: 4px solid #dc3545;
+}
+
+.financial-container .text-danger {
+    color: #dc3545;
+}
+
+.financial-container .text-success {
+    color: #28a745;
+}
+
+.financial-container .add-transaction-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 30px;
+}

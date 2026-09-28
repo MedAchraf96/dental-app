@@ -1,0 +1,179 @@
+/* ======================
+   PATIENT MANAGEMENT STYLES
+   ====================== */
+
+/* Container Structure */
+.patients-container {
+    width: 100%;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+
+/* Header Styles */
+.section-header {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Action Buttons */
+.patient-actions {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;  /* Stack vertically */
+    gap: 1rem;
+}
+
+.patient-actions > *:first-child {
+    align-self: flex-end;  /* Left-align first item */
+}
+
+.patient-actions > *:last-child {
+    align-self: flex-start;    /* Right-align last item */
+}
+
+/* Form Styles */
+.patient-form.card {
+    max-width: 800px;
+    margin: 0 auto 2rem;
+    box-shadow: var(--box-shadow);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+}
+
+.patient-form h2 {
+    color: var(--primary-color);
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+.form-group input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: var(--box-shadow);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+
+/* Action Buttons in Table */
+.actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.btn-edit {
+    background-color: var(--edit-color);
+    color: white;
+}
+
+.btn-edit:hover {
+    background-color: var(--edit-hover);
+}
+
+.btn-delete {
+    background-color: var(--danger-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+.btn-delete:hover {
+    background-color: var(--danger-hover);
+}
+/* View button styles */
+.btn-view {
+    background-color: hsl(262, 47%, 48%);
+    color: white;
+    line-height: inherit;
+}
+
+.btn-view:hover {
+    background-color: hsl(262, 47%, 40%);
+}
+
+.btn-view svg {
+    width: 16px;
+    height: 16px;
+}
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--muted-text);
+}
+
+.empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--muted-icon);
+}
+
+.empty-state p {
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.empty-state a {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+  #add-patient {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    transition: background-color 0.3s ease;
+    display: block;
+    margin: 15px auto 0;
+    width: fit-content;
+    box-shadow: var(--box-shadow);
+  }
+  
+  #add-patient:hover {
+    background-color: var(--primary-hover);
+    box-shadow: var(--box-shadow);
+  }

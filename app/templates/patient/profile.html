@@ -1,0 +1,91 @@
+{% extends "patient/patient_base.html" %}
+
+{% block patient_content %}
+<div class="patient-profile-container">
+    <div class="profile-header">
+        <h1>{{ patient.full_name }}</h1>
+        <div class="patient-meta">
+            <span>Patient ID: {{ patient.id }}</span>
+            {% if patient.gender %}
+                <span> | Gender: {{ patient.gender }}</span>
+            {% endif %}
+            {% if patient.date_of_birth %}
+                <span> | Age: {{ patient.age }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="profile-section">
+        <h2>Contact Information</h2>
+        <div class="profile-grid">
+            <div class="profile-item">
+                <span class="label">Phone:</span>
+                <span class="value">{{ patient.phone }}</span>
+            </div>
+            <div class="profile-item">
+                <span class="label">Email:</span>
+                <span class="value">{{ patient.email or 'N/A' }}</span>
+            </div>
+            <div class="profile-item">
+                <span class="label">Date of Birth:</span>
+                <span class="value">
+                    {{ patient.date_of_birth.strftime('%d/%m/%Y') if patient.date_of_birth else 'N/A' }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-section">
+        <h2>Medical Information</h2>
+        <div class="profile-grid">
+            {% if patient.insurance_provider %}
+            <div class="profile-item">
+                <span class="label">Insurance:</span>
+                <span class="value">{{ patient.insurance_provider }}</span>
+            </div>
+            {% endif %}
+            <div class="profile-item">
+                <span class="label">Allergies:</span>
+                <span class="value">{{ patient.allergies or 'None reported' }}</span>
+            </div>
+            <div class="profile-item">
+                <span class="label">Medical History:</span>
+                <span class="value">{{ patient.medical_history or 'None reported' }}</span>
+            </div>
+        </div>
+    </div>
+    {% if patient.notes %}
+    <div class="profile-section">
+        <h2>Notes</h2>
+        <div class="notes-content">
+            {{ patient.notes }}
+        </div>
+    </div>
+    {% endif %}
+    <div class="profile-section">
+        <h2>Upcoming Appointments</h2>
+        {% if upcoming_appointments %}
+            <table class="appointments-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Dentist</th>
+                        <th>Treatment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in upcoming_appointments %}
+                    <tr>
+                        <td>{{ appt.start_time.strftime('%m/%d/%Y %I:%M %p') }}</td>
+                        <td>{{ appt.dentist.name }}</td>
+                        <td>{{ appt.treatment_type }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No upcoming appointments scheduled.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

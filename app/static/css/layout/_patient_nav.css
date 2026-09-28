@@ -1,0 +1,76 @@
+.patient-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 20px;
+    gap: 5px;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    color: var(--muted-text);
+    text-decoration: none;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    transition: var(--transition);
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: none;
+    font-size: 0.95rem;
+}
+
+.tab-btn:hover {
+    color: var(--primary-color);
+    background-color: rgba(34, 115, 168, 0.05);
+}
+
+.tab-btn.active {
+    color: var(--primary-color);
+    background-color: white;
+    border-color: var(--border-color);
+    border-bottom-color: white;
+    position: relative;
+    top: 1px;
+    font-weight: 500;
+}
+
+.tab-btn i {
+    font-size: 1.1rem;
+    color: var(--muted-icon);
+}
+
+.tab-btn:hover i,
+.tab-btn.active i {
+    color: var(--primary-color);
+}
+
+.patient-content {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 25px;
+    flex-grow: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .patient-tabs {
+         padding: 15px 30px;
+    }
+    
+    .tab-btn span {
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 768px) {
+    .patient-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .tab-btn {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+    }
+}

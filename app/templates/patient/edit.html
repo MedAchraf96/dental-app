@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}{% if patient %}Edit{% else %}Add{% endif %} Patient - Dental Practice{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="patient-form card">
+    <h2>
+      <i class="bi bi-person-{% if patient %}pencil{% else %}plus{% endif %}"></i>
+      {% if patient %}Edit Patient #{{ patient.id }}{% else %}Add New Patient{% endif %}
+    </h2>
+    
+    <form method="POST" action="{% if patient %}{{ url_for('patient.update_patient', id=patient.id) }}{% else %}{{ url_for('patient.add_patient_route') }}{% endif %}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="first_name">First Name*</label>
+          <input type="text" id="first_name" name="first_name" 
+                 value="{{ patient.first_name if patient }}" 
+                 placeholder="First Name" required>
+        </div>
+        <div class="form-group">
+          <label for="last_name">Last Name*</label>
+          <input type="text" id="last_name" name="last_name" 
+                 value="{{ patient.last_name if patient }}" 
+                 placeholder="Last Name" required>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="date_of_birth">Date of Birth</label>
+          <input type="date" id="date_of_birth" name="date_of_birth" 
+                 value="{% if patient and patient.date_of_birth %}{{ patient.date_of_birth.strftime('%Y-%m-%d') }}{% endif %}">
+        </div>
+        
+        <div class="form-group">
+          <label for="gender">Gender</label>
+          <select id="gender" name="gender">
+            <option value="">Select Gender</option>
+            <option value="male" {% if patient and patient.gender == 'male' %}selected{% endif %}>Male</option>
+            <option value="female" {% if patient and patient.gender == 'female' %}selected{% endif %}>Female</option>
+            <option value="other" {% if patient and patient.gender == 'other' %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="phone">Phone*</label>
+          <input type="tel" id="phone" name="phone" 
+                 value="{{ patient.phone if patient }}" 
+                 placeholder="Phone Number" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" 
+                 value="{{ patient.email if patient }}" 
+                 placeholder="Email Address">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="insurance_provider">Insurance Provider</label>
+        <input type="text" id="insurance_provider" name="insurance_provider" 
+               value="{{ patient.insurance_provider if patient }}" 
+               placeholder="Insurance Provider">
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="allergies">Allergies</label>
+          <textarea id="allergies" name="allergies" 
+                    placeholder="List any allergies">{{ patient.allergies if patient }}</textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="medical_history">Medical History</label>
+          <textarea id="medical_history" name="medical_history" 
+                    placeholder="Medical history notes">{{ patient.medical_history if patient }}</textarea>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="notes">Additional Notes</label>
+        <textarea id="notes" name="notes" 
+                  placeholder="Other notes about the patient">{{ patient.notes if patient }}</textarea>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-save"></i> {% if patient %}Update{% else %}Add{% endif %} Patient
+        </button>
+        <a href="{% if patient %}{{ url_for('patient.profile', patient_id=patient.id) }}{% else %}{{ url_for('patient.home') }}{% endif %}" 
+           class="btn btn-secondary">
+          <i class="bi bi-x-circle"></i> Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

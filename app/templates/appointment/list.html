@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Appointments Management{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+    <header class="page-header">
+        <div class="header-content">
+            <h1><i class="bi bi-calendar-check"></i> Appointments</h1>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('calendar_api.dashboard') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">New Appointment</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Bulk Actions Toolbar (hidden by default) -->
+    <div class="bulk-actions-toolbar card mb-3" style="display:none;">
+        <div class="card-body py-2">
+            <form method="POST" action="{{ url_for('appointment.bulk_hard_delete_appointment') }}"
+                id="bulk-delete-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <!-- Hidden container for dynamic appointment IDs -->
+                <div id="bulk-ids-container"></div>
+                <div class="d-flex align-items-center">
+                    <span class="selected-count fw-bold me-2">0</span> selected
+                    <div class="ms-auto">
+                        {% if current_user.is_authenticated and current_user.role.lower() in ['dentist', 'admin'] %}
+                        <button type="submit" class="btn btn-sm btn-danger bulk-delete-btn"
+                            onclick="return confirmBulkDelete()">
+                            <i class="bi bi-trash me-1"></i> Delete Selected
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="bulk-ids-container" style="display:none;"></div>
+
+
+    <!-- Filter Card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2">
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select id="status" name="status" class="form-select form-select-sm">
+                        <option value="all" {% if status_filter=='all' %}selected{% endif %}>All Statuses</option>
+                        <option value="scheduled" {% if status_filter=='scheduled' %}selected{% endif %}>Scheduled
+                        </option>
+                        <option value="completed" {% if status_filter=='completed' %}selected{% endif %}>Completed
+                        </option>
+                        <option value="cancelled" {% if status_filter=='cancelled' %}selected{% endif %}>Cancelled
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="from" class="form-label">From</label>
+                    <input type="date" id="from" name="from" class="form-control form-control-sm"
+                        value="{{ date_from }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="to" class="form-label">To</label>
+                    <input type="date" id="to" name="to" class="form-control form-control-sm" value="{{ date_to }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-funnel me-1"></i> Filter
+                    </button>
+                    <a href="{{ url_for('appointment.list_appointments') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Appointments Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="select-all" class="form-check-input">
+                            </th>
+                            <th>Patient</th>
+                            <th>Date & Time</th>
+                            <th>Status</th>
+                            <th>Notes</th>
+                            <th class="text-end" style="width: 150px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if appointments %}
+                        {% for appointment in appointments %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="form-check-input appointment-checkbox"
+                                    value="{{ appointment.id }}">
+                            </td>
+                            <td>
+                                <strong>{{ appointment.patient.first_name }} {{ appointment.patient.last_name
+                                    }}</strong>
+                            </td>
+                            <td>
+                                <div>{{ appointment.start_time.strftime('%b %d, %Y') }}</div>
+                                <small class="text-muted">{{ appointment.start_time.strftime('%I:%M %p') }} - {{
+                                    appointment.end_time.strftime('%I:%M %p') }}</small>
+                            </td>
+                            <td>
+                                <span class="badge status-{{ appointment.status }}">
+                                    {{ appointment.status|title }}
+                                </span>
+                            </td>
+                            <td class="text-truncate" style="max-width: 200px;">
+                                {{ appointment.notes or '--' }}
+                            </td>
+                            <td>
+                                <div class="appointment-actions">
+                                    {% if appointment.status == 'scheduled' %}
+                                    <a href="{{ url_for('calendar_api.dashboard') }}?appt={{ appointment.id }}"
+                                        class="btn btn-sm btn-outline-primary" title="View in Calendar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form method="POST"
+                                        action="{{ url_for('appointment.cancel_appointment', appointment_id=appointment.id) }}"
+                                        class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            title="Cancel Appointment">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+
+                                    {% if current_user.is_authenticated and current_user.role.lower() in ['dentist',
+                                    'admin'] %}
+                                    <form method="POST"
+                                        action="{{ url_for('appointment.hard_delete_appointment', appointment_id=appointment.id) }}"
+                                        class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger"
+                                            onclick="return confirm('Permanently delete this appointment?')"
+                                            title="Delete Permanently">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="bi bi-calendar-x me-2"></i> No appointments found
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            {% if pagination %}
+            <div class="card-footer">
+                <nav aria-label="Appointment pagination">
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="{{ url_for('appointment.list_appointments', page=pagination.prev_num, status=status_filter, from=date_from, to=date_to) }}">
+                                &laquo;
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">&laquo;</span>
+                        </li>
+                        {% endif %}
+
+                        {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                        {% if page_num == pagination.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="{{ url_for('appointment.list_appointments', page=page_num, status=status_filter, from=date_from, to=date_to) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="{{ url_for('appointment.list_appointments', page=pagination.next_num, status=status_filter, from=date_from, to=date_to) }}">
+                                &raquo;
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">&raquo;</span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/appointment/list.js') }}"></script>
+{% endblock %}

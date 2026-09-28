@@ -1,0 +1,160 @@
+/* ======================
+   TEETH CHART STYLES
+   ====================== */
+.full-mouth-plan {
+    font-family: 'Segoe UI', sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.full-mouth-plan .teeth-chart-overview {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin: 20px 0;
+}
+
+.full-mouth-plan .jaw {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 15px 0;
+}
+
+.full-mouth-plan .chart-tooth {
+    width: 50px;
+    height: 80px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.full-mouth-plan .chart-tooth:hover {
+    transform: scale(1.05);
+    z-index: 2;
+}
+
+.full-mouth-plan .tooth-number {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #666;
+}
+
+.full-mouth-plan .tooth-status {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    display: flex;
+    gap: 2px;
+}
+
+.full-mouth-plan .condition-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.full-mouth-plan .caries {
+    background: #ff6b6b;
+}
+
+.full-mouth-plan .missing {
+    background: #adb5bd;
+}
+
+.full-mouth-plan .fracture {
+    background: #ffd166;
+}
+
+.full-mouth-plan .restored {
+    background: #06d6a0;
+}
+
+.full-mouth-plan .treatment-phases {
+    display: grid;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.full-mouth-plan .phase-card {
+    background: white;
+    border-left: 4px solid #2273a8;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.full-mouth-plan .phase-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.full-mouth-plan .phase-procedures {
+    display: grid;
+    gap: 10px;
+}
+
+.full-mouth-plan .procedure {
+    display: grid;
+    grid-template-columns: 80px 1fr 120px 100px;
+    gap: 15px;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.full-mouth-plan .status {
+    font-size: 0.9em;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.full-mouth-plan .scheduled {
+    background: #e3f2fd;
+    color: #2273a8;
+}
+
+.full-mouth-plan .completed {
+    background: #e6f7ee;
+    color: #28a745;
+}
+
+.full-mouth-plan .pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.full-mouth-plan .financial-overview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin: 20px 0;
+}
+
+.full-mouth-plan .cost-category {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.full-mouth-plan .plan-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.full-mouth-plan .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 8px;
+}

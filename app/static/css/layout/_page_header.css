@@ -1,0 +1,58 @@
+/* ======================
+   STANDARD PAGE HEADER
+   ====================== */
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn 0.5s ease-out;
+}
+
+.page-header .header-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.page-header h1 {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    font-size: 1.75rem;
+    color: var(--secondary);
+    font-weight: 600;
+}
+
+.page-header h1 i {
+    color: var(--primary);
+}
+
+.page-header .header-meta {
+    margin-top: 0.5rem;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.page-header .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .page-header .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}

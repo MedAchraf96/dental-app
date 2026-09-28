@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Dental Practice{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <header class="page-header">
+        <div class="header-content">
+            <h1><i class="bi bi-speedometer2"></i> Dashboard</h1>
+            <div class="header-meta">
+                <span class="badge bg-primary">{{ user.role|title }}</span>
+                <span class="ms-2">Welcome, {{ user.name }}</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <!-- Add any dashboard-specific actions here if needed -->
+        </div>
+    </header>
+
+    <section class="stats-grid">
+        <div class="stat-card">
+            <a href="{{ url_for('patient.home') }}" class="stat-card clickable-card">
+                <div class="stat-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Total Patients</h3>
+                    <p>{{ stats.total_patients }}</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="stat-card">
+            <a href="{{ url_for('calendar_api.dashboard') }}" class="stat-card clickable-card">
+                <div class="stat-icon">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ stats.appointments_date_label }} Appointments</h3>
+                    <p>{{ stats.appointments|length }}</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="stat-card">
+            <a href="{{ url_for('appointment.list_appointments') }}" class="stat-card clickable-card">
+                <div class="stat-icon">
+                    <i class="bi bi-calendar-plus"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Upcoming</h3>
+                    <p>{{ stats.upcoming_appointments }}</p>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <section class="appointments-section">
+        <div class="section-header">
+            <h2><i class="bi bi-list-check"></i> {{ stats.appointments_date_label }} Appointments</h2>
+            <span class="date-display">
+                {% if stats.appointments_date_label == "Today's" %}
+                {{ now.strftime('%A, %B %d, %Y') }}
+                {% else %}
+                {{ (now + timedelta(days=1)).strftime('%A, %B %d, %Y') }}
+                {% endif %}
+            </span>
+        </div>
+
+        {% if stats.appointments %}
+        <div class="appointments-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Patient</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in stats.appointments %}
+                    <tr>
+                        <td>{{ appt.start_time.strftime('%I:%M %p') }}</td>
+                        <td>
+                            <strong>{{ appt.patient.first_name }} {{ appt.patient.last_name }}</strong>
+                            <small>{{ appt.patient.phone }}</small>
+                        </td>
+                        <td>{{ appt.treatment_type }}</td>
+                        <td>
+                            <span class="status-badge {{ appt.status }}">
+                                {{ appt.status|title }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="no-appointments">
+            <i class="bi bi-calendar-x"></i>
+            <p>{{ stats.no_appointments_message or "No appointments scheduled" }}</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+﻿flask==2.3.2
+flask-sqlalchemy==3.0.3
+flask-login==0.6.2
+flask-migrate==4.0.4
+flask-cors==3.0.10
+flask-wtf>=1.1.1
+python-dotenv==1.0.0
+werkzeug>=2.3.7
+sqlalchemy>=2.0.19
+pywin32>=300 ; sys_platform == 'win32'

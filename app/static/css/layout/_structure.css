@@ -1,0 +1,32 @@
+.content-area {
+    margin-left: 0;
+    padding: 20px;
+    min-height: 100vh;
+    transition: margin-left var(--transition), width var(--transition);
+    width: 100%;
+}
+
+body:not(.hide-nav) .content-area {
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+}
+
+@media (min-width: 993px) {
+    body:not(.hide-nav).sidebar-collapsed .content-area {
+        margin-left: var(--sidebar-collapsed-width);
+        width: calc(100% - var(--sidebar-collapsed-width));
+    }
+}
+
+@media (min-width: 993px) {
+    body {
+        overflow-x: hidden;
+    }
+}
+
+body.hide-nav .content-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar - Dental Practice{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <header class="page-header">
+        <div class="header-content">
+            <h1><i class="bi bi-calendar"></i> Calendar</h1>
+        </div>
+        <div class="header-actions">
+            <button id="add-appointment-header" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">Add Appointment</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="calendar-controls mb-3 d-flex justify-content-between align-items-center bg-light p-2 rounded">
+        <button id="prev-week" class="btn btn-outline-secondary">◀ <span class="d-none d-sm-inline">Previous
+                Week</span></button>
+        <h4 class="m-0 range-display d-flex align-items-center">
+            <i class="bi bi-calendar3 me-2" id="calendar-icon-nav" style="cursor: pointer;"></i>
+            <span id="week-range">Loading calendar...</span>
+            <input type="date" id="calendar-jump-date"
+                style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;">
+        </h4>
+        <button id="next-week" class="btn btn-outline-secondary"><span class="d-none d-sm-inline">Next Week</span>
+            ▶</button>
+    </div>
+
+    <div class="day-labels" id="day-labels"></div>
+
+    <div class="time-grid" id="calendar">
+        <div class="loading-message">
+            <i class="bi bi-calendar-event"></i>
+            <p>Loading appointments...</p>
+        </div>
+    </div>
+
+
+</div>
+
+<div id="appointmentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="appointmentModalTitle"><i class="bi bi-calendar-plus"></i> New Appointment</h2>
+            <span class="close">&times;</span>
+        </div>
+
+        <form id="appointmentForm">
+            <div class="modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                    <label for="patientSearch">Search Patient</label>
+                    <div class="patient-select-container" id="patientSearchContainer">
+                        <input type="text" id="patientSearch" placeholder="Type to search patients..."
+                            autocomplete="off">
+                        <div id="patientDropdown" class="dropdown-content"></div>
+                        <input type="hidden" id="patientId" name="patient_id">
+                    </div>
+                    <div class="patient-details" id="selectedPatientInfo" style="margin-top: 10px;">
+                        <p><strong>Selected Patient:</strong> <span id="patientFullName"></span></p>
+                        <p><strong>Phone:</strong> <span id="patientPhone"></span></p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="treatmentType">Treatment Type</label>
+                    <input type="text" id="treatmentType" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="appointmentDate">Date</label>
+                        <input type="date" id="appointmentDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="startTime">Start Time</label>
+                        <select id="startTime" required>
+                            <option value="09:00">09:00 AM</option>
+                            <option value="09:15">09:15 AM</option>
+                            <option value="09:30">09:30 AM</option>
+                            <option value="09:45">09:45 AM</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="10:15">10:15 AM</option>
+                            <option value="10:30">10:30 AM</option>
+                            <option value="10:45">10:45 AM</option>
+                            <option value="11:00">11:00 AM</option>
+                            <option value="11:15">11:15 AM</option>
+                            <option value="11:30">11:30 AM</option>
+                            <option value="11:45">11:45 AM</option>
+                            <option value="13:00">01:00 PM</option>
+                            <option value="13:15">01:15 PM</option>
+                            <option value="13:30">01:30 PM</option>
+                            <option value="13:45">01:45 PM</option>
+                            <option value="14:00">02:00 PM</option>
+                            <option value="14:15">02:15 PM</option>
+                            <option value="14:30">02:30 PM</option>
+                            <option value="14:45">02:45 PM</option>
+                            <option value="15:00">03:00 PM</option>
+                            <option value="15:15">03:15 PM</option>
+                            <option value="15:30">03:30 PM</option>
+                            <option value="15:45">03:45 PM</option>
+                            <option value="16:00">04:00 PM</option>
+                            <option value="16:15">04:15 PM</option>
+                            <option value="16:30">04:30 PM</option>
+                            <option value="16:45">04:45 PM</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="duration">Duration (min)</label>
+                        <select id="duration" required>
+                            <option value="15">15 min</option>
+                            <option value="30" selected>30 min</option>
+                            <option value="45">45 min</option>
+                            <option value="60">1 hour</option>
+                            <option value="75">1h 15m</option>
+                            <option value="90">1.5 hours</option>
+                            <option value="105">1h 45m</option>
+                            <option value="120">2 hours</option>
+                        </select>
+                        <small id="runwayHint" class="form-text text-muted"
+                            style="display: block; margin-top: 4px; font-size: 0.8rem;"></small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" id="deleteAppointmentBtn" class="btn btn-danger" style="display: none;">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+                <button type="button" id="completeAppointmentBtn" class="btn btn-success" style="display: none;">
+                    <i class="bi bi-check-circle"></i> Complete
+                </button>
+                <button type="button" class="btn-secondary cancel-btn">Cancel</button>
+                <button type="submit" class="btn-primary save-btn">Save Appointment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Error container (initially hidden) -->
+<div id="error-container" class="connection-error" style="display: none;">
+    <div class="error-content">
+        <i class="bi bi-exclamation-triangle"></i>
+        <h3>Connection Error</h3>
+        <p id="error-message">Could not connect to the server.</p>
+        <button onclick="window.location.reload()" class="btn-primary">
+            <i class="bi bi-arrow-clockwise"></i> Try Again
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/calendar/main.js') }}"></script>
+{% endblock %}

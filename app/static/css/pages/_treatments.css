@@ -1,0 +1,261 @@
+/* ======================
+   TREATMENTS MOCKUP STYLES
+   ====================== */
+.treatments-mockup {
+    padding: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.treatments-mockup .treatments-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.treatments-mockup .header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.treatments-mockup .timeline-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 25px;
+    box-shadow: var(--box-shadow);
+    margin-bottom: 30px;
+}
+
+.treatments-mockup .timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.treatments-mockup .view-options {
+    display: flex;
+    gap: 15px;
+    background: #f5f5f5;
+    padding: 5px;
+    border-radius: 30px;
+}
+
+.treatments-mockup .view-options span {
+    padding: 5px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.treatments-mockup .view-options span.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.treatments-mockup .timeline {
+    position: relative;
+    padding-left: 40px;
+}
+
+.treatments-mockup .timeline::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e0e0e0;
+}
+
+.treatments-mockup .timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px dashed #eee;
+}
+
+.treatments-mockup .timeline-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.treatments-mockup .timeline-badge {
+    position: absolute;
+    left: -40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.treatments-mockup .timeline-item.upcoming .timeline-badge {
+    background: var(--primary-color);
+}
+
+.treatments-mockup .timeline-item.plan .timeline-badge {
+    background: #17a2b8;
+}
+
+.treatments-mockup .timeline-item.completed .timeline-badge {
+    background: #28a745;
+}
+
+.treatments-mockup .timeline-content {
+    padding-left: 20px;
+}
+
+.treatments-mockup .timeline-date {
+    font-size: 0.9rem;
+    color: var(--muted-text);
+    margin-bottom: 5px;
+}
+
+.treatments-mockup .timeline-meta {
+    display: flex;
+    gap: 15px;
+    margin: 10px 0;
+    font-size: 0.9rem;
+    color: var(--muted-text);
+}
+
+.treatments-mockup .timeline-meta i {
+    margin-right: 3px;
+}
+
+.treatments-mockup .timeline-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 8px;
+}
+
+.treatments-mockup .plan-progress {
+    margin: 15px 0;
+}
+
+.treatments-mockup .progress-bar {
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    margin-top: 5px;
+}
+
+.treatments-mockup .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--primary-color);
+}
+
+.treatments-mockup .plan-procedures {
+    margin: 15px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.treatments-mockup .procedure {
+    font-size: 0.95rem;
+    padding: 5px 10px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.treatments-mockup .procedure.completed {
+    color: #28a745;
+}
+
+.treatments-mockup .procedure.upcoming {
+    color: var(--muted-text);
+}
+
+.treatments-mockup .treatment-notes {
+    font-size: 0.9rem;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin: 10px 0;
+    border-left: 3px solid var(--primary-color);
+}
+
+.treatments-mockup .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.treatments-mockup .stat-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: var(--box-shadow);
+}
+
+.treatments-mockup .stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.treatments-mockup .stat-icon.upcoming {
+    background: var(--primary-color);
+}
+
+.treatments-mockup .stat-icon.active {
+    background: #17a2b8;
+}
+
+.treatments-mockup .stat-icon.completed {
+    background: #28a745;
+}
+
+.treatments-mockup .stat-icon.revenue {
+    background: #6f42c1;
+}
+
+.treatments-mockup .stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.treatments-mockup .stat-label {
+    font-size: 0.9rem;
+    color: var(--muted-text);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .treatments-mockup .treatments-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .treatments-mockup .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .treatments-mockup .view-options {
+        display: none;
+        /* Switch to dropdown on mobile */
+    }
+
+    .treatments-mockup .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
