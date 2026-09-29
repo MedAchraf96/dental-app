@@ -29,8 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const getCsrfToken = () => {
         const meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
-
     };
+
     document.querySelectorAll('.finance-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             window.switchTab(btn.getAttribute('data-tab'));
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // 2. DASHBOARD LOGIC (New Executive Layout)
+    // 2. DASHBOARD LOGIC (Executive Layout)
     // ==========================================
     let globalMonthlyData = [];
     let currentChartTimeframe = 'this_year';
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/api/finance/dashboard')
             .then(res => res.json())
             .then(data => {
-                globalMonthlyData = data.monthly_data;
+                globalMonthlyData = data.monthly_data || [];
                 const fmt = (amt) => new Intl.NumberFormat('en-TN', { style: 'currency', currency: 'TND' }).format(amt);
 
                 container.innerHTML = `
@@ -64,19 +64,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             <!-- Total Liquidity (Hero) -->
                             <div style="text-align: center; flex: 1; border-right: 1px solid #e5e7eb; padding-right: 20px;">
                                 <div style="color: #666; font-size: 13px; font-weight: bold; text-transform: uppercase;">Total Liquidity</div>
-                                <div style="font-size: 36px; font-weight: bold; color: #10b981; margin: 5px 0;">${fmt(data.total_liquidity)}</div>
+                                <div style="font-size: clamp(24px, 4vw, 36px); font-weight: bold; color: #10b981; margin: 5px 0;">${fmt(data.total_liquidity)}</div>
                             </div>
 
                             <!-- Cash & Bank (Compact Entries) -->
-                            <div style="flex: 1; min-width: 200px; padding-left: 20px; display: flex; flex-direction: column; gap: 15px;">                                <!-- Cash Entry -->
+                            <div style="flex: 1.2; min-width: 200px; padding-left: 20px; display: flex; flex-direction: column; gap: 15px;">
+                                <!-- Cash Entry -->
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div>
                                         <div style="color: #666; font-size: 11px; font-weight: bold; text-transform: uppercase;">Cash on Hand</div>
-                                        <div id="cash-display" style="font-size: 18px; font-weight: bold; color: #059669;">${fmt(data.cash_on_hand)}</div>
+                                        <div id="cash-display" style="font-size: clamp(14px, 2vw, 18px); font-weight: bold; color: #059669; white-space: nowrap;">${fmt(data.cash_on_hand)}</div>
                                     </div>
                                     <button id="edit-cash-btn" style="background: none; border: none; color: #999; cursor: pointer; font-size: 14px;">✏️</button>
                                     <form id="cash-form" style="display: none; gap: 5px;">
-                                        <input type="number" id="input-cash" name="cash_on_hand" step="0.01" value="${data.cash_on_hand}" aria-label="Cash on Hand" style="width: 80px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;" required>
+                                        <input type="number" id="input-cash" name="cash_on_hand" step="0.01" value="${data.cash_on_hand}" aria-label="Cash on Hand" style="width: 90px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;" required>
                                         <button type="submit" style="padding: 5px 10px; font-size: 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
                                     </form>
                                 </div>
@@ -85,11 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div>
                                         <div style="color: #666; font-size: 11px; font-weight: bold; text-transform: uppercase;">Bank Account</div>
-                                        <div id="bank-display" style="font-size: 18px; font-weight: bold; color: #059669;">${fmt(data.bank_account)}</div>
+                                        <div id="bank-display" style="font-size: clamp(14px, 2vw, 18px); font-weight: bold; color: #059669; white-space: nowrap;">${fmt(data.bank_account)}</div>
                                     </div>
-                                    <button id="edit-bank-btn" style="background: none; border: none; color: #999; cursor: pointer; font-size: 14px;">️</button>
+                                    <button id="edit-bank-btn" style="background: none; border: none; color: #999; cursor: pointer; font-size: 14px;">✏️</button>
                                     <form id="bank-form" style="display: none; gap: 5px;">
-                                        <input type="number" id="input-bank" name="bank_account" step="0.01" value="${data.bank_account}" aria-label="Bank Account" style="width: 80px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;" required>
+                                        <input type="number" id="input-bank" name="bank_account" step="0.01" value="${data.bank_account}" aria-label="Bank Account" style="width: 90px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;" required>
                                         <button type="submit" style="padding: 5px 10px; font-size: 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
                                     </form>
                                 </div>
@@ -103,29 +104,26 @@ document.addEventListener('DOMContentLoaded', () => {
                             <!-- Net Profit (Hero) -->
                             <div style="text-align: center; flex: 1; border-right: 1px solid #e5e7eb; padding-right: 20px;">
                                 <div style="color: #666; font-size: 13px; font-weight: bold; text-transform: uppercase;">Current Year Net Profit</div>
-                                <div style="font-size: 36px; font-weight: bold; color: ${data.current_year_net_profit >= 0 ? '#10b981' : '#ef4444'}; margin: 5px 0;">${fmt(data.current_year_net_profit)}</div>
+                                <div style="font-size: clamp(24px, 4vw, 36px); font-weight: bold; color: ${data.current_year_net_profit >= 0 ? '#10b981' : '#ef4444'}; margin: 5px 0;">${fmt(data.current_year_net_profit)}</div>
                             </div>
 
                             <!-- Income & Expenses (Compact Entries) -->
-                            <div style="flex: 1; min-width: 200px; padding-left: 20px; display: flex; flex-direction: column; gap: 15px;">                                <!-- Income Entry -->
+                            <div style="flex: 1.2; min-width: 200px; padding-left: 20px; display: flex; flex-direction: column; gap: 15px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div>
                                         <div style="color: #666; font-size: 11px; font-weight: bold; text-transform: uppercase;">Total Income</div>
-                                        <div style="font-size: 18px; font-weight: bold; color: #1e3a8a;">${fmt(data.current_year_revenue)}</div>
+                                        <div style="font-size: clamp(14px, 2vw, 18px); font-weight: bold; color: #1e3a8a; white-space: nowrap;">${fmt(data.current_year_revenue)}</div>
                                     </div>
                                 </div>
-
-                                <!-- Expenses Entry -->
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div>
                                         <div style="color: #666; font-size: 11px; font-weight: bold; text-transform: uppercase;">Total Expenses</div>
-                                        <div style="font-size: 18px; font-weight: bold; color: #ef4444;">${fmt(data.current_year_expenses)}</div>
+                                        <div style="font-size: clamp(14px, 2vw, 18px); font-weight: bold; color: #ef4444; white-space: nowrap;">${fmt(data.current_year_expenses)}</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                 </div>
 
                 <!-- ROW 2: Chart Controls -->
@@ -152,20 +150,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
-                // Attach chart toggle listeners to the newly created buttons
+
+                // Attach listeners
                 document.getElementById('btn-this-year')?.addEventListener('click', () => setChartTimeframe('this_year'));
                 document.getElementById('btn-last-12')?.addEventListener('click', () => setChartTimeframe('last_12'));
-                if (typeof setupCashBankEditListeners === 'function') setupCashBankEditListeners();
-                updateCharts(); // Render charts with default timeframe
+                setupCashBankEditListeners();
+                updateCharts();
             })
             .catch(err => {
                 if (container) container.innerHTML = '<p style="color: red; grid-column: 1/-1;">Error loading dashboard data.</p>';
             });
     }
-    function setupCashBankEditListeners() {
-        const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-        // Helper function to setup both Cash and Bank listeners cleanly
+    function setupCashBankEditListeners() {
         const setupField = (type) => {
             const editBtn = document.getElementById(`edit-${type}-btn`);
             const form = document.getElementById(`${type}-form`);
@@ -173,7 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById(`input-${type}`);
 
             if (editBtn && form && display && input) {
-                // Show form on click
                 editBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     display.style.display = 'none';
@@ -182,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     input.focus();
                 });
 
-                // Save form on submit
                 form.addEventListener('submit', (e) => {
                     e.preventDefault();
                     const payload = {
@@ -200,17 +195,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         };
-
         setupField('cash');
         setupField('bank');
     }
 
     function setChartTimeframe(timeframe) {
         currentChartTimeframe = timeframe;
-        document.getElementById('btn-this-year').style.background = timeframe === 'this_year' ? '#3b82f6' : 'white';
-        document.getElementById('btn-this-year').style.color = timeframe === 'this_year' ? 'white' : '#666';
-        document.getElementById('btn-last-12').style.background = timeframe === 'last_12' ? '#3b82f6' : 'white';
-        document.getElementById('btn-last-12').style.color = timeframe === 'last_12' ? 'white' : '#666';
+        const btnThis = document.getElementById('btn-this-year');
+        const btnLast = document.getElementById('btn-last-12');
+
+        if (btnThis && btnLast) {
+            btnThis.style.background = timeframe === 'this_year' ? '#3b82f6' : 'white';
+            btnThis.style.color = timeframe === 'this_year' ? 'white' : '#666';
+            btnLast.style.background = timeframe === 'last_12' ? '#3b82f6' : 'white';
+            btnLast.style.color = timeframe === 'last_12' ? 'white' : '#666';
+        }
         updateCharts();
     }
 
@@ -226,44 +225,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderBarChart(data) {
         const container = document.getElementById('bar-chart-container');
-        if (!container || data.length === 0) return;
+        if (!container || !data || data.length === 0) {
+            if (container) container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No data available</p>';
+            return;
+        }
 
-        const maxVal = Math.max(...data.map(d => Math.max(d.revenue, d.expenses)), 1) * 1.1;
-        const chartHeight = 150; // Fixed pixel height
+        const maxVal = Math.max(...data.map(d => Math.max(d.revenue, d.expenses)), 100) * 1.1;
+        const chartHeight = 140;
 
         container.innerHTML = `<div style="display: flex; align-items: flex-end; justify-content: space-around; height: ${chartHeight}px; width: 100%; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">` +
             data.map(d => {
-                // Calculate pixel heights instead of percentages
-                const revH = (d.revenue / maxVal) * chartHeight;
-                const expH = (d.expenses / maxVal) * chartHeight;
+                const revH = d.revenue > 0 ? Math.max((d.revenue / maxVal) * chartHeight, 4) : 0;
+                const expH = d.expenses > 0 ? Math.max((d.expenses / maxVal) * chartHeight, 4) : 0;
+
                 return `
-            <div style="display: flex; flex-direction: column; align-items: center; flex: 1; gap: 4px;">
-                <div style="display: flex; align-items: flex-end; gap: 2px; height: ${chartHeight}px; width: 100%; justify-content: center;">
-                    <div style="width: 12px; background: #1e3a8a; border-radius: 2px 2px 0 0; height: ${Math.max(revH, 2)}px;" title="Income: ${d.revenue.toFixed(0)} TND"></div>
-                    <div style="width: 12px; background: #ef4444; border-radius: 2px 2px 0 0; height: ${Math.max(expH, 2)}px;" title="Expenses: ${d.expenses.toFixed(0)} TND"></div>
-                </div>
-                <div style="font-size: 10px; color: #666; font-weight: 500;">${d.label.split(' ')[0]}</div>
-            </div>`;
+                <div style="display: flex; flex-direction: column; align-items: center; flex: 1; gap: 4px;">
+                    <div style="display: flex; align-items: flex-end; gap: 3px; height: ${chartHeight}px; width: 100%; justify-content: center;">
+                        <div style="width: 14px; background: #1e3a8a; border-radius: 2px 2px 0 0; height: ${revH}px;" title="Income: ${d.revenue.toFixed(0)} TND"></div>
+                        <div style="width: 14px; background: #ef4444; border-radius: 2px 2px 0 0; height: ${expH}px;" title="Expenses: ${d.expenses.toFixed(0)} TND"></div>
+                    </div>
+                    <div style="font-size: 10px; color: #666; font-weight: 500;">${d.label.split(' ')[0]}</div>
+                </div>`;
             }).join('') + `</div>`;
     }
 
     function renderLineChart(data) {
         const container = document.getElementById('line-chart-container');
-        if (!container || data.length === 0) return;
+        if (!container || !data || data.length === 0) {
+            if (container) container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No data available</p>';
+            return;
+        }
 
         const width = container.clientWidth || 400;
-        const height = 180;
+        const height = 160;
         const padding = 30;
 
         const nets = data.map(d => d.net);
         const maxNet = Math.max(...nets, 0);
         const minNet = Math.min(...nets, 0);
 
-        // Add 15% breathing room to the top and bottom of the Y-axis
-        const range = maxNet - minNet || 1;
-        const yPadding = range * 0.15;
+        const rawRange = maxNet - minNet;
+        const range = rawRange === 0 ? Math.max(maxNet, 100) : rawRange;
+
+        const yPadding = range * 0.2;
         const yMax = maxNet + yPadding;
-        const yMin = minNet - yPadding;
+        const yMin = Math.min(0, minNet - yPadding);
         const yRange = yMax - yMin;
 
         const getX = (i) => padding + (i / (data.length - 1 || 1)) * (width - 2 * padding);
@@ -277,9 +283,11 @@ document.addEventListener('DOMContentLoaded', () => {
             pointsHtml += `<circle cx="${getX(i)}" cy="${getY(nets[i])}" r="4" fill="#8b5cf6" />`;
         }
 
-        // Draw zero line if data dips below zero, or just to show the baseline
         const yZero = getY(0);
         const zeroLine = `<line x1="${padding}" y1="${yZero}" x2="${width - padding}" y2="${yZero}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4" />`;
+
+        const yLabelMax = `<text x="${padding - 5}" y="${getY(yMax) + 4}" text-anchor="end" font-size="9" fill="#999">${yMax.toFixed(0)}</text>`;
+        const yLabelMin = `<text x="${padding - 5}" y="${getY(yMin) + 4}" text-anchor="end" font-size="9" fill="#999">${yMin.toFixed(0)}</text>`;
 
         const step = Math.ceil(data.length / 6);
         let labelsHtml = '';
@@ -288,14 +296,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         container.innerHTML = `
-        <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow: visible;">
-            ${zeroLine}
-            <path d="${pathD}" fill="none" stroke="#8b5cf6" stroke-width="2.5" />
-            ${pointsHtml}
-            ${labelsHtml}
-        </svg>
-    `;
+            <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow: visible;">
+                ${zeroLine}
+                ${yLabelMax}
+                ${yLabelMin}
+                <path d="${pathD}" fill="none" stroke="#8b5cf6" stroke-width="2.5" />
+                ${pointsHtml}
+                ${labelsHtml}
+            </svg>
+        `;
     }
+
     // ==========================================
     // 3. DAILY INCOME LOGIC
     // ==========================================
@@ -305,18 +316,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadIncomeData() {
         const tbody = document.getElementById('income-table-body');
         if (!tbody) return;
-
         tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #666;">Loading records...</td></tr>';
 
         fetch('/api/finance/income')
             .then(res => res.json())
-            .then(data => {
-                allIncomeRecords = data;
-                renderIncomeTable();
-            })
-            .catch(err => {
-                if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">Error loading income data. Check console.</td></tr>';
-            });
+            .then(data => { allIncomeRecords = data; renderIncomeTable(); })
+            .catch(err => { if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">Error loading income data.</td></tr>'; });
     }
 
     function renderIncomeTable() {
@@ -355,11 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.sortable-income').forEach(th => {
             const icon = th.querySelector('.sort-icon');
             if (icon) {
-                if (th.dataset.col === incomeSort.col) {
-                    icon.textContent = incomeSort.dir === 'asc' ? '▲' : '▼';
-                } else {
-                    icon.textContent = '↕';
-                }
+                if (th.dataset.col === incomeSort.col) icon.textContent = incomeSort.dir === 'asc' ? '▲' : '▼';
+                else icon.textContent = '↕';
             }
         });
     }
@@ -367,12 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.sortable-income').forEach(th => {
         th.addEventListener('click', () => {
             const col = th.dataset.col;
-            if (incomeSort.col === col) {
-                incomeSort.dir = incomeSort.dir === 'asc' ? 'desc' : 'asc';
-            } else {
-                incomeSort.col = col;
-                incomeSort.dir = 'asc';
-            }
+            if (incomeSort.col === col) incomeSort.dir = incomeSort.dir === 'asc' ? 'desc' : 'asc';
+            else { incomeSort.col = col; incomeSort.dir = 'asc'; }
             renderIncomeTable();
         });
     });
@@ -392,15 +390,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
                 body: JSON.stringify(payload)
-            })
-                .then(res => {
-                    if (res.ok) {
-                        resetIncomeForm();
-                        loadIncomeData(); // Refresh table after saving
-                    } else {
-                        alert('Error saving record.');
-                    }
-                });
+            }).then(res => {
+                if (res.ok) { resetIncomeForm(); loadIncomeData(); }
+                else alert('Error saving record.');
+            });
         });
     }
 
@@ -420,10 +413,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteIncome = function (id) {
         if (!confirm('Are you sure you want to delete this record?')) return;
-        fetch(`/api/finance/income/${id}`, {
-            method: 'DELETE',
-            headers: { 'X-CSRFToken': getCsrfToken() }
-        }).then(res => { if (res.ok) loadIncomeData(); });
+        fetch(`/api/finance/income/${id}`, { method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() } })
+            .then(res => { if (res.ok) loadIncomeData(); });
     };
 
     window.resetIncomeForm = function () {
@@ -447,13 +438,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const tbody = document.getElementById('expense-table-body');
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #666;">Loading expenses...</td></tr>';
-        fetch('/api/finance/expenses').then(res => res.json()).then(data => { allExpenseRecords = data; renderExpenseTable(); }).catch(err => { if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: red;">Error loading expenses.</td></tr>'; });
+        fetch('/api/finance/expenses').then(res => res.json()).then(data => {
+            allExpenseRecords = data; renderExpenseTable();
+        }).catch(err => { if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: red;">Error loading expenses.</td></tr>'; });
     }
 
     function renderExpenseTable() {
         const tbody = document.getElementById('expense-table-body');
         if (!tbody) return;
         if (allExpenseRecords.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">No expenses yet.</td></tr>'; return; }
+
         tbody.innerHTML = allExpenseRecords.map(r => {
             let statusColor = r.status === 'Paid' ? '#10b981' : (r.status === 'Partial' ? '#f59e0b' : '#ef4444');
             return `<tr style="border-bottom: 1px solid #eee;">
@@ -470,7 +464,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
-    // TVA Toggle
     const declarableCheckbox = document.getElementById('exp-declarable');
     const vatContainer = document.getElementById('vat-input-container');
     if (declarableCheckbox && vatContainer) {
@@ -480,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Expense Form Submit
     const expenseForm = document.getElementById('expense-form');
     if (expenseForm) {
         expenseForm.addEventListener('submit', (e) => {
@@ -497,7 +489,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 is_declarable: document.getElementById('exp-declarable').checked,
                 vat_amount: document.getElementById('exp-vat').value
             };
-            fetch('/api/finance/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify(payload) }).then(res => { if (res.ok) { resetExpenseForm(); loadExpenseData(); loadDashboardData(); } else alert('Error saving expense.'); });
+            fetch('/api/finance/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify(payload) })
+                .then(res => { if (res.ok) { resetExpenseForm(); loadExpenseData(); loadDashboardData(); } else alert('Error saving expense.'); });
         });
     }
 
@@ -513,7 +506,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.resetExpenseForm = function () { if (expenseForm) expenseForm.reset(); document.getElementById('expense-id').value = ''; document.getElementById('expense-form-title').textContent = 'Add Expense'; document.getElementById('expense-submit-btn').textContent = 'Save Expense'; document.getElementById('cancel-expense-edit').style.display = 'none'; if (declarableCheckbox) { declarableCheckbox.checked = true; declarableCheckbox.dispatchEvent(new Event('change')); } };
     const cancelExpBtn = document.getElementById('cancel-expense-edit'); if (cancelExpBtn) cancelExpBtn.addEventListener('click', window.resetExpenseForm);
 
-    // Payment Modal
     window.openPaymentModal = function (id) {
         currentExpenseId = id;
         const r = allExpenseRecords.find(rec => rec.id === id); if (!r) return;
@@ -535,10 +527,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deletePayment = function (expId, payId) { if (!confirm('Delete this payment?')) return; fetch(`/api/finance/expenses/${expId}/payment/${payId}`, { method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() } }).then(res => { if (res.ok) { loadExpenseData(); openPaymentModal(expId); loadDashboardData(); } }); };
 
     // ==========================================
-    // 4. INITIALIZE DATA (THE MISSING KEY!)
+    // 5. INITIALIZE DATA
     // ==========================================
     loadDashboardData();
-    loadIncomeData(); // <--- THIS WAS MISSING! This turns on the table.
+    loadIncomeData();
     loadExpenseData();
-
 });
