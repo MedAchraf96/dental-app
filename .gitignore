@@ -2,11 +2,14 @@
 __pycache__/
 *.py[cod]
 *$py.class
+import_data.csv
+
 
 # Virtual Environments
 .venv/
 venv/
 env/
+
 
 # Database & Logs
 instance/*.db
@@ -14,9 +17,11 @@ instance/*.db
 .flaskenv
 migrations
 
+
 # IDE
 .vscode/
 .idea/
+
 
 # OS
 .DS_Store
