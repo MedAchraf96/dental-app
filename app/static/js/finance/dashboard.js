@@ -38,190 +38,264 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // 2. DASHBOARD LOGIC (Restored all 9 cards)
+    // 2. DASHBOARD LOGIC (New Executive Layout)
     // ==========================================
+    let globalMonthlyData = [];
+    let currentChartTimeframe = 'this_year';
+
     function loadDashboardData() {
         const container = document.getElementById('dashboard-kpi-container');
         if (!container) return;
-
         container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px; grid-column: 1/-1;">Loading financial data...</p>';
 
         fetch('/api/finance/dashboard')
             .then(res => res.json())
             .then(data => {
-                const formatCurrency = (amount) => new Intl.NumberFormat('en-TN', { style: 'currency', currency: 'TND' }).format(amount);
-                const profitMargin = data.total_revenue > 0 ? ((data.net_profit / data.total_revenue) * 100).toFixed(1) : 0;
-                const profitColor = data.net_profit >= 0 ? '#10b981' : '#ef4444';
-
-                // VAT Calculation: Collected (7% of revenue) minus Deductible (sum from declarable expenses)
-                const vatCollected = data.total_revenue * 0.07;
-                const vatDeductible = data.total_vat_deductible || 0;
-                const netVatDue = vatCollected - vatDeductible;
-                const vatColor = netVatDue >= 0 ? '#d97706' : '#10b981';
+                globalMonthlyData = data.monthly_data;
+                const fmt = (amt) => new Intl.NumberFormat('en-TN', { style: 'currency', currency: 'TND' }).format(amt);
 
                 container.innerHTML = `
-                <!-- ROW 1: Core Metrics -->
-                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #1e3a8a; text-align: center;">
-                    <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Total Revenue</div>
-                    <div style="font-size: 24px; font-weight: bold; color: #1e3a8a; margin: 10px 0;">${formatCurrency(data.total_revenue)}</div>
-                </div>
-                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #ef4444; text-align: center;">
-                    <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Business Expenses</div>
-                    <div style="font-size: 24px; font-weight: bold; color: #ef4444; margin: 10px 0;">${formatCurrency(data.business_expenses)}</div>
-                </div>
-                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #10b981; text-align: center;">
-                    <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Net Profit</div>
-                    <div style="font-size: 24px; font-weight: bold; color: ${profitColor}; margin: 10px 0;">${formatCurrency(data.net_profit)}</div>
-                    <div style="color: #999; font-size: 12px;">Margin: ${profitMargin}%</div>
-                </div>
-                
-                <!-- ROW 2: CASH & BANK (Interactive) -->
-                 <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #059669; text-align: center;">
-                     <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Cash on Hand</div>
-                     <div id="cash-display" style="font-size: 24px; font-weight: bold; color: #059669; margin: 10px 0;">${formatCurrency(data.cash_on_hand)}</div>
-                     <button id="edit-cash-btn" style="background: none; border: none; color: #999; cursor: pointer; font-size: 14px;">✏️ Edit</button>
-                     <form id="cash-form" style="display: none; margin-top: 10px; justify-content: center; gap: 5px;">
-                         <input type="number" name="cash_on_hand" step="0.01" value="${data.cash_on_hand}" style="width: 100px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;" required>
-                         <input type="hidden" name="bank_account" value="${data.bank_account}"> 
-                         <button type="submit" style="padding: 5px 10px; font-size: 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
-                     </form>
-                 </div>
+                <!-- ROW 1: Liquidity & Net Profit (Side-by-Side) -->
+                <div style="grid-column: 1 / -1; display: flex; gap: 20px; flex-wrap: wrap;">
 
-                 <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #059669; text-align: center;">
-                     <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Bank Account</div>
-                     <div id="bank-display" style="font-size: 24px; font-weight: bold; color: #059669; margin: 10px 0;">${formatCurrency(data.bank_account)}</div>
-                     <button id="edit-bank-btn" style="background: none; border: none; color: #999; cursor: pointer; font-size: 14px;">✏️ Edit</button>
-                     <form id="bank-form" style="display: none; margin-top: 10px; justify-content: center; gap: 5px;">
-                         <input type="hidden" name="cash_on_hand" value="${data.cash_on_hand}">
-                         <input type="number" name="bank_account" step="0.01" value="${data.bank_account}" style="width: 100px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;" required>
-                         <button type="submit" style="padding: 5px 10px; font-size: 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
-                     </form>
-                 </div>
+                    <!-- Left: Unified Liquidity Card -->
+                    <div style="flex: 1; min-width: 300px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #10b981;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <!-- Total Liquidity (Hero) -->
+                            <div style="text-align: center; flex: 1; border-right: 1px solid #e5e7eb; padding-right: 20px;">
+                                <div style="color: #666; font-size: 13px; font-weight: bold; text-transform: uppercase;">Total Liquidity</div>
+                                <div style="font-size: 36px; font-weight: bold; color: #10b981; margin: 5px 0;">${fmt(data.total_liquidity)}</div>
+                            </div>
 
-                 
-                 
-                 <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #10b981; text-align: center;">
-                     <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Total Liquidity</div>
-                     <div style="font-size: 24px; font-weight: bold; color: #10b981; margin: 10px 0;">${formatCurrency(data.total_liquidity)}</div>
-                 </div>
+                            <!-- Cash & Bank (Compact Entries) -->
+                            <div style="flex: 1; min-width: 200px; padding-left: 20px; display: flex; flex-direction: column; gap: 15px;">                                <!-- Cash Entry -->
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="color: #666; font-size: 11px; font-weight: bold; text-transform: uppercase;">Cash on Hand</div>
+                                        <div id="cash-display" style="font-size: 18px; font-weight: bold; color: #059669;">${fmt(data.cash_on_hand)}</div>
+                                    </div>
+                                    <button id="edit-cash-btn" style="background: none; border: none; color: #999; cursor: pointer; font-size: 14px;">✏️</button>
+                                    <form id="cash-form" style="display: none; gap: 5px;">
+                                        <input type="number" id="input-cash" name="cash_on_hand" step="0.01" value="${data.cash_on_hand}" aria-label="Cash on Hand" style="width: 80px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;" required>
+                                        <button type="submit" style="padding: 5px 10px; font-size: 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+                                    </form>
+                                </div>
 
-                <!-- ROW 3: Outflows -->
-                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #f59e0b; text-align: center;">
-                    <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Owner's Draw</div>
-                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b; margin: 10px 0;">${formatCurrency(data.owners_draw)}</div>
-                </div>
-                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #8b5cf6; text-align: center;">
-                    <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Tax / VAT Payments</div>
-                    <div style="font-size: 24px; font-weight: bold; color: #8b5cf6; margin: 10px 0;">${formatCurrency(data.tax_payments)}</div>
-                </div>
-                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #6b7280; text-align: center;">
-                    <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Total Expenses</div>
-                    <div style="font-size: 24px; font-weight: bold; color: #ef4444; margin: 10px 0;">${formatCurrency(data.total_expenses)}</div>
+                                <!-- Bank Entry -->
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="color: #666; font-size: 11px; font-weight: bold; text-transform: uppercase;">Bank Account</div>
+                                        <div id="bank-display" style="font-size: 18px; font-weight: bold; color: #059669;">${fmt(data.bank_account)}</div>
+                                    </div>
+                                    <button id="edit-bank-btn" style="background: none; border: none; color: #999; cursor: pointer; font-size: 14px;">️</button>
+                                    <form id="bank-form" style="display: none; gap: 5px;">
+                                        <input type="number" id="input-bank" name="bank_account" step="0.01" value="${data.bank_account}" aria-label="Bank Account" style="width: 80px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;" required>
+                                        <button type="submit" style="padding: 5px 10px; font-size: 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Net Profit Card (Matching Style) -->
+                    <div style="flex: 1; min-width: 300px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #3b82f6;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <!-- Net Profit (Hero) -->
+                            <div style="text-align: center; flex: 1; border-right: 1px solid #e5e7eb; padding-right: 20px;">
+                                <div style="color: #666; font-size: 13px; font-weight: bold; text-transform: uppercase;">Current Year Net Profit</div>
+                                <div style="font-size: 36px; font-weight: bold; color: ${data.current_year_net_profit >= 0 ? '#10b981' : '#ef4444'}; margin: 5px 0;">${fmt(data.current_year_net_profit)}</div>
+                            </div>
+
+                            <!-- Income & Expenses (Compact Entries) -->
+                            <div style="flex: 1; min-width: 200px; padding-left: 20px; display: flex; flex-direction: column; gap: 15px;">                                <!-- Income Entry -->
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="color: #666; font-size: 11px; font-weight: bold; text-transform: uppercase;">Total Income</div>
+                                        <div style="font-size: 18px; font-weight: bold; color: #1e3a8a;">${fmt(data.current_year_revenue)}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Expenses Entry -->
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="color: #666; font-size: 11px; font-weight: bold; text-transform: uppercase;">Total Expenses</div>
+                                        <div style="font-size: 18px; font-weight: bold; color: #ef4444;">${fmt(data.current_year_expenses)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
-                <!-- ROW 4: VAT Summary (NEW) -->
-                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #d97706; text-align: center; grid-column: 1 / -1;">
-                    <div style="color: #666; font-size: 14px; font-weight: bold; text-transform: uppercase;">Net VAT Due to State</div>
-                    <div style="font-size: 24px; font-weight: bold; color: ${vatColor}; margin: 10px 0;">${formatCurrency(netVatDue)}</div>
-                    <div style="color: #999; font-size: 12px;">Collected: ${formatCurrency(vatCollected)} | Deductible: ${formatCurrency(vatDeductible)}</div>
+                <!-- ROW 2: Chart Controls -->
+                <div style="grid-column: 1 / -1; display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+                    <button id="btn-this-year" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ddd; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; font-size: 13px;">This Year</button>
+                    <button id="btn-last-12" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ddd; background: white; color: #666; cursor: pointer; font-size: 13px;">Last 12 Months</button>
+                </div>
+
+                <!-- ROW 3: Analytics (Side by Side) -->
+                <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
+                    <!-- Chart 1: CSS Bar Chart -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #1e3a8a;">
+                        <div style="color: #666; font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px;">Monthly Income vs Expenses</div>
+                        <div id="bar-chart-container" style="width: 100%;"></div>
+                        <div style="display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-size: 11px; color: #666;">
+                            <span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#1e3a8a; border-radius:2px;"></span> Income</span>
+                            <span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#ef4444; border-radius:2px;"></span> Expenses</span>
+                        </div>
+                    </div>
+                    <!-- Chart 2: SVG Line Chart -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #8b5cf6;">
+                        <div style="color: #666; font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px;">Monthly Net Tendencies</div>
+                        <div id="line-chart-container" style="width: 100%;"></div>
+                    </div>
                 </div>
             `;
-
-                // Re-attach edit listeners for Cash/Bank if they exist in your JS
-                if (typeof setupCashBankEditListeners === 'function') {
-                    setupCashBankEditListeners();
-                }
+                // Attach chart toggle listeners to the newly created buttons
+                document.getElementById('btn-this-year')?.addEventListener('click', () => setChartTimeframe('this_year'));
+                document.getElementById('btn-last-12')?.addEventListener('click', () => setChartTimeframe('last_12'));
+                if (typeof setupCashBankEditListeners === 'function') setupCashBankEditListeners();
+                updateCharts(); // Render charts with default timeframe
             })
             .catch(err => {
-                if (container) container.innerHTML = '<p style="color: red;">Error loading dashboard data.</p>';
+                if (container) container.innerHTML = '<p style="color: red; grid-column: 1/-1;">Error loading dashboard data.</p>';
             });
     }
-
     function setupCashBankEditListeners() {
-        // Helper to get CSRF token
-        const getCsrfToken = () => {
-            const meta = document.querySelector('meta[name="csrf-token"]');
-            return meta ? meta.getAttribute('content') : '';
+        const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        // Helper function to setup both Cash and Bank listeners cleanly
+        const setupField = (type) => {
+            const editBtn = document.getElementById(`edit-${type}-btn`);
+            const form = document.getElementById(`${type}-form`);
+            const display = document.getElementById(`${type}-display`);
+            const input = document.getElementById(`input-${type}`);
+
+            if (editBtn && form && display && input) {
+                // Show form on click
+                editBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    display.style.display = 'none';
+                    editBtn.style.display = 'none';
+                    form.style.display = 'flex';
+                    input.focus();
+                });
+
+                // Save form on submit
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const payload = {
+                        cash_on_hand: parseFloat(document.getElementById('input-cash').value),
+                        bank_account: parseFloat(document.getElementById('input-bank').value)
+                    };
+
+                    fetch('/api/finance/cash-balance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                        body: JSON.stringify(payload)
+                    }).then(res => {
+                        if (res.ok) loadDashboardData();
+                    });
+                });
+            }
         };
 
-        // --- Cash Edit Logic ---
-        const editCashBtn = document.getElementById('edit-cash-btn');
-        const cashForm = document.getElementById('cash-form');
-        const cashDisplay = document.getElementById('cash-display');
-
-        if (editCashBtn && cashForm && cashDisplay) {
-            editCashBtn.addEventListener('click', () => {
-                cashDisplay.style.display = 'none';
-                editCashBtn.style.display = 'none';
-                cashForm.style.display = 'flex';
-            });
-
-            cashForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(cashForm);
-                const payload = {
-                    cash_on_hand: parseFloat(formData.get('cash_on_hand')),
-                    bank_account: parseFloat(formData.get('bank_account'))
-                };
-
-                fetch('/api/finance/update-balance', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCsrfToken()
-                    },
-                    body: JSON.stringify(payload)
-                })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.message) {
-                            // Reload dashboard to show new values
-                            loadDashboardData();
-                        }
-                    })
-                    .catch(error => console.error('Error updating balance:', error));
-            });
-        }
-
-        // --- Bank Edit Logic ---
-        const editBankBtn = document.getElementById('edit-bank-btn');
-        const bankForm = document.getElementById('bank-form');
-        const bankDisplay = document.getElementById('bank-display');
-
-        if (editBankBtn && bankForm && bankDisplay) {
-            editBankBtn.addEventListener('click', () => {
-                bankDisplay.style.display = 'none';
-                editBankBtn.style.display = 'none';
-                bankForm.style.display = 'flex';
-            });
-
-            bankForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(bankForm);
-                const payload = {
-                    cash_on_hand: parseFloat(formData.get('cash_on_hand')),
-                    bank_account: parseFloat(formData.get('bank_account'))
-                };
-
-                fetch('/api/finance/update-balance', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCsrfToken()
-                    },
-                    body: JSON.stringify(payload)
-                })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.message) {
-                            loadDashboardData();
-                        }
-                    })
-                    .catch(error => console.error('Error updating balance:', error));
-            });
-        }
+        setupField('cash');
+        setupField('bank');
     }
 
+    function setChartTimeframe(timeframe) {
+        currentChartTimeframe = timeframe;
+        document.getElementById('btn-this-year').style.background = timeframe === 'this_year' ? '#3b82f6' : 'white';
+        document.getElementById('btn-this-year').style.color = timeframe === 'this_year' ? 'white' : '#666';
+        document.getElementById('btn-last-12').style.background = timeframe === 'last_12' ? '#3b82f6' : 'white';
+        document.getElementById('btn-last-12').style.color = timeframe === 'last_12' ? 'white' : '#666';
+        updateCharts();
+    }
+
+    function updateCharts() {
+        const currentYear = new Date().getFullYear().toString();
+        const filteredData = currentChartTimeframe === 'this_year'
+            ? globalMonthlyData.filter(d => d.month.startsWith(currentYear))
+            : globalMonthlyData.slice(-12);
+
+        renderBarChart(filteredData);
+        renderLineChart(filteredData);
+    }
+
+    function renderBarChart(data) {
+        const container = document.getElementById('bar-chart-container');
+        if (!container || data.length === 0) return;
+
+        const maxVal = Math.max(...data.map(d => Math.max(d.revenue, d.expenses)), 1) * 1.1;
+        const chartHeight = 150; // Fixed pixel height
+
+        container.innerHTML = `<div style="display: flex; align-items: flex-end; justify-content: space-around; height: ${chartHeight}px; width: 100%; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">` +
+            data.map(d => {
+                // Calculate pixel heights instead of percentages
+                const revH = (d.revenue / maxVal) * chartHeight;
+                const expH = (d.expenses / maxVal) * chartHeight;
+                return `
+            <div style="display: flex; flex-direction: column; align-items: center; flex: 1; gap: 4px;">
+                <div style="display: flex; align-items: flex-end; gap: 2px; height: ${chartHeight}px; width: 100%; justify-content: center;">
+                    <div style="width: 12px; background: #1e3a8a; border-radius: 2px 2px 0 0; height: ${Math.max(revH, 2)}px;" title="Income: ${d.revenue.toFixed(0)} TND"></div>
+                    <div style="width: 12px; background: #ef4444; border-radius: 2px 2px 0 0; height: ${Math.max(expH, 2)}px;" title="Expenses: ${d.expenses.toFixed(0)} TND"></div>
+                </div>
+                <div style="font-size: 10px; color: #666; font-weight: 500;">${d.label.split(' ')[0]}</div>
+            </div>`;
+            }).join('') + `</div>`;
+    }
+
+    function renderLineChart(data) {
+        const container = document.getElementById('line-chart-container');
+        if (!container || data.length === 0) return;
+
+        const width = container.clientWidth || 400;
+        const height = 180;
+        const padding = 30;
+
+        const nets = data.map(d => d.net);
+        const maxNet = Math.max(...nets, 0);
+        const minNet = Math.min(...nets, 0);
+
+        // Add 15% breathing room to the top and bottom of the Y-axis
+        const range = maxNet - minNet || 1;
+        const yPadding = range * 0.15;
+        const yMax = maxNet + yPadding;
+        const yMin = minNet - yPadding;
+        const yRange = yMax - yMin;
+
+        const getX = (i) => padding + (i / (data.length - 1 || 1)) * (width - 2 * padding);
+        const getY = (val) => height - padding - ((val - yMin) / yRange) * (height - 2 * padding);
+
+        let pathD = `M ${getX(0)} ${getY(nets[0])}`;
+        let pointsHtml = `<circle cx="${getX(0)}" cy="${getY(nets[0])}" r="4" fill="#8b5cf6" />`;
+
+        for (let i = 1; i < data.length; i++) {
+            pathD += ` L ${getX(i)} ${getY(nets[i])}`;
+            pointsHtml += `<circle cx="${getX(i)}" cy="${getY(nets[i])}" r="4" fill="#8b5cf6" />`;
+        }
+
+        // Draw zero line if data dips below zero, or just to show the baseline
+        const yZero = getY(0);
+        const zeroLine = `<line x1="${padding}" y1="${yZero}" x2="${width - padding}" y2="${yZero}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4" />`;
+
+        const step = Math.ceil(data.length / 6);
+        let labelsHtml = '';
+        for (let i = 0; i < data.length; i += step) {
+            labelsHtml += `<text x="${getX(i)}" y="${height - 5}" text-anchor="middle" font-size="10" fill="#666">${data[i].label}</text>`;
+        }
+
+        container.innerHTML = `
+        <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow: visible;">
+            ${zeroLine}
+            <path d="${pathD}" fill="none" stroke="#8b5cf6" stroke-width="2.5" />
+            ${pointsHtml}
+            ${labelsHtml}
+        </svg>
+    `;
+    }
     // ==========================================
     // 3. DAILY INCOME LOGIC
     // ==========================================

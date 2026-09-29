@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
-from app.models import DailyIncome, Expense, CashBalance, db
+from app.models import DailyIncome, Expense, CashBalance, Payment, db
 from sqlalchemy import func
 from datetime import datetime
+import calendar
 
 finance_bp = Blueprint('finance', __name__, template_folder='templates')
 
@@ -13,42 +14,67 @@ def finance_page():
     return render_template('finance/dashboard.html')
 
 # 2. THE API ROUTE: Sends the JSON data to your JavaScript
+from sqlalchemy import func
+from datetime import datetime
+import calendar
+
 @finance_bp.route('/api/finance/dashboard')
 @login_required
 def get_finance_dashboard():
-    # 1. Revenue
-    total_revenue = db.session.query(func.sum(DailyIncome.amount)).scalar() or 0.0
-    
-    # 2. Expenses (Must be total_amount based on your updated model)
-    total_expenses = db.session.query(func.sum(Expense.total_amount)).scalar() or 0.0
-    
-    # 3. VAT Deductible (Sum of vat_amount where is_declarable is True)
-    total_vat_deductible = db.session.query(func.sum(Expense.vat_amount)).filter(Expense.is_declarable == True).scalar() or 0.0
-    
-    # 4. Cash & Bank Balances
+    # 1. Cash & Bank
     cash_balance = CashBalance.query.first()
-    cash_on_hand = cash_balance.cash_on_hand if cash_balance else 0.0
-    bank_account = cash_balance.bank_account if cash_balance else 0.0
+    cash_on_hand = float(cash_balance.cash_on_hand) if cash_balance else 0.0
+    bank_account = float(cash_balance.bank_account) if cash_balance else 0.0
     
-    # 5. Other Metrics (Define them to avoid NameError)
-    # Note: Update these to query your actual models if you track them separately
-    owners_draw = 0.0  
-    tax_payments = 0.0 
+    # 2. Current Year Totals
+    current_year = datetime.now().year
+    cy_revenue = db.session.query(func.sum(DailyIncome.amount)).filter(
+        func.strftime('%Y', DailyIncome.date) == str(current_year)
+    ).scalar() or 0.0
     
-    # 6. Calculations
-    net_profit = total_revenue - total_expenses
+    cy_expenses = db.session.query(func.sum(Expense.total_amount)).filter(
+        func.strftime('%Y', Expense.date) == str(current_year)
+    ).scalar() or 0.0
+    
+    cy_net_profit = cy_revenue - cy_expenses
+
+    # 3. Monthly Data (Last 24 Months for adjustable charts)
+    monthly_data = []
+    now = datetime.now()
+    for i in range(23, -1, -1):
+        m = now.month - i
+        y = now.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        
+        month_str = f"{y}-{m:02d}"
+        month_label = f"{calendar.month_abbr[m]} {y}"
+        
+        rev = db.session.query(func.sum(DailyIncome.amount)).filter(
+            func.strftime('%Y-%m', DailyIncome.date) == month_str
+        ).scalar() or 0.0
+        
+        exp = db.session.query(func.sum(Expense.total_amount)).filter(
+            func.strftime('%Y-%m', Expense.date) == month_str
+        ).scalar() or 0.0
+        
+        monthly_data.append({
+            "month": month_str,
+            "label": month_label,
+            "revenue": float(rev),
+            "expenses": float(exp),
+            "net": float(rev) - float(exp)
+        })
 
     return jsonify({
-        "total_revenue": total_revenue,
-        "business_expenses": total_expenses,
-        "net_profit": net_profit,
         "cash_on_hand": cash_on_hand,
         "bank_account": bank_account,
         "total_liquidity": cash_on_hand + bank_account,
-        "owners_draw": owners_draw,
-        "tax_payments": tax_payments,          # <-- This was missing
-        "total_expenses": total_expenses,
-        "total_vat_deductible": total_vat_deductible  # <-- Needed for the new JS card
+        "current_year_revenue": cy_revenue,
+        "current_year_expenses": cy_expenses,
+        "current_year_net_profit": cy_net_profit,
+        "monthly_data": monthly_data
     })
 
 # 3. THE API UPDATE ROUTE: Saves the balance from JavaScript
@@ -76,8 +102,25 @@ def update_balance_api():
     db.session.commit()
     return jsonify({"message": "Balance updated successfully!"}), 200
 
-# ... (keep your existing imports and dashboard routes above this) ...
+@finance_bp.route('/api/finance/cash-balance', methods=['POST'])
+@login_required
+def update_cash_balance():
+    data = request.get_json()
+    cash_on_hand = float(data.get('cash_on_hand', 0))
+    bank_account = float(data.get('bank_account', 0))
 
+    # Find existing record or create a new one
+    balance = CashBalance.query.first()
+    if not balance:
+        balance = CashBalance(cash_on_hand=cash_on_hand, bank_account=bank_account)
+        db.session.add(balance)
+    else:
+        balance.cash_on_hand = cash_on_hand
+        balance.bank_account = bank_account
+
+    db.session.commit()
+    return jsonify({"message": "Balance updated successfully"}), 200
+    
 # 1. GET all income records
 @finance_bp.route('/api/finance/income')
 @login_required
