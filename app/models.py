@@ -84,27 +84,37 @@ class DailyIncome(db.Model):
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
-    month = db.Column(db.Integer, nullable=False)
-    expense_type = db.Column(db.String(50))
-    description = db.Column(db.String(200))
-    bill_number = db.Column(db.String(50))
+    due_date = db.Column(db.Date, nullable=True)
+    category = db.Column(db.String(50), nullable=False)
     supplier = db.Column(db.String(100))
-    total_amount = db.Column(db.Float, nullable=False)
-    paid_amount = db.Column(db.Float, default=0.0)
-
-class SupplierBill(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
     bill_number = db.Column(db.String(50))
-    supplier = db.Column(db.String(100), nullable=False)
-    bill_amount = db.Column(db.Float, nullable=False)
-    paid_amount = db.Column(db.Float, default=0.0)
-    status = db.Column(db.String(20), default='Partial')
-    payment_count = db.Column(db.Integer, default=0)
-    date = db.Column(db.Date, default=datetime.utcnow)
+    description = db.Column(db.String(200))
+    total_amount = db.Column(db.Float, nullable=False)
+    is_declarable = db.Column(db.Boolean, default=True)
+    vat_amount = db.Column(db.Float, default=0.0)
+    
+    payments = db.relationship('Payment', backref='expense', lazy=True, cascade="all, delete-orphan")
+
+    @property
+    def paid_amount(self):
+        return sum(p.amount for p in self.payments)
 
     @property
     def balance(self):
-        return self.bill_amount - self.paid_amount
+        return self.total_amount - self.paid_amount
+
+    @property
+    def status(self):
+        if self.paid_amount >= self.total_amount: return 'Paid'
+        if self.paid_amount > 0: return 'Partial'
+        return 'Unpaid'
+
+class Payment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    expense_id = db.Column(db.Integer, db.ForeignKey('expense.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    note = db.Column(db.String(100))
 
 class LabWork(db.Model):
     id = db.Column(db.Integer, primary_key=True)

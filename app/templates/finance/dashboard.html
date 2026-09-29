@@ -99,7 +99,8 @@
                                 class="sort-icon"></span></th>
                         <th class="sortable-income" data-col="amount"
                             style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Amount (TND)
-                            <span class="sort-icon"></span></th>
+                            <span class="sort-icon"></span>
+                        </th>
                         <th style="padding: 12px; text-align: left;">Actions</th>
                     </tr>
                 </thead>
@@ -116,15 +117,129 @@
     <!-- TAB 3: EXPENSES (Placeholder) -->
     <div id="tab-expenses" class="finance-tab-content" style="display: none;">
         <div
-            style="background: white; padding: 40px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h2 style="color: #1e3a8a;">Expense Tracker</h2>
-            <p style="color: #666;">Coming soon...</p>
+            style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 id="expense-form-title" style="margin: 0; color: #1e3a8a;">Add Expense</h2>
+                <button id="cancel-expense-edit"
+                    style="display: none; background: none; border: none; color: #ef4444; cursor: pointer; font-weight: bold;">Cancel
+                    Edit</button>
+            </div>
+            <form id="expense-form">
+                <input type="hidden" id="expense-id" value="">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                    <div><label
+                            style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Date:</label><input
+                            type="date" id="exp-date" required
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div><label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Due
+                            Date:</label><input type="date" id="exp-due-date"
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div><label
+                            style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Category:</label><select
+                            id="exp-category" required
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                            <option value="Medical Supplies">Medical Supplies</option>
+                            <option value="Lab Fees">Lab Fees</option>
+                            <option value="Rent/Utilities">Rent/Utilities</option>
+                            <option value="Equipment">Equipment</option>
+                            <option value="Owner's Draw">Owner's Draw</option>
+                            <option value="Tax/VAT">Tax/VAT</option>
+                            <option value="Other">Other</option>
+                        </select></div>
+                    <div><label
+                            style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Supplier:</label><input
+                            type="text" id="exp-supplier"
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div><label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Bill
+                            Number:</label><input type="text" id="exp-bill"
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div><label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Total
+                            Amount (TND):</label><input type="number" id="exp-total" step="0.01" required
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                </div>
+                <div
+                    style="grid-column: 1 / -1; display: flex; align-items: center; gap: 15px; margin-top: 15px; padding: 10px; background: #f9fafb; border-radius: 4px;">
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold; font-size: 14px;">
+                        <input type="checkbox" id="exp-declarable" checked
+                            style="width: 18px; height: 18px; cursor: pointer;"> TVA Déductible
+                    </label>
+                    <div id="vat-input-container" style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-weight: bold; font-size: 14px;">Montant TVA (TND):</label>
+                        <input type="number" id="exp-vat" step="0.01" value="0"
+                            style="width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+                <div style="margin-top: 15px;"><label
+                        style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Description:</label><input
+                        type="text" id="exp-desc"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                </div>
+                <button type="submit" id="expense-submit-btn"
+                    style="margin-top: 15px; background: #1e3a8a; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Save
+                    Expense</button>
+            </form>
+        </div>
+        <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #1e3a8a; color: white;">
+                        <th style="padding: 12px; text-align: left;">Date</th>
+                        <th style="padding: 12px; text-align: left;">Category</th>
+                        <th style="padding: 12px; text-align: left;">Supplier</th>
+                        <th style="padding: 12px; text-align: left;">Total</th>
+                        <th style="padding: 12px; text-align: left;">Paid</th>
+                        <th style="padding: 12px; text-align: left;">Balance</th>
+                        <th style="padding: 12px; text-align: left;">Due Date</th>
+                        <th style="padding: 12px; text-align: left;">Status</th>
+                        <th style="padding: 12px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="expense-table-body">
+                    <tr>
+                        <td colspan="9" style="padding: 20px; text-align: center; color: #999;">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="payment-modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+            <div style="background: white; padding: 25px; border-radius: 8px; max-width: 500px; width: 90%;">
+                <h3 id="payment-modal-title" style="margin: 0 0 15px 0; color: #1e3a8a;">Payment History</h3>
+                <table id="payment-history-table" style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                    <thead>
+                        <tr style="background: #f3f4f6;">
+                            <th style="padding: 8px;">Date</th>
+                            <th style="padding: 8px;">Amount</th>
+                            <th style="padding: 8px;">Note</th>
+                            <th style="padding: 8px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="payment-history-body"></tbody>
+                </table>
+                <form id="add-payment-form" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px;">
+                    <input type="date" id="pay-date" required
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <input type="number" id="pay-amount" step="0.01" placeholder="Amount" required
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <input type="text" id="pay-note" placeholder="Note"
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button type="submit"
+                        style="padding: 8px 15px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
+                </form>
+                <button id="close-payment-modal"
+                    style="margin-top: 15px; width: 100%; padding: 10px; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+            </div>
         </div>
     </div>
 
-</div>
-{% endblock %}
+    {% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/finance/dashboard.js') }}"></script>
-{% endblock %}
+    {% block extra_js %}
+    <script src="{{ url_for('static', filename='js/finance/dashboard.js') }}"></script>
+    {% endblock %}
