@@ -1,4 +1,3 @@
-
 # 📒 Comprehensive Application State Ledger
 
 This document serves as the single source of truth for the current architectural state, database schema, API routes, and client-side memory of the Dental Practice Management & Finance Hub.

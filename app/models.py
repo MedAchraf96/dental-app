@@ -69,6 +69,19 @@ class Appointment(db.Model):
 
     def __repr__(self):
         return f'<Appointment {self.id} - {self.treatment_type}>'
+    
+class ToothRecord(db.Model):
+    __tablename__ = 'tooth_record'
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
+    tooth_number = db.Column(db.String(2), nullable=False)  # e.g., '11', '48'
+    state = db.Column(db.String(20), default='healthy')    # 'healthy', 'decayed', 'filled', 'missing'
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Ensure only one record per tooth per patient
+    __table_args__ = (db.UniqueConstraint('patient_id', 'tooth_number', name='uq_patient_tooth'),)
+    
+    patient = db.relationship('Patient', backref=db.backref('tooth_records', lazy=True))
 
 # FINANCIAL MODELS (Merged from Financial App)
 # ==========================================

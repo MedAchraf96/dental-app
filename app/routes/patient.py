@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy import select, delete, func, or_
-from app.models import db, Patient, Appointment, User
+from app.models import db, Patient, Appointment, User, ToothRecord
 
 patient_bp = Blueprint('patient', __name__, url_prefix='/patients')
 
@@ -200,12 +200,6 @@ def delete_patient(id):
         flash('An error occurred', 'error')
     return redirect(url_for('patient.home'))
 
-@patient_bp.route('/<int:patient_id>/teeth-chart')
-@login_required
-def teeth_chart(patient_id):
-    return redirect(url_for('patient.home'))
-
-
 @patient_bp.route('/<int:patient_id>/treatments')
 @login_required
 def treatments(patient_id):
@@ -220,3 +214,48 @@ def financial(patient_id):
 @login_required
 def documents(patient_id):
     return redirect(url_for('patient.home'))
+
+
+@patient_bp.route('/<int:patient_id>/teeth-chart')
+@login_required
+def teeth_chart(patient_id):
+    patient = db.session.get(Patient, patient_id)
+    if not patient:
+        flash('Patient not found!', 'error')
+        return redirect(url_for('patient.home'))
+    return render_template('patient/teeth_chart.html', patient=patient)
+
+@patient_bp.route('/<int:patient_id>/api/teeth-chart', methods=['GET'])
+@login_required
+def get_teeth_chart(patient_id):
+    records = ToothRecord.query.filter_by(patient_id=patient_id).all()
+    # Return a dictionary like {"11": "filled", "48": "missing"}
+    data = {r.tooth_number: r.state for r in records}
+    return jsonify(data)
+
+@patient_bp.route('/<int:patient_id>/api/teeth-chart', methods=['POST'])
+@login_required
+def save_teeth_chart(patient_id):
+    data = request.get_json()
+    tooth_number = str(data.get('tooth_number'))
+    state = data.get('state')
+    
+    if not tooth_number or not state:
+        return jsonify({'error': 'Missing data'}), 400
+        
+    record = ToothRecord.query.filter_by(patient_id=patient_id, tooth_number=tooth_number).first()
+    if record:
+        record.state = state
+    else:
+        record = ToothRecord(patient_id=patient_id, tooth_number=tooth_number, state=state)
+        db.session.add(record)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'tooth': tooth_number, 'state': state})
+
+@patient_bp.route('/<int:patient_id>/api/teeth-chart', methods=['DELETE'])
+@login_required
+def reset_teeth_chart(patient_id):
+    ToothRecord.query.filter_by(patient_id=patient_id).delete()
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'All teeth reset to healthy'})
