@@ -16,6 +16,12 @@ instance/*.db
 *.log
 .flaskenv
 migrations
+*.csv
+import_expenses_history.py
+import_once.py
+expenses_history.csv    
+import_data.csv
+import_income_history.py
 
 
 # IDE
