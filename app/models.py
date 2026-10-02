@@ -139,3 +139,8 @@ class CashBalance(db.Model):
     cash_on_hand = db.Column(db.Float, default=0.0)
     bank_account = db.Column(db.Float, default=0.0)
     note = db.Column(db.String(200))
+
+class OwnerDraw(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    month = db.Column(db.String(7), unique=True, nullable=False)  # Stores 'YYYY-MM'
+    amount = db.Column(db.Float, default=0.0)

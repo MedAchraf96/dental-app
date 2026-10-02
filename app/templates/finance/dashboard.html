@@ -23,6 +23,10 @@
             style="padding: 12px 24px; background: none; border: none; border-bottom: 3px solid transparent; color: #6b7280; cursor: pointer; font-size: 16px;">
             <i class="bi bi-receipt"></i> Expenses
         </button>
+        <button class="finance-tab-btn" data-tab="monthly-summary"
+            style="padding: 10px 20px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 16px; color: #6b7280;">
+            Monthly Summary
+        </button>
     </div>
 
     <!-- TAB 1: DASHBOARD -->
@@ -234,6 +238,11 @@
                 </form>
                 <button id="close-payment-modal"
                     style="margin-top: 15px; width: 100%; padding: 10px; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+            </div>
+        </div>
+        <div id="tab-monthly-summary" class="finance-tab-content" style="display: none; padding: 20px 0;">
+            <div id="monthly-summary-container">
+                <!-- Content injected by JS -->
             </div>
         </div>
     </div>

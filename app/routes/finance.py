@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
-from app.models import DailyIncome, Expense, CashBalance, Payment, db
+from app.models import DailyIncome, Expense, CashBalance, Payment, db,OwnerDraw
 from sqlalchemy import func
 from datetime import datetime
 import calendar
@@ -13,11 +13,7 @@ finance_bp = Blueprint('finance', __name__, template_folder='templates')
 def finance_page():
     return render_template('finance/dashboard.html')
 
-# 2. THE API ROUTE: Sends the JSON data to your JavaScript
-from sqlalchemy import func
-from datetime import datetime
-import calendar
-
+# 2. THE API ROUTE: Loads the JSON data
 @finance_bp.route('/api/finance/dashboard')
 @login_required
 def get_finance_dashboard():
@@ -240,3 +236,64 @@ def delete_payment(exp_id, pay_id):
     db.session.delete(Payment.query.get_or_404(pay_id))
     db.session.commit()
     return jsonify({"message": "Payment deleted"}), 200
+
+@finance_bp.route('/api/finance/monthly-summary')
+@login_required
+def get_monthly_summary():
+    # Get the requested month from URL params (default to current month)
+    month_str = request.args.get('month', datetime.now().strftime('%Y-%m'))
+
+    # 1. Income & Expenses for the month
+    income = db.session.query(func.sum(DailyIncome.amount)).filter(
+        func.strftime('%Y-%m', DailyIncome.date) == month_str
+    ).scalar() or 0.0
+
+    expenses = db.session.query(func.sum(Expense.total_amount)).filter(
+        func.strftime('%Y-%m', Expense.date) == month_str
+    ).scalar() or 0.0
+
+    # 2. VAT Calculations
+    vat_deductible = db.session.query(func.sum(Expense.vat_amount)).filter(
+        func.strftime('%Y-%m', Expense.date) == month_str,
+        Expense.is_declarable == True
+    ).scalar() or 0.0
+
+    vat_collected = income * 0.07  # Fixed 7% as requested
+    vat_due = vat_collected - vat_deductible
+
+    # 3. The "Caveat" Calculation (Available Liquidity)
+    # Income - Expenses - VAT you owe the state
+    available_draw = income - expenses - vat_due
+
+    # 4. Fetch the Actual Saved Draw for this month
+    draw_record = OwnerDraw.query.filter_by(month=month_str).first()
+    actual_draw = draw_record.amount if draw_record else 0.0
+
+    return jsonify({
+        "month": month_str,
+        "income": income,
+        "expenses": expenses,
+        "net_profit": income - expenses,
+        "vat_collected": vat_collected,
+        "vat_deductible": vat_deductible,
+        "vat_due": vat_due,
+        "available_draw": available_draw,
+        "actual_draw": actual_draw
+    })
+
+@finance_bp.route('/api/finance/save-draw', methods=['POST'])
+@login_required
+def save_owner_draw():
+    data = request.get_json()
+    month_str = data.get('month')
+    amount = float(data.get('amount', 0))
+
+    draw_record = OwnerDraw.query.filter_by(month=month_str).first()
+    if not draw_record:
+        draw_record = OwnerDraw(month=month_str, amount=amount)
+        db.session.add(draw_record)
+    else:
+        draw_record.amount = amount
+
+    db.session.commit()
+    return jsonify({"message": "Draw updated successfully"}), 200
