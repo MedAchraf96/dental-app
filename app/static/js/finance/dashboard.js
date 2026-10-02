@@ -530,32 +530,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     function loadMonthlySummary(monthStr = null) {
         const container = document.getElementById('monthly-summary-container');
-        if (!container) return;
+        if (!container) {
+            console.error("ERROR: 'monthly-summary-container' not found in HTML!");
+            return;
+        }
 
         container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Loading summary...</p>';
 
         const url = monthStr ? `/api/finance/monthly-summary?month=${monthStr}` : '/api/finance/monthly-summary';
 
         fetch(url)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`Backend Error: ${res.status}`);
+                return res.json();
+            })
             .then(data => {
                 const fmt = (amt) => new Intl.NumberFormat('en-TN', { style: 'currency', currency: 'TND' }).format(amt);
                 const profitColor = data.net_profit >= 0 ? '#10b981' : '#ef4444';
                 const vatColor = data.vat_due >= 0 ? '#d97706' : '#10b981';
 
-                // Calculate difference between actual and available draw
                 const drawDiff = data.actual_draw - data.available_draw;
-                const drawDiffColor = drawDiff > 0 ? '#ef4444' : '#10b981'; // Red if over-drawn
+                const drawDiffColor = drawDiff > 0 ? '#ef4444' : '#10b981';
                 const drawDiffText = drawDiff > 0 ? `Over-drawn by ${fmt(drawDiff)}` : `Under-drawn by ${fmt(Math.abs(drawDiff))}`;
 
                 container.innerHTML = `
-                    <!-- Month Selector -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0; color: #1e3a8a;">Monthly Summary</h2>
                         <input type="month" id="summary-month-picker" value="${data.month}" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; cursor: pointer;">
                     </div>
 
-                    <!-- ROW 1: P&L Snapshot -->
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
                         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #1e3a8a; text-align: center;">
                             <div style="color: #666; font-size: 12px; font-weight: bold; text-transform: uppercase;">Total Income</div>
@@ -571,49 +574,41 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
 
-                    <!-- ROW 2: VAT & Draw -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        
-                        <!-- VAT Breakdown -->
                         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #d97706;">
                             <h3 style="margin-top: 0; color: #d97706; font-size: 16px; text-transform: uppercase;">VAT Breakdown</h3>
                             <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;">
-                                <span style="color: #666;">VAT Collected (7% of Income)</span>
+                                <span style="color: #666;">VAT Collected (7%)</span>
                                 <span style="font-weight: bold;">${fmt(data.vat_collected)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;">
-                                <span style="color: #666;">VAT Deductible (from Expenses)</span>
+                                <span style="color: #666;">VAT Deductible</span>
                                 <span style="font-weight: bold;">${fmt(data.vat_deductible)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 15px 0 0 0; font-size: 18px;">
-                                <span style="font-weight: bold; color: #666;">Net VAT Due to State</span>
+                                <span style="font-weight: bold; color: #666;">Net VAT Due</span>
                                 <span style="font-weight: bold; color: ${vatColor};">${fmt(data.vat_due)}</span>
                             </div>
                         </div>
 
-                        <!-- Owner's Draw -->
                         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #8b5cf6;">
                             <h3 style="margin-top: 0; color: #8b5cf6; font-size: 16px; text-transform: uppercase;">Owner's Draw</h3>
-                            
                             <div style="background: #f9fafb; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px;">
-                                <div style="color: #666;">Available Liquidity (Income - Exp - VAT):</div>
+                                <div style="color: #666;">Available Liquidity:</div>
                                 <div style="font-weight: bold; font-size: 16px; color: #10b981;">${fmt(data.available_draw)}</div>
                             </div>
-
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                <span style="color: #666; font-weight: bold;">Actual Draw Entered:</span>
+                                <span style="color: #666; font-weight: bold;">Actual Draw:</span>
                                 <form id="draw-form" style="display: flex; gap: 5px;">
                                     <input type="number" id="draw-input" step="0.01" value="${data.actual_draw}" style="width: 100px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: right;">
                                     <button type="submit" style="padding: 5px 10px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
                                 </form>
                             </div>
-
                             <div style="display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid #eee; font-size: 14px;">
                                 <span style="color: #666;">Difference:</span>
                                 <span style="font-weight: bold; color: ${drawDiffColor};">${drawDiffText}</span>
                             </div>
                         </div>
-
                     </div>
                 `;
 
@@ -635,15 +630,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             })
             .catch(err => {
-                if (container) container.innerHTML = '<p style="color: red;">Error loading monthly summary.</p>';
+                console.error("Monthly Summary Fetch Error:", err);
+                container.innerHTML = `<p style="color: red; text-align: center;">Error loading summary. Check F12 Console for details.</p>`;
             });
     }
 
     // ==========================================
-    // 5. INITIALIZE DATA
+    // 6. INITIALIZE DATA & TAB LISTENERS
     // ==========================================
     loadDashboardData();
     loadIncomeData();
     loadExpenseData();
-    loadMonthlySummary();
+
+    // Safely load Monthly Summary only if the HTML container exists
+    if (document.getElementById('monthly-summary-container')) {
+        loadMonthlySummary();
+    }
+
+    // Ensure the tab button triggers the load if it hasn't loaded yet
+    const summaryTabBtn = document.querySelector('[data-tab="monthly-summary"]');
+    if (summaryTabBtn) {
+        summaryTabBtn.addEventListener('click', () => {
+            if (!document.getElementById('summary-month-picker')) {
+                loadMonthlySummary();
+            }
+        });
+    }
 });
