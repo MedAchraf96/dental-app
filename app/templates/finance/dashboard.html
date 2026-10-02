@@ -117,90 +117,64 @@
             </table>
         </div>
     </div>
-
-    <!-- TAB 3: EXPENSES (Placeholder) -->
+    <!-- TAB 3: EXPENSES -->
     <div id="tab-expenses" class="finance-tab-content" style="display: none;">
-        <div
-            style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 id="expense-form-title" style="margin: 0; color: #1e3a8a;">Add Expense</h2>
-                <button id="cancel-expense-edit"
-                    style="display: none; background: none; border: none; color: #ef4444; cursor: pointer; font-weight: bold;">Cancel
-                    Edit</button>
-            </div>
-            <form id="expense-form">
-                <input type="hidden" id="expense-id" value="">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-                    <div><label
-                            style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Date:</label><input
-                            type="date" id="exp-date" required
-                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                    </div>
-                    <div><label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Due
-                            Date:</label><input type="date" id="exp-due-date"
-                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                    </div>
-                    <div><label
-                            style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Category:</label><select
-                            id="exp-category" required
-                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                            <option value="Medical Supplies">Medical Supplies</option>
-                            <option value="Lab Fees">Lab Fees</option>
-                            <option value="Rent/Utilities">Rent/Utilities</option>
-                            <option value="Equipment">Equipment</option>
-                            <option value="Owner's Draw">Owner's Draw</option>
-                            <option value="Tax/VAT">Tax/VAT</option>
-                            <option value="Other">Other</option>
-                        </select></div>
-                    <div><label
-                            style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Supplier:</label><input
-                            type="text" id="exp-supplier"
-                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                    </div>
-                    <div><label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Bill
-                            Number:</label><input type="text" id="exp-bill"
-                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                    </div>
-                    <div><label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Total
-                            Amount (TND):</label><input type="number" id="exp-total" step="0.01" required
-                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                    </div>
-                </div>
-                <div
-                    style="grid-column: 1 / -1; display: flex; align-items: center; gap: 15px; margin-top: 15px; padding: 10px; background: #f9fafb; border-radius: 4px;">
-                    <label
-                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold; font-size: 14px;">
-                        <input type="checkbox" id="exp-declarable" checked
-                            style="width: 18px; height: 18px; cursor: pointer;"> TVA Déductible
-                    </label>
-                    <div id="vat-input-container" style="display: flex; align-items: center; gap: 10px;">
-                        <label style="font-weight: bold; font-size: 14px;">Montant TVA (TND):</label>
-                        <input type="number" id="exp-vat" step="0.01" value="0"
-                            style="width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    </div>
-                </div>
-                <div style="margin-top: 15px;"><label
-                        style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Description:</label><input
-                        type="text" id="exp-desc"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                </div>
-                <button type="submit" id="expense-submit-btn"
-                    style="margin-top: 15px; background: #1e3a8a; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Save
-                    Expense</button>
-            </form>
+
+        <!-- Header and Add Button -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0; color: #1e3a8a;">Expenses Management</h2>
+            <button id="open-expense-modal-btn"
+                style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">+
+                Add Expense</button>
         </div>
+
+        <!-- FILTER BAR -->
+        <!-- FILTER BAR -->
+        <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="expense-search" placeholder="🔍 Search Supplier or Description..."
+                style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; flex: 1; min-width: 200px;">
+
+            <select id="expense-filter-month"
+                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white; min-width: 120px;">
+                <option value="All">All Months</option>
+                <!-- Months will be injected by JS -->
+            </select>
+
+            <select id="expense-filter-category"
+                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                <option value="All">All Categories</option>
+            </select>
+
+            <select id="expense-filter-status"
+                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                <option value="All">All Statuses</option>
+                <option value="Paid">Paid</option>
+                <option value="Partial">Partial</option>
+                <option value="Unpaid">Unpaid</option>
+            </select>
+        </div>
+
+        <!-- EXPENSES TABLE -->
         <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background-color: #1e3a8a; color: white;">
-                        <th style="padding: 12px; text-align: left;">Date</th>
-                        <th style="padding: 12px; text-align: left;">Category</th>
+                        <th class="sortable-expense" data-col="date"
+                            style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Date <span
+                                class="sort-icon-expense">↕</span></th>
+                        <th class="sortable-expense" data-col="category"
+                            style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Category <span
+                                class="sort-icon-expense">↕</span></th>
                         <th style="padding: 12px; text-align: left;">Supplier</th>
-                        <th style="padding: 12px; text-align: left;">Total</th>
+                        <th class="sortable-expense" data-col="total_amount"
+                            style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Total <span
+                                class="sort-icon-expense">↕</span></th>
                         <th style="padding: 12px; text-align: left;">Paid</th>
                         <th style="padding: 12px; text-align: left;">Balance</th>
                         <th style="padding: 12px; text-align: left;">Due Date</th>
-                        <th style="padding: 12px; text-align: left;">Status</th>
+                        <th class="sortable-expense" data-col="status"
+                            style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Status <span
+                                class="sort-icon-expense">↕</span></th>
                         <th style="padding: 12px;">Actions</th>
                     </tr>
                 </thead>
@@ -211,6 +185,8 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- PAYMENT MODAL -->
         <div id="payment-modal"
             style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
             <div style="background: white; padding: 25px; border-radius: 8px; max-width: 500px; width: 90%;">
@@ -240,7 +216,87 @@
                     style="margin-top: 15px; width: 100%; padding: 10px; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
             </div>
         </div>
+
+        <!-- EXPENSE FORM MODAL (Hidden by default) -->
+        <div id="expense-modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+            <div
+                style="background: white; padding: 30px; border-radius: 8px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 id="expense-modal-title" style="margin: 0; color: #1e3a8a;">Add Expense</h3>
+                    <button id="close-expense-modal-btn"
+                        style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+                </div>
+
+                <form id="expense-form">
+                    <input type="hidden" id="expense-id" value="">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div><label
+                                style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Date:</label><input
+                                type="date" id="exp-date" required
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div><label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Due
+                                Date:</label><input type="date" id="exp-due-date"
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div><label
+                                style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Category:</label><select
+                                id="exp-category" required
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                                <option value="Fixed Expenses">Fixed Expenses</option>
+                                <option value="Consumables">Consumables</option>
+                                <option value="ETC">ETC</option>
+                                <option value="Owner's Draw">Owner's Draw</option>
+                                <option value="Tax/VAT">Tax/VAT</option>
+                            </select></div>
+                        <div><label
+                                style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Supplier:</label><input
+                                type="text" id="exp-supplier"
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div><label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Bill
+                                Number:</label><input type="text" id="exp-bill"
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div><label
+                                style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Total
+                                Amount (TND):</label><input type="number" id="exp-total" step="0.01" required
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <div
+                        style="display: flex; align-items: center; gap: 15px; margin-top: 15px; padding: 10px; background: #f9fafb; border-radius: 4px;">
+                        <label
+                            style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold; font-size: 14px;">
+                            <input type="checkbox" id="exp-declarable" checked
+                                style="width: 18px; height: 18px; cursor: pointer;"> TVA Déductible
+                        </label>
+                        <div id="vat-input-container" style="display: flex; align-items: center; gap: 10px;">
+                            <label style="font-weight: bold; font-size: 14px;">Montant TVA (TND):</label>
+                            <input type="number" id="exp-vat" step="0.01" value="0"
+                                style="width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;"><label
+                            style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Description:</label><input
+                            type="text" id="exp-desc"
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                        <button type="button" id="cancel-expense-edit"
+                            style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                        <button type="submit" id="expense-submit-btn"
+                            style="padding: 10px 20px; background: #1e3a8a; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Save
+                            Expense</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
+
+    <!-- TAB 4: MONTHLY SUMMARY -->
     <div id="tab-monthly-summary" class="finance-tab-content" style="display: none; padding: 20px 0;">
         <div id="monthly-summary-container">
             <!-- Content injected by JS -->

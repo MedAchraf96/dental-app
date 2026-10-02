@@ -429,26 +429,95 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cancelBtn) cancelBtn.addEventListener('click', window.resetIncomeForm);
 
     // ==========================================
-    // 4. EXPENSES LOGIC
+    // 4. EXPENSES LOGIC (With Sort, Filter & CRUD)
     // ==========================================
     let allExpenseRecords = [];
     let currentExpenseId = null;
+
+    // State for Sort and Filter
+    let expenseSort = { col: 'date', dir: 'desc' };
+    let expenseFilter = { search: '', category: 'All', status: 'All', month: 'All' };
 
     function loadExpenseData() {
         const tbody = document.getElementById('expense-table-body');
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #666;">Loading expenses...</td></tr>';
         fetch('/api/finance/expenses').then(res => res.json()).then(data => {
-            allExpenseRecords = data; renderExpenseTable();
+            allExpenseRecords = data;
+            populateCategoryFilter();
+            renderExpenseTable();
+            populateMonthFilter();
         }).catch(err => { if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: red;">Error loading expenses.</td></tr>'; });
+    }
+
+    function populateCategoryFilter() {
+        const select = document.getElementById('expense-filter-category');
+        if (!select) return;
+        const categories = [...new Set(allExpenseRecords.map(r => r.category))].sort();
+        select.innerHTML = '<option value="All">All Categories</option>' +
+            categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+    }
+    function populateMonthFilter() {
+        const select = document.getElementById('expense-filter-month');
+        if (!select) return;
+
+        // Extract unique 'YYYY-MM' strings from the data, sort them newest first
+        const months = [...new Set(allExpenseRecords.map(r => r.date ? r.date.substring(0, 7) : null))]
+            .filter(Boolean)
+            .sort()
+            .reverse();
+
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        select.innerHTML = '<option value="All">All Months</option>' +
+            months.map(m => {
+                const [year, month] = m.split('-');
+                const label = `${monthNames[parseInt(month, 10) - 1]} ${year}`;
+                return `<option value="${m}">${label}</option>`;
+            }).join('');
     }
 
     function renderExpenseTable() {
         const tbody = document.getElementById('expense-table-body');
         if (!tbody) return;
-        if (allExpenseRecords.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">No expenses yet.</td></tr>'; return; }
 
-        tbody.innerHTML = allExpenseRecords.map(r => {
+        // 1. FILTERING
+        let filtered = allExpenseRecords.filter(r => {
+            const searchLower = expenseFilter.search.toLowerCase();
+            const matchesSearch = (r.supplier || '').toLowerCase().includes(searchLower) ||
+                (r.description || '').toLowerCase().includes(searchLower);
+            const matchesCategory = expenseFilter.category === 'All' || r.category === expenseFilter.category;
+            const matchesStatus = expenseFilter.status === 'All' || r.status === expenseFilter.status;
+
+            // NEW: Check if the record's date starts with the selected 'YYYY-MM'
+            const matchesMonth = expenseFilter.month === 'All' || (r.date && r.date.startsWith(expenseFilter.month));
+
+            return matchesSearch && matchesCategory && matchesStatus && matchesMonth;
+        });
+
+        // 2. SORTING
+        filtered.sort((a, b) => {
+            let valA = a[expenseSort.col];
+            let valB = b[expenseSort.col];
+
+            if (expenseSort.col === 'date') {
+                valA = new Date(a.date); valB = new Date(b.date);
+                return expenseSort.dir === 'asc' ? valA - valB : valB - valA;
+            }
+            if (['total_amount', 'paid_amount', 'balance'].includes(expenseSort.col)) {
+                valA = parseFloat(valA) || 0; valB = parseFloat(valB) || 0;
+                return expenseSort.dir === 'asc' ? valA - valB : valB - valA;
+            }
+            return expenseSort.dir === 'asc' ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+        });
+
+        // 3. RENDERING
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">No expenses match your filters.</td></tr>';
+            updateSortIcons(); return;
+        }
+
+        tbody.innerHTML = filtered.map(r => {
             let statusColor = r.status === 'Paid' ? '#10b981' : (r.status === 'Partial' ? '#f59e0b' : '#ef4444');
             return `<tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 12px;">${r.date_display}</td><td style="padding: 12px;">${r.category}</td><td style="padding: 12px;">${r.supplier || '-'}</td>
@@ -462,8 +531,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             </tr>`;
         }).join('');
+        updateSortIcons();
     }
 
+    function updateSortIcons() {
+        document.querySelectorAll('.sortable-expense').forEach(th => {
+            const icon = th.querySelector('.sort-icon-expense');
+            if (icon) {
+                if (th.dataset.col === expenseSort.col) icon.textContent = expenseSort.dir === 'asc' ? '▲' : '▼';
+                else icon.textContent = '↕';
+            }
+        });
+    }
+
+    // --- FILTER & SORT EVENT LISTENERS ---
+    document.getElementById('expense-search')?.addEventListener('input', (e) => { expenseFilter.search = e.target.value; renderExpenseTable(); });
+    document.getElementById('expense-filter-category')?.addEventListener('change', (e) => { expenseFilter.category = e.target.value; renderExpenseTable(); });
+    document.getElementById('expense-filter-status')?.addEventListener('change', (e) => { expenseFilter.status = e.target.value; renderExpenseTable(); });
+    document.getElementById('expense-filter-month')?.addEventListener('change', (e) => { expenseFilter.month = e.target.value; renderExpenseTable(); });
+
+    document.querySelectorAll('.sortable-expense').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = th.dataset.col;
+            if (expenseSort.col === col) expenseSort.dir = expenseSort.dir === 'asc' ? 'desc' : 'asc';
+            else { expenseSort.col = col; expenseSort.dir = 'asc'; }
+            renderExpenseTable();
+        });
+    });
+
+    // --- TVA TOGGLE ---
     const declarableCheckbox = document.getElementById('exp-declarable');
     const vatContainer = document.getElementById('vat-input-container');
     if (declarableCheckbox && vatContainer) {
@@ -473,6 +569,61 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- GLOBAL CRUD FUNCTIONS ---
+
+    // --- MODAL OPEN/CLOSE LOGIC (Expense) ---
+    const expenseModal = document.getElementById('expense-modal');
+    const openExpenseModalBtn = document.getElementById('open-expense-modal-btn');
+    const closeExpenseModalBtn = document.getElementById('close-expense-modal-btn');
+    const cancelExpenseEditBtn = document.getElementById('cancel-expense-edit');
+
+    function openExpenseModal() { if (expenseModal) expenseModal.style.display = 'flex'; }
+    function closeExpenseModal() { if (expenseModal) expenseModal.style.display = 'none'; }
+
+    if (openExpenseModalBtn) openExpenseModalBtn.addEventListener('click', () => { resetExpenseForm(); openExpenseModal(); });
+    if (closeExpenseModalBtn) closeExpenseModalBtn.addEventListener('click', closeExpenseModal);
+    if (cancelExpenseEditBtn) cancelExpenseEditBtn.addEventListener('click', closeExpenseModal);
+
+    // --- TVA TOGGLE ---
+    if (declarableCheckbox && vatContainer) {
+        declarableCheckbox.addEventListener('change', () => {
+            vatContainer.style.display = declarableCheckbox.checked ? 'flex' : 'none';
+            if (!declarableCheckbox.checked) document.getElementById('exp-vat').value = 0;
+        });
+    }
+
+    // --- UPDATED EDIT FUNCTION ---
+    window.editExpense = function (id) {
+        const r = allExpenseRecords.find(rec => rec.id === id); if (!r) return;
+        document.getElementById('expense-id').value = r.id;
+        document.getElementById('exp-date').value = r.date;
+        document.getElementById('exp-due-date').value = r.due_date;
+        document.getElementById('exp-category').value = r.category;
+        document.getElementById('exp-supplier').value = r.supplier || '';
+        document.getElementById('exp-bill').value = r.bill_number || '';
+        document.getElementById('exp-total').value = r.total_amount;
+        document.getElementById('exp-desc').value = r.description || '';
+        document.getElementById('exp-declarable').checked = r.is_declarable;
+        document.getElementById('exp-vat').value = r.vat_amount;
+
+        if (declarableCheckbox) declarableCheckbox.dispatchEvent(new Event('change'));
+
+        document.getElementById('expense-modal-title').textContent = 'Edit Expense';
+        document.getElementById('expense-submit-btn').textContent = 'Update Expense';
+        openExpenseModal();
+    };
+
+    // --- UPDATED RESET FUNCTION ---
+    window.resetExpenseForm = function () {
+        const expenseForm = document.getElementById('expense-form');
+        if (expenseForm) expenseForm.reset();
+        document.getElementById('expense-id').value = '';
+        document.getElementById('expense-modal-title').textContent = 'Add Expense';
+        document.getElementById('expense-submit-btn').textContent = 'Save Expense';
+        if (declarableCheckbox) { declarableCheckbox.checked = true; declarableCheckbox.dispatchEvent(new Event('change')); }
+    };
+
+    // --- FORM SUBMIT (ADD/UPDATE) ---
     const expenseForm = document.getElementById('expense-form');
     if (expenseForm) {
         expenseForm.addEventListener('submit', (e) => {
@@ -490,22 +641,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 vat_amount: document.getElementById('exp-vat').value
             };
             fetch('/api/finance/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify(payload) })
-                .then(res => { if (res.ok) { resetExpenseForm(); loadExpenseData(); loadDashboardData(); } else alert('Error saving expense.'); });
+                .then(res => {
+                    if (res.ok) {
+                        closeExpenseModal(); // Close modal on success
+                        resetExpenseForm();
+                        loadExpenseData();
+                        loadDashboardData();
+                    } else {
+                        alert('Error saving expense.');
+                    }
+                });
         });
     }
 
-    window.editExpense = function (id) {
-        const r = allExpenseRecords.find(rec => rec.id === id); if (!r) return;
-        document.getElementById('expense-id').value = r.id; document.getElementById('exp-date').value = r.date; document.getElementById('exp-due-date').value = r.due_date; document.getElementById('exp-category').value = r.category; document.getElementById('exp-supplier').value = r.supplier || ''; document.getElementById('exp-bill').value = r.bill_number || ''; document.getElementById('exp-total').value = r.total_amount; document.getElementById('exp-desc').value = r.description || ''; document.getElementById('exp-declarable').checked = r.is_declarable; document.getElementById('exp-vat').value = r.vat_amount;
-        if (declarableCheckbox) declarableCheckbox.dispatchEvent(new Event('change'));
-        document.getElementById('expense-form-title').textContent = 'Edit Expense'; document.getElementById('expense-submit-btn').textContent = 'Update Expense'; document.getElementById('cancel-expense-edit').style.display = 'block'; expenseForm.scrollIntoView({ behavior: 'smooth' });
+    window.deleteExpense = function (id) {
+        if (!confirm('Delete this expense?')) return;
+        fetch(`/api/finance/expenses/${id}`, { method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() } })
+            .then(res => { if (res.ok) { loadExpenseData(); loadDashboardData(); } });
     };
 
-    window.deleteExpense = function (id) { if (!confirm('Delete this expense?')) return; fetch(`/api/finance/expenses/${id}`, { method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() } }).then(res => { if (res.ok) { loadExpenseData(); loadDashboardData(); } }); };
-
-    window.resetExpenseForm = function () { if (expenseForm) expenseForm.reset(); document.getElementById('expense-id').value = ''; document.getElementById('expense-form-title').textContent = 'Add Expense'; document.getElementById('expense-submit-btn').textContent = 'Save Expense'; document.getElementById('cancel-expense-edit').style.display = 'none'; if (declarableCheckbox) { declarableCheckbox.checked = true; declarableCheckbox.dispatchEvent(new Event('change')); } };
-    const cancelExpBtn = document.getElementById('cancel-expense-edit'); if (cancelExpBtn) cancelExpBtn.addEventListener('click', window.resetExpenseForm);
-
+    // --- PAYMENT MODAL LOGIC (Made Null-Safe) ---
     window.openPaymentModal = function (id) {
         currentExpenseId = id;
         const r = allExpenseRecords.find(rec => rec.id === id); if (!r) return;
@@ -513,18 +668,49 @@ document.addEventListener('DOMContentLoaded', () => {
         const tbody = document.getElementById('payment-history-body');
         if (r.payments.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="padding: 10px; text-align: center; color: #999;">No payments yet</td></tr>'; }
         else { tbody.innerHTML = r.payments.map(p => `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px;">${p.date}</td><td style="padding: 8px;">${parseFloat(p.amount).toFixed(2)}</td><td style="padding: 8px;">${p.note || '-'}</td><td style="padding: 8px;"><button onclick="deletePayment(${r.id}, ${p.id})" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">✕</button></td></tr>`).join(''); }
-        document.getElementById('payment-modal').style.display = 'flex';
+
+        const payModal = document.getElementById('payment-modal');
+        if (payModal) payModal.style.display = 'flex';
     };
 
-    document.getElementById('close-payment-modal').addEventListener('click', () => { document.getElementById('payment-modal').style.display = 'none'; currentExpenseId = null; });
+    const closePayBtn = document.getElementById('close-payment-modal');
+    if (closePayBtn) {
+        closePayBtn.addEventListener('click', () => {
+            document.getElementById('payment-modal').style.display = 'none';
+            currentExpenseId = null;
+        });
+    }
 
-    document.getElementById('add-payment-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const payload = { date: document.getElementById('pay-date').value, amount: document.getElementById('pay-amount').value, note: document.getElementById('pay-note').value };
-        fetch(`/api/finance/expenses/${currentExpenseId}/payment`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify(payload) }).then(res => { if (res.ok) { document.getElementById('add-payment-form').reset(); loadExpenseData(); openPaymentModal(currentExpenseId); loadDashboardData(); } });
-    });
+    const addPayForm = document.getElementById('add-payment-form');
+    if (addPayForm) {
+        addPayForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const payload = {
+                date: document.getElementById('pay-date').value,
+                amount: document.getElementById('pay-amount').value,
+                note: document.getElementById('pay-note').value
+            };
+            fetch(`/api/finance/expenses/${currentExpenseId}/payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify(payload)
+            }).then(res => {
+                if (res.ok) {
+                    addPayForm.reset();
+                    loadExpenseData();
+                    openPaymentModal(currentExpenseId);
+                    loadDashboardData();
+                }
+            });
+        });
+    }
 
-    window.deletePayment = function (expId, payId) { if (!confirm('Delete this payment?')) return; fetch(`/api/finance/expenses/${expId}/payment/${payId}`, { method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() } }).then(res => { if (res.ok) { loadExpenseData(); openPaymentModal(expId); loadDashboardData(); } }); };
+    window.deletePayment = function (expId, payId) {
+        if (!confirm('Delete this payment?')) return;
+        fetch(`/api/finance/expenses/${expId}/payment/${payId}`, { method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() } })
+            .then(res => { if (res.ok) { loadExpenseData(); openPaymentModal(expId); loadDashboardData(); } });
+    };
+
     // ==========================================
     // 5. MONTHLY SUMMARY LOGIC
     // ==========================================
@@ -555,69 +741,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 container.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h2 style="margin: 0; color: #1e3a8a;">Monthly Summary</h2>
+                        <h2 style="margin: 0; color: #1e3a8a;">Monthly Financial Statement</h2>
                         <input type="month" id="summary-month-picker" value="${data.month}" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; cursor: pointer;">
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
-                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #1e3a8a; text-align: center;">
-                            <div style="color: #666; font-size: 12px; font-weight: bold; text-transform: uppercase;">Total Income</div>
-                            <div style="font-size: 28px; font-weight: bold; color: #1e3a8a; margin: 10px 0;">${fmt(data.income)}</div>
-                        </div>
-                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #ef4444; text-align: center;">
-                            <div style="color: #666; font-size: 12px; font-weight: bold; text-transform: uppercase;">Total Expenses</div>
-                            <div style="font-size: 28px; font-weight: bold; color: #ef4444; margin: 10px 0;">${fmt(data.expenses)}</div>
-                        </div>
-                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid ${profitColor}; text-align: center;">
-                            <div style="color: #666; font-size: 12px; font-weight: bold; text-transform: uppercase;">Net Profit</div>
-                            <div style="font-size: 28px; font-weight: bold; color: ${profitColor}; margin: 10px 0;">${fmt(data.net_profit)}</div>
-                        </div>
+                    <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e5e7eb;">
+                        <table style="width: 100%; border-collapse: collapse; font-family: system-ui, -apple-system, sans-serif;">
+                            <tr style="background: #f8fafc;">
+                                <td style="padding: 12px 20px; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #e5e7eb;">REVENUE</td>
+                                <td style="padding: 12px 20px; text-align: right; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #e5e7eb;">${fmt(data.income)}</td>
+                            </tr>
+                            <tr style="background: #f8fafc;">
+                                <td colspan="2" style="padding: 12px 20px; font-weight: bold; color: #ef4444; border-bottom: 1px solid #e5e7eb;">OPERATING EXPENSES (MOH)</td>
+                            </tr>
+                            ${data.expense_breakdown.map(item => `
+                                <tr>
+                                    <td style="padding: 10px 20px 10px 40px; color: #4b5563; border-bottom: 1px solid #f3f4f6;">${item.category}</td>
+                                    <td style="padding: 10px 20px; text-align: right; color: #4b5563; border-bottom: 1px solid #f3f4f6;">${fmt(item.amount)}</td>
+                                </tr>
+                            `).join('')}
+                            <tr style="background: #fef2f2;">
+                                <td style="padding: 12px 20px; font-weight: bold; color: #ef4444; border-bottom: 2px solid #e5e7eb;">Total Operating Expenses</td>
+                                <td style="padding: 12px 20px; text-align: right; font-weight: bold; color: #ef4444; border-bottom: 2px solid #e5e7eb;">${fmt(data.expenses)}</td>
+                            </tr>
+                            <tr style="background: #f0fdf4;">
+                                <td style="padding: 15px 20px; font-weight: bold; font-size: 16px; color: #10b981; border-bottom: 2px solid #e5e7eb;">GROSS PROFIT (Income - Expenses)</td>
+                                <td style="padding: 15px 20px; text-align: right; font-weight: bold; font-size: 16px; color: #10b981; border-bottom: 2px solid #e5e7eb;">${fmt(data.net_profit)}</td>
+                            </tr>
+                            <tr style="background: #f8fafc;">
+                                <td colspan="2" style="padding: 12px 20px; font-weight: bold; color: #d97706; border-bottom: 1px solid #e5e7eb;">TAXES & OWNER'S DRAW</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 20px 10px 40px; color: #4b5563; border-bottom: 1px solid #f3f4f6;">Net VAT Due to State (7% Collected - Deductible)</td>
+                                <td style="padding: 10px 20px; text-align: right; color: #d97706; font-weight: bold; border-bottom: 1px solid #f3f4f6;">${fmt(data.vat_due)}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 20px 10px 40px; color: #4b5563; border-bottom: 1px solid #f3f4f6;">
+                                    Owner's Draw 
+                                    <span style="font-size: 12px; color: #9ca3af; margin-left: 10px;">(Available: ${fmt(data.available_draw)})</span>
+                                </td>
+                                <td style="padding: 10px 20px; text-align: right; border-bottom: 1px solid #f3f4f6;">
+                                    <form id="draw-form" style="display: flex; justify-content: flex-end; gap: 5px;">
+                                        <input type="number" id="draw-input" step="0.01" value="${data.actual_draw}" style="width: 90px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: right;">
+                                        <button type="submit" style="padding: 4px 10px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Save</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <tr style="background: #1e3a8a; color: white;">
+                                <td style="padding: 15px 20px; font-weight: bold; font-size: 18px;">NET CASH FLOW (Profit - VAT - Draw)</td>
+                                <td style="padding: 15px 20px; text-align: right; font-weight: bold; font-size: 18px;">${fmt(data.net_profit - data.vat_due - data.actual_draw)}</td>
+                            </tr>
+                        </table>
                     </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #d97706;">
-                            <h3 style="margin-top: 0; color: #d97706; font-size: 16px; text-transform: uppercase;">VAT Breakdown</h3>
-                            <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;">
-                                <span style="color: #666;">VAT Collected (7%)</span>
-                                <span style="font-weight: bold;">${fmt(data.vat_collected)}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;">
-                                <span style="color: #666;">VAT Deductible</span>
-                                <span style="font-weight: bold;">${fmt(data.vat_deductible)}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 15px 0 0 0; font-size: 18px;">
-                                <span style="font-weight: bold; color: #666;">Net VAT Due</span>
-                                <span style="font-weight: bold; color: ${vatColor};">${fmt(data.vat_due)}</span>
-                            </div>
-                        </div>
-
-                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #8b5cf6;">
-                            <h3 style="margin-top: 0; color: #8b5cf6; font-size: 16px; text-transform: uppercase;">Owner's Draw</h3>
-                            <div style="background: #f9fafb; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px;">
-                                <div style="color: #666;">Available Liquidity:</div>
-                                <div style="font-weight: bold; font-size: 16px; color: #10b981;">${fmt(data.available_draw)}</div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                <span style="color: #666; font-weight: bold;">Actual Draw:</span>
-                                <form id="draw-form" style="display: flex; gap: 5px;">
-                                    <input type="number" id="draw-input" step="0.01" value="${data.actual_draw}" style="width: 100px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: right;">
-                                    <button type="submit" style="padding: 5px 10px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
-                                </form>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid #eee; font-size: 14px;">
-                                <span style="color: #666;">Difference:</span>
-                                <span style="font-weight: bold; color: ${drawDiffColor};">${drawDiffText}</span>
-                            </div>
-                        </div>
+                    <div style="margin-top: 15px; text-align: right; font-size: 14px; color: ${drawDiffColor}; font-weight: bold;">
+                        ${drawDiffText}
                     </div>
                 `;
 
-                // Attach Event Listeners
-                document.getElementById('summary-month-picker').addEventListener('change', (e) => {
+                document.getElementById('summary-month-picker')?.addEventListener('change', (e) => {
                     loadMonthlySummary(e.target.value);
                 });
 
-                document.getElementById('draw-form').addEventListener('submit', (e) => {
+                document.getElementById('draw-form')?.addEventListener('submit', (e) => {
                     e.preventDefault();
                     const amount = parseFloat(document.getElementById('draw-input').value) || 0;
                     fetch('/api/finance/save-draw', {
@@ -631,7 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(err => {
                 console.error("Monthly Summary Fetch Error:", err);
-                container.innerHTML = `<p style="color: red; text-align: center;">Error loading summary. Check F12 Console for details.</p>`;
+                // FIXED: Removed accidental spaces in the HTML string
+                container.innerHTML = '<p style="color: red; text-align: center;">Error loading summary. Check F12 Console for details.</p>';
             });
     }
 
@@ -642,12 +828,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadIncomeData();
     loadExpenseData();
 
-    // Safely load Monthly Summary only if the HTML container exists
     if (document.getElementById('monthly-summary-container')) {
         loadMonthlySummary();
     }
 
-    // Ensure the tab button triggers the load if it hasn't loaded yet
     const summaryTabBtn = document.querySelector('[data-tab="monthly-summary"]');
     if (summaryTabBtn) {
         summaryTabBtn.addEventListener('click', () => {

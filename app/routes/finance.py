@@ -240,7 +240,6 @@ def delete_payment(exp_id, pay_id):
 @finance_bp.route('/api/finance/monthly-summary')
 @login_required
 def get_monthly_summary():
-    # Get the requested month from URL params (default to current month)
     month_str = request.args.get('month', datetime.now().strftime('%Y-%m'))
 
     # 1. Income & Expenses for the month
@@ -252,20 +251,30 @@ def get_monthly_summary():
         func.strftime('%Y-%m', Expense.date) == month_str
     ).scalar() or 0.0
 
-    # 2. VAT Calculations
+    # 2. NEW: Expense Breakdown by Category (Replaces Excel Rows 7-13)
+    breakdown_query = db.session.query(
+        Expense.category, func.sum(Expense.total_amount)
+    ).filter(
+        func.strftime('%Y-%m', Expense.date) == month_str
+    ).group_by(Expense.category).all()
+
+    # Format into a list of dictionaries and sort by highest amount
+    expense_breakdown = [{"category": row[0], "amount": float(row[1])} for row in breakdown_query]
+    expense_breakdown.sort(key=lambda x: x['amount'], reverse=True)
+
+    # 3. VAT Calculations
     vat_deductible = db.session.query(func.sum(Expense.vat_amount)).filter(
         func.strftime('%Y-%m', Expense.date) == month_str,
         Expense.is_declarable == True
     ).scalar() or 0.0
 
-    vat_collected = income * 0.07  # Fixed 7% as requested
+    vat_collected = income * 0.07
     vat_due = vat_collected - vat_deductible
 
-    # 3. The "Caveat" Calculation (Available Liquidity)
-    # Income - Expenses - VAT you owe the state
+    # 4. The "Caveat" Calculation (Available Liquidity)
     available_draw = income - expenses - vat_due
 
-    # 4. Fetch the Actual Saved Draw for this month
+    # 5. Fetch the Actual Saved Draw for this month
     draw_record = OwnerDraw.query.filter_by(month=month_str).first()
     actual_draw = draw_record.amount if draw_record else 0.0
 
@@ -278,9 +287,9 @@ def get_monthly_summary():
         "vat_deductible": vat_deductible,
         "vat_due": vat_due,
         "available_draw": available_draw,
-        "actual_draw": actual_draw
+        "actual_draw": actual_draw,
+        "expense_breakdown": expense_breakdown # <-- NEW DATA SENT TO FRONTEND
     })
-
 @finance_bp.route('/api/finance/save-draw', methods=['POST'])
 @login_required
 def save_owner_draw():
