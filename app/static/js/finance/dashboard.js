@@ -457,6 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         select.innerHTML = '<option value="All">All Categories</option>' +
             categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
     }
+
     function populateMonthFilter() {
         const select = document.getElementById('expense-filter-month');
         if (!select) return;
@@ -741,41 +742,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 container.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h2 style="margin: 0; color: #1e3a8a;">Monthly Financial Statement</h2>
+                        <h2 style="margin: 0; color: #1e3a8a;">Monthly Cash Flow Statement</h2>
                         <input type="month" id="summary-month-picker" value="${data.month}" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; cursor: pointer;">
                     </div>
 
                     <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e5e7eb;">
                         <table style="width: 100%; border-collapse: collapse; font-family: system-ui, -apple-system, sans-serif;">
-                            <tr style="background: #f8fafc;">
-                                <td style="padding: 12px 20px; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #e5e7eb;">REVENUE</td>
-                                <td style="padding: 12px 20px; text-align: right; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #e5e7eb;">${fmt(data.income)}</td>
+                            
+                            <!-- 1. CASH IN -->
+                            <tr style="background: #f0fdf4;">
+                                <td style="padding: 12px 20px; font-weight: bold; color: #10b981; border-bottom: 1px solid #e5e7eb;">CASH IN (Income Received)</td>
+                                <td style="padding: 12px 20px; text-align: right; font-weight: bold; color: #10b981; border-bottom: 1px solid #e5e7eb;">${fmt(data.cash_in)}</td>
                             </tr>
-                            <tr style="background: #f8fafc;">
-                                <td colspan="2" style="padding: 12px 20px; font-weight: bold; color: #ef4444; border-bottom: 1px solid #e5e7eb;">OPERATING EXPENSES (MOH)</td>
+
+                            <!-- 2. OPERATING EXPENSES (No Tax/Draw here) -->
+                            <tr style="background: #fef2f2;">
+                                <td colspan="2" style="padding: 12px 20px; font-weight: bold; color: #ef4444; border-bottom: 1px solid #e5e7eb;">OPERATING EXPENSES (Payments Made)</td>
                             </tr>
-                            ${data.expense_breakdown.map(item => `
+                            ${data.expense_breakdown.length > 0 ? data.expense_breakdown.map(item => `
                                 <tr>
                                     <td style="padding: 10px 20px 10px 40px; color: #4b5563; border-bottom: 1px solid #f3f4f6;">${item.category}</td>
                                     <td style="padding: 10px 20px; text-align: right; color: #4b5563; border-bottom: 1px solid #f3f4f6;">${fmt(item.amount)}</td>
                                 </tr>
-                            `).join('')}
+                            `).join('') : '<tr><td colspan="2" style="padding: 10px 20px; color: #999; text-align: center;">No operating payments made this month</td></tr>'}
+                            
                             <tr style="background: #fef2f2;">
                                 <td style="padding: 12px 20px; font-weight: bold; color: #ef4444; border-bottom: 2px solid #e5e7eb;">Total Operating Expenses</td>
-                                <td style="padding: 12px 20px; text-align: right; font-weight: bold; color: #ef4444; border-bottom: 2px solid #e5e7eb;">${fmt(data.expenses)}</td>
+                                <td style="padding: 12px 20px; text-align: right; font-weight: bold; color: #ef4444; border-bottom: 2px solid #e5e7eb;">${fmt(data.cash_out)}</td>
                             </tr>
-                            <tr style="background: #f0fdf4;">
-                                <td style="padding: 15px 20px; font-weight: bold; font-size: 16px; color: #10b981; border-bottom: 2px solid #e5e7eb;">GROSS PROFIT (Income - Expenses)</td>
-                                <td style="padding: 15px 20px; text-align: right; font-weight: bold; font-size: 16px; color: #10b981; border-bottom: 2px solid #e5e7eb;">${fmt(data.net_profit)}</td>
+
+                            <!-- 3. OPERATING CASH FLOW -->
+                            <tr style="background: #f8fafc;">
+                                <td style="padding: 15px 20px; font-weight: bold; font-size: 16px; color: #1e3a8a; border-bottom: 2px solid #e5e7eb;">OPERATING CASH FLOW (Cash In - Operating Exp)</td>
+                                <td style="padding: 15px 20px; text-align: right; font-weight: bold; font-size: 16px; color: ${data.operating_cash_flow >= 0 ? '#10b981' : '#ef4444'}; border-bottom: 2px solid #e5e7eb;">${fmt(data.operating_cash_flow)}</td>
                             </tr>
+
+                            <!-- 4. TAXES & DRAW -->
                             <tr style="background: #f8fafc;">
                                 <td colspan="2" style="padding: 12px 20px; font-weight: bold; color: #d97706; border-bottom: 1px solid #e5e7eb;">TAXES & OWNER'S DRAW</td>
                             </tr>
                             <tr>
-                                <td style="padding: 10px 20px 10px 40px; color: #4b5563; border-bottom: 1px solid #f3f4f6;">Net VAT Due to State (7% Collected - Deductible)</td>
-                                <td style="padding: 10px 20px; text-align: right; color: #d97706; font-weight: bold; border-bottom: 1px solid #f3f4f6;">${fmt(data.vat_due)}</td>
+                                <td style="padding: 10px 20px 10px 40px; color: #4b5563; border-bottom: 1px solid #f3f4f6;">
+                                    VAT Paid (Manual Entry)
+                                    <span style="cursor: help; margin-left: 5px; color: #9ca3af; font-size: 14px;" title="Theoretical Calculation: ${fmt(data.vat_collected)} Collected - ${fmt(data.vat_deductible)} Deductible = ${fmt(data.calculated_vat_due)}">ℹ️</span>
+                                </td>
+                                <td style="padding: 10px 20px; text-align: right; color: #d97706; font-weight: bold; border-bottom: 1px solid #f3f4f6;">${fmt(data.manual_vat)}</td>
                             </tr>
-                            <tr>
                                 <td style="padding: 10px 20px 10px 40px; color: #4b5563; border-bottom: 1px solid #f3f4f6;">
                                     Owner's Draw 
                                     <span style="font-size: 12px; color: #9ca3af; margin-left: 10px;">(Available: ${fmt(data.available_draw)})</span>
@@ -787,14 +799,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </form>
                                 </td>
                             </tr>
+
+                            <!-- 5. ENDING LIQUIDITY -->
                             <tr style="background: #1e3a8a; color: white;">
-                                <td style="padding: 15px 20px; font-weight: bold; font-size: 18px;">NET CASH FLOW (Profit - VAT - Draw)</td>
-                                <td style="padding: 15px 20px; text-align: right; font-weight: bold; font-size: 18px;">${fmt(data.net_profit - data.vat_due - data.actual_draw)}</td>
+                                <td style="padding: 15px 20px; font-weight: bold; font-size: 18px;">ENDING LIQUIDITY (Op. Cash Flow - VAT - Draw)</td>
+                                <td style="padding: 15px 20px; text-align: right; font-weight: bold; font-size: 18px;">${fmt(data.operating_cash_flow - data.manual_vat - data.actual_draw)}</td>
                             </tr>
+
                         </table>
-                    </div>
-                    <div style="margin-top: 15px; text-align: right; font-size: 14px; color: ${drawDiffColor}; font-weight: bold;">
-                        ${drawDiffText}
                     </div>
                 `;
 
@@ -832,12 +844,44 @@ document.addEventListener('DOMContentLoaded', () => {
         loadMonthlySummary();
     }
 
-    const summaryTabBtn = document.querySelector('[data-tab="monthly-summary"]');
-    if (summaryTabBtn) {
-        summaryTabBtn.addEventListener('click', () => {
-            if (!document.getElementById('summary-month-picker')) {
-                loadMonthlySummary();
+    // ==========================================
+    // TAB SWITCHING & AUTO-REFRESH LOGIC
+    // ==========================================
+    document.querySelectorAll('.finance-tab-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            // 1. Update UI (Active Tab Styling)
+            document.querySelectorAll('.finance-tab-btn').forEach(b => {
+                b.style.borderBottom = '3px solid transparent';
+                b.style.color = '#6b7280';
+                b.style.fontWeight = 'normal';
+            });
+            this.style.borderBottom = '3px solid #1e3a8a';
+            this.style.color = '#1e3a8a';
+            this.style.fontWeight = 'bold';
+
+            // 2. Show/Hide Tab Content
+            document.querySelectorAll('.finance-tab-content').forEach(c => c.style.display = 'none');
+            const tabId = 'tab-' + this.dataset.tab;
+            document.getElementById(tabId).style.display = 'block';
+
+            // 3. AUTO-REFRESH DATA based on which tab was clicked
+            const tabName = this.dataset.tab;
+
+            if (tabName === 'dashboard') {
+                loadDashboardData(); // Refreshes KPIs and Charts
+            }
+            else if (tabName === 'income') {
+                loadIncomeData(); // Refreshes Income Table
+            }
+            else if (tabName === 'expenses') {
+                loadExpenseData(); // Refreshes Expense Table & Filters
+            }
+            else if (tabName === 'monthly-summary') {
+                // Refreshes Summary, remembering the month you were looking at
+                const picker = document.getElementById('summary-month-picker');
+                const currentMonth = picker ? picker.value : null;
+                loadMonthlySummary(currentMonth);
             }
         });
-    }
+    });
 });

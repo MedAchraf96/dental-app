@@ -242,54 +242,75 @@ def delete_payment(exp_id, pay_id):
 def get_monthly_summary():
     month_str = request.args.get('month', datetime.now().strftime('%Y-%m'))
 
-    # 1. Income & Expenses for the month
-    income = db.session.query(func.sum(DailyIncome.amount)).filter(
+    # 1. CASH IN
+    cash_in = db.session.query(func.sum(DailyIncome.amount)).filter(
         func.strftime('%Y-%m', DailyIncome.date) == month_str
     ).scalar() or 0.0
 
-    expenses = db.session.query(func.sum(Expense.total_amount)).filter(
-        func.strftime('%Y-%m', Expense.date) == month_str
+    # 2. MANUAL VAT (Actual cash paid to 'Tax/VAT' category)
+    manual_vat = db.session.query(func.sum(Payment.amount)).join(Expense).filter(
+        func.strftime('%Y-%m', Payment.date) == month_str,
+        Expense.category == 'Tax/VAT'
     ).scalar() or 0.0
 
-    # 2. NEW: Expense Breakdown by Category (Replaces Excel Rows 7-13)
+    # 3. THEORETICAL VAT CALCULATION (For the tooltip info icon)
+    vat_collected = cash_in * 0.07
+    
+    payments_with_expenses = db.session.query(Payment, Expense).join(Expense).filter(
+        func.strftime('%Y-%m', Payment.date) == month_str,
+        Expense.is_declarable == True,
+        Expense.total_amount > 0
+    ).all()
+    
+    vat_deductible = 0.0
+    for pay, exp in payments_with_expenses:
+        if exp.total_amount > 0:
+            vat_deductible += (pay.amount / exp.total_amount) * exp.vat_amount
+            
+    calculated_vat_due = vat_collected - vat_deductible
+
+    # 4. OPERATING CASH OUT (Exclude Tax/VAT and Owner's Draw)
+    cash_out = db.session.query(func.sum(Payment.amount)).join(Expense).filter(
+        func.strftime('%Y-%m', Payment.date) == month_str,
+        Expense.category != 'Tax/VAT',
+        Expense.category != "Owner's Draw"
+    ).scalar() or 0.0
+
+    # 5. Expense Breakdown (Operating Only)
     breakdown_query = db.session.query(
-        Expense.category, func.sum(Expense.total_amount)
-    ).filter(
-        func.strftime('%Y-%m', Expense.date) == month_str
+        Expense.category, func.sum(Payment.amount)
+    ).join(Payment, Expense.id == Payment.expense_id).filter(
+        func.strftime('%Y-%m', Payment.date) == month_str,
+        Expense.category != 'Tax/VAT',
+        Expense.category != "Owner's Draw"
     ).group_by(Expense.category).all()
 
-    # Format into a list of dictionaries and sort by highest amount
-    expense_breakdown = [{"category": row[0], "amount": float(row[1])} for row in breakdown_query]
+    expense_breakdown = [{"category": row[0] or 'Uncategorized', "amount": float(row[1])} for row in breakdown_query]
     expense_breakdown.sort(key=lambda x: x['amount'], reverse=True)
 
-    # 3. VAT Calculations
-    vat_deductible = db.session.query(func.sum(Expense.vat_amount)).filter(
-        func.strftime('%Y-%m', Expense.date) == month_str,
-        Expense.is_declarable == True
-    ).scalar() or 0.0
-
-    vat_collected = income * 0.07
-    vat_due = vat_collected - vat_deductible
-
-    # 4. The "Caveat" Calculation (Available Liquidity)
-    available_draw = income - expenses - vat_due
-
-    # 5. Fetch the Actual Saved Draw for this month
+    # 6. Owner's Draw
     draw_record = OwnerDraw.query.filter_by(month=month_str).first()
     actual_draw = draw_record.amount if draw_record else 0.0
 
+    # 7. Operating Cash Flow & Available Liquidity
+    operating_cash_flow = cash_in - cash_out
+    available_draw = operating_cash_flow - manual_vat
+
+    # 8. Return everything to the frontend
     return jsonify({
         "month": month_str,
-        "income": income,
-        "expenses": expenses,
-        "net_profit": income - expenses,
-        "vat_collected": vat_collected,
-        "vat_deductible": vat_deductible,
-        "vat_due": vat_due,
+        "cash_in": cash_in,
+        "cash_out": cash_out,
+        "operating_cash_flow": operating_cash_flow,
+        "manual_vat": manual_vat,
+        "vat_collected": vat_collected,       # Now it is calculated and defined!
+        "vat_deductible": vat_deductible,     # Now it is calculated and defined!
+        "calculated_vat_due": calculated_vat_due,
         "available_draw": available_draw,
         "actual_draw": actual_draw,
-        "expense_breakdown": expense_breakdown # <-- NEW DATA SENT TO FRONTEND
+        "expense_breakdown": expense_breakdown
     })
+
 @finance_bp.route('/api/finance/save-draw', methods=['POST'])
 @login_required
 def save_owner_draw():
