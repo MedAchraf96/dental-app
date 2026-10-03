@@ -33,9 +33,21 @@ function initAppointmentForm(context, data = null) {
   patientSearchContainer.style.display = 'block';
   patientInfo.style.display = 'none';
 
-  // Clear any previous data
+  // Clear any previous data and reset treatment lists
   delete form.dataset.appointmentId;
   delete form.dataset.originalValues;
+
+  // 1. Clear the "New Procedure" tags
+  if (typeof window.renderNewTreatmentTags === 'function') {
+    window.newTreatmentsList = [];
+    window.renderNewTreatmentTags();
+  }
+
+  // 2. ✅ ADD THIS: Clear the "From Treatment Plan" checkboxes container
+  const treatmentContainer = document.getElementById('existing-treatments-list');
+  if (treatmentContainer) {
+    treatmentContainer.innerHTML = '<p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px; margin: 0;">Select a patient to load plan...</p>';
+  }
 
   // Set form based on context
   switch (context) {
@@ -70,27 +82,27 @@ function initAppointmentForm(context, data = null) {
       const endTime = new Date(data.end_time);
       const duration = Math.round((endTime - startTime) / 60000);
 
-      // Store original values for comparison
+      // UPDATED: Store original values using the new structure
       const originalData = {
         date: formatDateForInput(startTime),
         time: formatTimeForInput(startTime),
         duration: duration,
         patient_id: data.patient_id,
-        treatment: data.treatment_type
+        existing_treatments: data.treatment_ids ? [...data.treatment_ids].sort() : [],
+        new_treatments: []
       };
 
-      // Populate patient info (show prominently in edit mode)
+      // Populate patient info
       patientIdInput.value = data.patient_id;
       patientFullName.textContent = `${data.patient_first_name} ${data.patient_last_name}`;
       patientPhone.textContent = data.patient_phone || 'Not provided';
       patientInfo.style.display = 'block';
-      patientInfo.style.marginTop = '0'; // Remove extra margin since search is hidden
+      patientInfo.style.marginTop = '0';
 
-      // Populate other fields
+      // Populate date/time fields
       document.getElementById('appointmentDate').value = originalData.date;
       document.getElementById('startTime').value = originalData.time;
       document.getElementById('duration').value = originalData.duration;
-      document.getElementById('treatmentType').value = originalData.treatment;
 
       // Store identifiers
       form.dataset.appointmentId = data.id;
@@ -100,6 +112,18 @@ function initAppointmentForm(context, data = null) {
       // Update UI
       submitBtn.textContent = 'Update Appointment';
       modalTitle.innerHTML = `${icon} Edit Appointment`;
+
+      // NEW: Load treatments and check the boxes for this specific appointment
+      if (typeof window.loadPatientTreatments === 'function') {
+        window.loadPatientTreatments(data.patient_id).then(() => {
+          if (data.treatment_ids) {
+            data.treatment_ids.forEach(id => {
+              const cb = document.querySelector(`.existing-treatment-cb[value="${id}"]`);
+              if (cb) cb.checked = true;
+            });
+          }
+        });
+      }
       break;
 
     case 'timeslot':
@@ -118,7 +142,7 @@ function initAppointmentForm(context, data = null) {
     window.triggerMutualValidation();
   }
 
-  // Use flex so CSS centering (align-items/justify-content) works
+  // Use flex so CSS centering works
   modal.style.display = 'flex';
 }
 

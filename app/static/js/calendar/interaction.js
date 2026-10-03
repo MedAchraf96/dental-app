@@ -344,6 +344,4 @@ function initiateResize(e, el, appt, getAppointments, initCalendar) {
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-}
-
-// Remove old setupResizeHandlers export as it's now internal to the delegation
+} 

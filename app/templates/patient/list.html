@@ -31,42 +31,22 @@
             <th>Name</th>
             <th>Birth Date</th>
             <th>Contact</th>
-            <th class="text-end">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for patient in patients %}
-          <tr>
-            <td>{{ patient.first_name }} {{ patient.last_name }}</td>
-            <td>{{ patient.date_of_birth.strftime('%Y-%m-%d') if patient.date_of_birth }}</td>
+          <tr data-href="{{ url_for('patient.profile', patient_id=patient.id) }}"
+            onclick="window.location.href = this.dataset.href;"
+            style="cursor: pointer; transition: background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor=''">
+            <td>{{ patient.full_name }}</td>
+            <td>{{ patient.date_of_birth }}</td>
             <td>
-              <div>{{ patient.phone }}</div>
-              <small>{{ patient.email if patient.email }}</small>
+              {{ patient.phone }}<br>
+              <small class="text-muted">{{ patient.email }}</small>
             </td>
-            <td class="actions">
-              <form action="{{ url_for('patient.profile', patient_id=patient.id) }}" method="GET" class="d-inline">
-                <button type="submit" class="btn btn-view" title="View Profile">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                      d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-                  </svg>
-                  <span class="btn-text">View</span>
-                </button>
-              </form>
-              <form action="{{ url_for('patient.edit_patient', id=patient.id) }}" method="GET" class="d-inline">
-                <button type="submit" class="btn btn-edit" title="Edit Profile">
-                  <i class="bi bi-pencil"></i>
-                  <span class="btn-text">Edit</span>
-                </button>
-              </form>
-              <form action="{{ url_for('patient.delete_patient', id=patient.id) }}" method="POST" class="d-inline">
-                <button type="submit" class="btn btn-danger" name="csrf_token" value="{{ csrf_token() }}"
-                  onclick="return confirm('Delete this patient?')">
-                  <i class="bi bi-trash"></i>
-                  <span class="btn-text">Delete</span>
-                </button>
-              </form>
-            </td>
+
+            <!-- The Actions <td> is completely removed -->
           </tr>
           {% endfor %}
         </tbody>

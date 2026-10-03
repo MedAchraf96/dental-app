@@ -24,6 +24,37 @@ import {
 } from "./interaction.js";
 
 // ======================
+// GLOBAL TREATMENT TAGS STATE
+// ======================
+let newTreatmentsList = [];
+
+window.renderNewTreatmentTags = function () {
+  const container = document.getElementById('new-treatments-tags');
+  if (!container) return;
+  container.innerHTML = newTreatmentsList.map((name, index) => `
+    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+      ${name}
+      <span onclick="window.removeNewTreatment(${index})" style="cursor: pointer; font-weight: bold;">&times;</span>
+    </span>
+  `).join('');
+};
+
+window.addNewTreatmentTag = function () {
+  const input = document.getElementById('new-treatment-input');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) return;
+
+  newTreatmentsList.push(name);
+  input.value = '';
+  window.renderNewTreatmentTags();
+};
+
+window.removeNewTreatment = function (index) {
+  newTreatmentsList.splice(index, 1);
+  window.renderNewTreatmentTags();
+};
+// ======================
 // CALENDAR DATA AND STATE
 // ======================
 let appointments = {};
@@ -87,6 +118,8 @@ function setupModal() {
           patientPhone.textContent = patient.phone || 'Not provided';
           patientInfo.style.display = 'block';
           patientDropdown.style.display = 'none';
+          loadPatientTreatments(patient.id); //add this for loading ttt
+
         };
         patientDropdown.appendChild(div);
       });
@@ -96,6 +129,56 @@ function setupModal() {
       console.error('Search failed:', error);
     }
   }
+  // 2. ADD THESE NEW FUNCTIONS right after the searchPatients function:
+  window.loadPatientTreatments = async function (patientId) {
+    const container = document.getElementById('existing-treatments-list');
+    if (!container) return;
+
+    container.innerHTML = '<p style="color: #64748b; font-size: 12px; text-align: center; padding: 10px;">Loading treatments...</p>';
+
+    try {
+      const response = await fetch(`/api/patients/${patientId}/planned-treatments`);
+      const treatments = await response.json();
+
+      if (treatments.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px; margin: 0;">No planned treatments for this patient.</p>';
+        return;
+      }
+
+      container.innerHTML = treatments.map(t => `
+      <label style="display: flex; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; background: #ffffff; hover: background: #f8fafc;">
+        <input type="checkbox" class="existing-treatment-cb" value="${t.id}" 
+               style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer; accent-color: #3b82f6;">
+        <div style="flex: 1;">
+          <div style="font-weight: 600; font-size: 14px; color: #1e293b; margin-bottom: 2px;">
+            ${t.name}
+            ${t.tooth !== 'General' ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+          </div>
+          <div style="font-size: 13px; color: #64748b;">
+            $${t.cost.toFixed(2)}
+          </div>
+        </div>
+      </label>
+    `).join('');
+
+      // Add hover effect via JS since inline hover doesn't work
+      container.querySelectorAll('label').forEach(label => {
+        label.addEventListener('mouseenter', () => {
+          label.style.background = '#f8fafc';
+          label.style.borderColor = '#3b82f6';
+        });
+        label.addEventListener('mouseleave', () => {
+          label.style.background = '#ffffff';
+          label.style.borderColor = '#e2e8f0';
+        });
+      });
+
+    } catch (error) {
+      console.error('Failed to load treatments:', error);
+      container.innerHTML = '<p style="color: #ef4444; font-size: 12px; text-align: center; padding: 10px;">Error loading treatments.</p>';
+    }
+  };
+
 
   // Close dropdown when clicking outside
   document.addEventListener('click', function (e) {
@@ -112,6 +195,10 @@ function setupModal() {
   document.querySelectorAll('.close, .cancel-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       modal.style.display = 'none';
+      // Reset treatment lists
+      newTreatmentsList = [];
+      renderNewTreatmentTags();
+      document.querySelectorAll('.existing-treatment-cb').forEach(cb => cb.checked = false);
     });
   });
 
@@ -254,21 +341,28 @@ function setupModal() {
     updateDurationOptions();
   };
 
-  // Remove old Saturday check as it's now handled by runway
-
-  // Updated form submission handler
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     try {
-      // Check if editing and no changes were made
+      // 1. Gather the new treatment data
+      const existingIds = Array.from(document.querySelectorAll('.existing-treatment-cb:checked')).map(cb => parseInt(cb.value));
+
+      // 2. Validate: Must have a patient AND (at least one existing treatment OR at least one new treatment)
+      if (!patientIdInput.value || (existingIds.length === 0 && newTreatmentsList.length === 0)) {
+        alert('Please select a patient and choose at least one treatment or add a new procedure.');
+        return;
+      }
+
+      // 3. Check if editing and no changes were made (Updated to match new data structure)
       if (form.dataset.appointmentId && form.dataset.originalValues) {
         const currentValues = JSON.stringify({
           date: e.target.appointmentDate.value,
           time: e.target.startTime.value,
           duration: e.target.duration.value,
           patient_id: patientIdInput.value,
-          treatment: e.target.treatmentType.value
+          existing_treatments: existingIds.sort(),
+          new_treatments: [...newTreatmentsList].sort()
         });
 
         if (currentValues === form.dataset.originalValues) {
@@ -281,13 +375,6 @@ function setupModal() {
       const date = e.target.appointmentDate.value;
       const time = e.target.startTime.value;
       const duration = parseInt(e.target.duration.value);
-      const treatmentType = e.target.treatmentType.value.trim();
-
-      // Validate required fields
-      if (!patientIdInput.value || !treatmentType) {
-        alert('Please select a patient and enter treatment type');
-        return;
-      }
 
       const start = new Date(`${date}T${time}`);
       const end = new Date(start.getTime() + duration * 60000);
@@ -298,26 +385,30 @@ function setupModal() {
         return;
       }
 
+      // 4. Build the NEW payload for the backend
       const payload = {
         patient_id: patientIdInput.value,
         start_time: formatForServer(start),
         end_time: formatForServer(end),
-        treatment_type: treatmentType
+        treatment_ids: existingIds,
+        new_treatments: newTreatmentsList
       };
 
-      if (!payload.patient_id) {
-        alert('Please select a patient from the search results');
-        return;
-      }
-
+      // 5. Send to backend
       if (form.dataset.appointmentId) {
         await updateAppointment(form.dataset.appointmentId, payload);
       } else {
         await createAppointment(payload);
       }
 
+      // 6. Reset the treatment lists on successful save
+      newTreatmentsList = [];
+      renderNewTreatmentTags();
+      document.querySelectorAll('.existing-treatment-cb').forEach(cb => cb.checked = false);
+
       modal.style.display = 'none';
       await initCalendar();
+
     } catch (error) {
       console.error('Appointment operation failed:', error);
       alert(`Error: ${error.message}`);

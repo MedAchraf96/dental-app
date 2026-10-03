@@ -1,162 +1,221 @@
 {% extends "patient/patient_base.html" %}
 
+{% block title %}Treatment Plan - {{ patient.full_name }}{% endblock %}
+
 {% block patient_content %}
-<div class="treatments-mockup">
-    <!-- Header Section -->
-    <div class="treatments-header">
-        <h2><i class="bi bi-calendar2-plus"></i> Patient Treatments</h2>
-        <div class="header-actions">
-            <button class="btn btn-primary">
-                <i class="bi bi-plus-lg"></i> New Appointment
-            </button>
-            <button class="btn btn-outline-primary">
-                <i class="bi bi-file-earmark-medical"></i> Create Plan
-            </button>
+
+<style>
+    .status-select.status-planned {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .status-select.status-in_progress {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .status-select.status-completed {
+        background: #d1fae5;
+        color: #047857;
+    }
+
+    .status-select.status-cancelled {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+</style>
+
+<div class="container" style="max-width: 1000px; margin: 0 auto; padding: 20px;">
+
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <div>
+            <h2 style="margin: 0; color: #1e3a8a;">Treatment Plan: {{ patient.full_name }}</h2>
+            <p style="margin: 5px 0 0 0; color: #6c757d;">Manage planned, in-progress, and completed procedures.</p>
         </div>
+        <a href="{{ url_for('patient.profile', patient_id=patient.id) }}" class="btn"
+            style="background: #6c757d; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none;">
+            ← Back to Profile
+        </a>
     </div>
 
-    <!-- Treatment Timeline -->
-    <div class="timeline-container">
-        <div class="timeline-header">
-            <h3>Treatment Timeline</h3>
-            <div class="view-options">
-                <span class="active">Upcoming</span>
-                <span>Completed</span>
-                <span>All</span>
-            </div>
-        </div>
+    <!-- Add New Treatment Form -->
+    <div class="card"
+        style="background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 30px;">
+        <h4 style="margin-top: 0; color: #1e3a8a; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Add New
+            Treatment</h4>
+        <form method="POST" action="{{ url_for('patient.add_treatment', patient_id=patient.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <!-- Sample Timeline Items -->
-        <div class="timeline">
-            <!-- Upcoming Appointment -->
-            <div class="timeline-item upcoming">
-                <div class="timeline-badge">
-                    <i class="bi bi-calendar-check"></i>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex: 2; min-width: 200px;">
+                    <label
+                        style="font-size: 13px; font-weight: 600; color: #495057; display: block; margin-bottom: 5px;">Procedure
+                        Name*</label>
+                    <input type="text" name="procedure_name" required placeholder="e.g., Composite Filling, Root Canal"
+                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px;">
                 </div>
-                <div class="timeline-content">
-                    <div class="timeline-date">Tomorrow, 10:00 AM</div>
-                    <h4>Dental Cleaning</h4>
-                    <div class="timeline-meta">
-                        <span><i class="bi bi-person"></i> Dr. Smith</span>
-                        <span><i class="bi bi-clock"></i> 45 mins</span>
-                        <span><i class="bi bi-cash"></i> $120</span>
-                    </div>
-                    <div class="timeline-actions">
-                        <button class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-pencil"></i> Reschedule
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-x-circle"></i> Cancel
-                        </button>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Treatment Plan -->
-            <div class="timeline-item plan">
-                <div class="timeline-badge">
-                    <i class="bi bi-clipboard2-pulse"></i>
+                <div style="flex: 1; min-width: 100px;">
+                    <label
+                        style="font-size: 13px; font-weight: 600; color: #495057; display: block; margin-bottom: 5px;">Tooth
+                        # (Optional)</label>
+                    <input type="text" id="tooth_input" name="tooth_number" placeholder="e.g., 14, 13-23, Full Upper"
+                        value="{{ selected_tooth or '' }}" oninput="validateToothInput(this)"
+                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px; transition: border-color 0.2s;">
+                    <div id="tooth_error" style="font-size: 11px; color: #ef4444; margin-top: 4px; display: none;">
+                        Invalid format</div>
                 </div>
-                <div class="timeline-content">
-                    <div class="timeline-date">Started 3 days ago</div>
-                    <h4>Restoration Plan</h4>
-                    <div class="plan-progress">
-                        <div class="progress-text">2 of 4 procedures completed</div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 50%"></div>
-                        </div>
-                    </div>
-                    <div class="plan-procedures">
-                        <div class="procedure completed">
-                            <i class="bi bi-check-circle-fill"></i> Tooth 15 - Filling
-                        </div>
-                        <div class="procedure completed">
-                            <i class="bi bi-check-circle-fill"></i> Tooth 14 - Crown Prep
-                        </div>
-                        <div class="procedure upcoming">
-                            <i class="bi bi-circle"></i> Tooth 14 - Crown Placement
-                        </div>
-                        <div class="procedure upcoming">
-                            <i class="bi bi-circle"></i> Tooth 13 - Filling
-                        </div>
-                    </div>
-                    <div class="timeline-actions">
-                        <button class="btn btn-sm btn-primary">
-                            <i class="bi bi-eye"></i> View Plan
-                        </button>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Completed Treatment -->
-            <div class="timeline-item completed">
-                <div class="timeline-badge">
-                    <i class="bi bi-check-circle"></i>
+                <div style="flex: 1; min-width: 100px;">
+                    <label
+                        style="font-size: 13px; font-weight: 600; color: #495057; display: block; margin-bottom: 5px;">Estimated
+                        Cost ($)</label>
+                    <input type="number" name="cost" step="0.01" min="0" value="0.00"
+                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px;">
                 </div>
-                <div class="timeline-content">
-                    <div class="timeline-date">Last week</div>
-                    <h4>Root Canal Treatment</h4>
-                    <div class="timeline-meta">
-                        <span><i class="bi bi-person"></i> Dr. Johnson</span>
-                        <span><i class="bi bi-clock-history"></i> 2 hours</span>
-                        <span><i class="bi bi-cash"></i> $850</span>
-                    </div>
-                    <div class="treatment-notes">
-                        <strong>Notes:</strong> Patient tolerated procedure well. Recommended follow-up in 2 weeks.
-                    </div>
-                    <div class="timeline-actions">
-                        <button class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-receipt"></i> Invoice
-                        </button>
-                        <button class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-file-earmark-text"></i> Details
-                        </button>
-                    </div>
+
+                <div style="flex: 1; min-width: 120px;">
+                    <label
+                        style="font-size: 13px; font-weight: 600; color: #495057; display: block; margin-bottom: 5px;">Initial
+                        Status</label>
+                    <select name="status"
+                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px;">
+                        <option value="planned">Planned</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                    </select>
                 </div>
+
+                <button type="submit" class="btn"
+                    style="background: #10b981; color: white; padding: 8px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; height: 38px;">
+                    + Add
+                </button>
             </div>
-        </div>
+        </form>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon upcoming">
-                <i class="bi bi-calendar2-event"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-value">3</div>
-                <div class="stat-label">Upcoming</div>
-            </div>
+    <!-- Treatments List -->
+    <div class="card"
+        style="background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 20px;">
+        <h4 style="margin-top: 0; color: #1e3a8a;">Current Treatment Plan</h4>
+
+        {% if treatments %}
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+                <tr style="background: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+                    <th style="padding: 12px; text-align: left;">Procedure</th>
+                    <th style="padding: 12px; text-align: center;">Tooth</th>
+                    <th style="padding: 12px; text-align: right;">Cost</th>
+                    <th style="padding: 12px; text-align: center;">Status</th>
+                    <th style="padding: 12px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in treatments %}
+                <tr style="border-bottom: 1px solid #f1f3f5;">
+                    <td style="padding: 12px; font-weight: 600; color: #212529;">{{ t.procedure_name }}</td>
+                    <td style="padding: 12px; text-align: center; color: #6c757d;">
+                        {{ t.tooth_number if t.tooth_number else 'General' }}
+                    </td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600;">${{ "%.2f"|format(t.cost) }}</td>
+                    <td style="padding: 12px; text-align: center;">
+                        <form method="POST" action="{{ url_for('patient.update_treatment_status', treatment_id=t.id) }}"
+                            style="display: inline-block;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <select name="status" onchange="this.form.submit()"
+                                class="status-select status-{{ t.status }}"
+                                style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ced4da; font-size: 12px; font-weight: 600;">
+                                <option value="planned" {% if t.status=='planned' %}selected{% endif %}>Planned</option>
+                                <option value="in_progress" {% if t.status=='in_progress' %}selected{% endif %}>In
+                                    Progress</option>
+                                <option value="completed" {% if t.status=='completed' %}selected{% endif %}>Completed
+                                </option>
+                                <option value="cancelled" {% if t.status=='cancelled' %}selected{% endif %}>Cancelled
+                                </option>
+                            </select>
+                        </form>
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        <form method="POST" action="{{ url_for('patient.delete_treatment', treatment_id=t.id) }}"
+                            style="display: inline-block;"
+                            onsubmit="return confirm('Remove this treatment from the plan?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit"
+                                style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 18px;"
+                                title="Delete">
+                                🗑️
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 40px; color: #6c757d;">
+            <p style="font-size: 16px;">No treatments planned yet.</p>
+            <p style="font-size: 13px;">Use the form above to add a procedure to this patient's plan.</p>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon active">
-                <i class="bi bi-clipboard2-pulse"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-value">2</div>
-                <div class="stat-label">Active Plans</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon completed">
-                <i class="bi bi-check2-all"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-value">12</div>
-                <div class="stat-label">Completed</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon revenue">
-                <i class="bi bi-currency-dollar"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-value">$3,240</div>
-                <div class="stat-label">Total Revenue</div>
-            </div>
-        </div>
+        {% endif %}
     </div>
 </div>
+<script>
+    function validateToothInput(input) {
+        const val = input.value.trim().toUpperCase();
+        const errorDiv = document.getElementById('tooth_error');
 
+        // 1. Allow empty (General treatment)
+        if (val === '') {
+            input.style.borderColor = '#ced4da';
+            errorDiv.style.display = 'none';
+            return;
+        }
 
+        // 2. Define valid keywords (Only full arches/mouth)
+        const validKeywords = ['FULL UPPER', 'FULL LOWER', 'FULL MOUTH'];
+        if (validKeywords.includes(val)) {
+            input.style.borderColor = '#10b981'; // Green
+            errorDiv.style.display = 'none';
+            return;
+        }
+
+        // 3. Check for Single Tooth (e.g., 11, 48)
+        const singleToothRegex = /^[1-4][1-8]$/;
+        if (singleToothRegex.test(val)) {
+            input.style.borderColor = '#10b981';
+            errorDiv.style.display = 'none';
+            return;
+        }
+
+        // 4. Check for Bridge/Range (e.g., 13-23)
+        const rangeRegex = /^([1-4][1-8])-([1-4][1-8])$/;
+        const match = val.match(rangeRegex);
+
+        if (match) {
+            const startTooth = match[1];
+            const endTooth = match[2];
+            const startQ = parseInt(startTooth[0]);
+            const endQ = parseInt(endTooth[0]);
+
+            // Check if they are on the SAME ARCH:
+            // Upper arch = Quadrants 1 or 2
+            // Lower arch = Quadrants 3 or 4
+            const isUpper = (startQ === 1 || startQ === 2) && (endQ === 1 || endQ === 2);
+            const isLower = (startQ === 3 || startQ === 4) && (endQ === 3 || endQ === 4);
+
+            if ((isUpper || isLower) && startTooth !== endTooth) {
+                input.style.borderColor = '#10b981'; // Green
+                errorDiv.style.display = 'none';
+                return;
+            }
+        }
+
+        // 5. If we get here, it's invalid
+        input.style.borderColor = '#ef4444'; // Red
+        errorDiv.style.display = 'block';
+        errorDiv.innerText = "Invalid. Use 11-48, same-arch range (e.g., 13-23), or FULL UPPER/LOWER/MOUTH.";
+    }
+</script>
 {% endblock %}

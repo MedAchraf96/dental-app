@@ -1,8 +1,9 @@
+from flask_sqlalchemy import record_queries
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy import select, delete, func, or_
-from app.models import db, Patient, Appointment, User, ToothRecord
+from app.models import db, Patient, Appointment, User, ToothRecord, Prosthetic, Treatment
 
 patient_bp = Blueprint('patient', __name__, url_prefix='/patients')
 
@@ -200,16 +201,122 @@ def delete_patient(id):
         flash('An error occurred', 'error')
     return redirect(url_for('patient.home'))
 
+# 1. VIEW TREATMENTS PAGE
 @patient_bp.route('/<int:patient_id>/treatments')
 @login_required
 def treatments(patient_id):
-    return redirect(url_for('patient.home'))
+    patient = db.session.get(Patient, patient_id)
+    if not patient:
+        flash('Patient not found!', 'error')
+        return redirect(url_for('patient.home'))
+    
+    # Fetch all treatments for this patient, ordered by newest first
+    patient_treatments = Treatment.query.filter_by(patient_id=patient_id).order_by(Treatment.created_at.desc()).all()
+    
+    # Check if a specific tooth was clicked from the chart (e.g., ?tooth=14)
+    selected_tooth = request.args.get('tooth')
+    
+    return render_template(
+        'patient/treatments.html',
+        patient=patient,
+        treatments=patient_treatments,
+        selected_tooth=selected_tooth
+    )
+
+# 2. ADD NEW TREATMENT
+@patient_bp.route('/<int:patient_id>/treatments/add', methods=['POST'])
+@login_required
+def add_treatment(patient_id):
+    procedure_name = request.form.get('procedure_name', '').strip()
+    tooth_number = request.form.get('tooth_number', '').strip()
+    cost = request.form.get('cost', 0.0, type=float)
+    status = request.form.get('status', 'planned')
+    
+    if not procedure_name:
+        flash('Procedure name is required.', 'error')
+        return redirect(url_for('patient.treatments', patient_id=patient_id))
+    
+    new_treatment = Treatment(
+        patient_id=patient_id,
+        tooth_number=tooth_number if tooth_number else None,
+        procedure_name=procedure_name,
+        cost=cost,
+        status=status
+    )
+    
+    db.session.add(new_treatment)
+    db.session.commit()
+    flash(f'Treatment "{procedure_name}" added successfully!', 'success')
+    return redirect(url_for('patient.treatments', patient_id=patient_id))
+
+# 3. UPDATE TREATMENT STATUS (e.g., Planned -> Completed)
+@patient_bp.route('/treatments/<int:treatment_id>/update-status', methods=['POST'])
+@login_required
+def update_treatment_status(treatment_id):
+    treatment = Treatment.query.get_or_404(treatment_id)
+    new_status = request.form.get('status')
+    
+    if new_status in ['planned', 'in_progress', 'completed', 'cancelled']:
+        treatment.status = new_status
+        db.session.commit()
+        flash('Treatment status updated.', 'success')
+    
+    # Redirect back to the treatments page for this patient
+    return redirect(url_for('patient.treatments', patient_id=treatment.patient_id))
+
+# 4. DELETE TREATMENT
+@patient_bp.route('/treatments/<int:treatment_id>/delete', methods=['POST'])
+@login_required
+def delete_treatment(treatment_id):
+    treatment = Treatment.query.get_or_404(treatment_id)
+    patient_id = treatment.patient_id
+    
+    db.session.delete(treatment)
+    db.session.commit()
+    flash('Treatment removed from plan.', 'success')
+    return redirect(url_for('patient.treatments', patient_id=patient_id))
 
 @patient_bp.route('/<int:patient_id>/financial')
 @login_required
 def financial(patient_id):
-    return redirect(url_for(''))
+    patient = db.session.get(Patient, patient_id)
+    if not patient:
+        flash('Patient not found!', 'error')
+        return redirect(url_for('patient.home'))
 
+    # ️ IMPORTANT: You need a Transaction model for this to work. 
+    # If you haven't created it yet, use the dummy data below to test the page first.
+    
+    # --- DUMMY DATA FOR TESTING (Remove this once your DB model is ready) ---
+    total_invoices = 1500.00
+    total_payments = 1000.00
+    balance = total_invoices - total_payments
+    transactions = [] 
+    # ------------------------------------------------------------------------
+
+    # --- REAL DB LOGIC (Uncomment this when your Transaction model is ready) ---
+    # from app.models import Transaction
+    # transactions = Transaction.query.filter_by(patient_id=patient_id).order_by(Transaction.date.desc()).all()
+    # total_invoices = sum(t.amount for t in transactions if t.type == 'invoice')
+    # total_payments = sum(t.amount for t in transactions if t.type == 'payment')
+    # balance = total_invoices - total_payments
+    # -------------------------------------------------------------------------
+
+    return render_template(
+        'patient/financial.html', 
+        patient=patient,
+        total_invoices=total_invoices,
+        total_payments=total_payments,
+        balance=balance,
+        transactions=transactions,
+        now=datetime.now()
+    )
+@patient_bp.route('/<int:patient_id>/add-transaction', methods=['POST'])
+@login_required
+def add_transaction(patient_id):
+    # TODO: Connect this to your Transaction database model later
+    flash('Transaction saving is coming soon!', 'info')
+    return redirect(url_for('patient.financial', patient_id=patient_id))
 @patient_bp.route('/<int:patient_id>/documents')
 @login_required
 def documents(patient_id):
@@ -259,3 +366,39 @@ def reset_teeth_chart(patient_id):
     ToothRecord.query.filter_by(patient_id=patient_id).delete()
     db.session.commit()
     return jsonify({'success': True, 'message': 'All teeth reset to healthy'})
+
+@patient_bp.route('/<int:patient_id>/api/prosthetics', methods=['GET'])
+@login_required
+def get_prosthetics(patient_id):
+    prosthetics = Prosthetic.query.filter_by(patient_id=patient_id).all()
+    data = [{"id": p.id, "type": p.type, "start": p.start_tooth, "end": p.end_tooth} for p in prosthetics]
+    return jsonify(data)
+
+@patient_bp.route('/<int:patient_id>/api/prosthetics', methods=['POST'])
+@login_required
+def save_prosthetic(patient_id):
+    data = request.get_json()
+    new_prosthetic = Prosthetic(
+        patient_id=patient_id,
+        type=data['type'],
+        start_tooth=str(data['start']),
+        end_tooth=str(data['end'])
+    )
+    db.session.add(new_prosthetic)
+    db.session.commit()
+    return jsonify({"success": True, "id": new_prosthetic.id})
+
+@patient_bp.route('/<int:patient_id>/api/prosthetics/<int:prosthetic_id>', methods=['DELETE'])
+@login_required
+def delete_prosthetic(patient_id, prosthetic_id):
+    prosthetic = Prosthetic.query.get_or_404(prosthetic_id)
+    db.session.delete(prosthetic)
+    db.session.commit()
+    return jsonify({"success": True})
+
+@patient_bp.route('/<int:patient_id>/api/prosthetics', methods=['DELETE'])
+@login_required
+def delete_all_prosthetics(patient_id):
+    Prosthetic.query.filter_by(patient_id=patient_id).delete()
+    db.session.commit()
+    return jsonify({"success": True})

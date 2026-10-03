@@ -42,7 +42,13 @@ class Patient(db.Model):
     
     def __repr__(self):
         return f'<Patient {self.id} - {self.full_name}>'
-    
+
+# 1. THE LINKING TABLE (This creates the Many-to-Many relationship)
+appointment_treatments = db.Table('appointment_treatments',
+    db.Column('appointment_id', db.Integer, db.ForeignKey('appointments.id'), primary_key=True),
+    db.Column('treatment_id', db.Integer, db.ForeignKey('treatment.id'), primary_key=True)
+)
+
 class Appointment(db.Model):
     __tablename__ = 'appointments'
     
@@ -51,7 +57,6 @@ class Appointment(db.Model):
     dentist_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Foreign key to User (dentist)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
-    treatment_type = db.Column(db.String(100), nullable=False)
     notes = db.Column(db.Text)
     status = db.Column(db.String(20), default='scheduled')  # 'scheduled', 'completed', 'cancelled', 'deleted'
     completed_at = db.Column(db.DateTime)
@@ -59,16 +64,28 @@ class Appointment(db.Model):
 
     # Relationships
     dentist = db.relationship('User', backref=db.backref('appointments', lazy=True))
-
-    def __init__(self, dentist_id, patient_id, start_time, end_time, treatment_type):
-        self.dentist_id = dentist_id
-        self.patient_id = patient_id
-        self.start_time = start_time
-        self.end_time = end_time
-        self.treatment_type = treatment_type
+    treatments = db.relationship('Treatment', secondary=appointment_treatments, back_populates='appointments', lazy='dynamic')
 
     def __repr__(self):
-        return f'<Appointment {self.id} - {self.treatment_type}>'
+        return f'<Appointment {self.id} - {self.start_time}>'
+    
+# 3. THE NEW TREATMENT MODEL (The Clinical Work)
+class Treatment(db.Model):
+    __tablename__ = 'treatment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
+    tooth_number = db.Column(db.String(2), nullable=True) # Null if it's a general cleaning
+    procedure_name = db.Column(db.String(100), nullable=False) # e.g., "Composite Filling"
+    cost = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(20), default='planned') # 'planned', 'in_progress', 'completed'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Link back to Appointments
+    appointments = db.relationship('Appointment', secondary=appointment_treatments, back_populates='treatments')
+
+    def __repr__(self):
+        return f'<Treatment {self.id} - {self.procedure_name}>'
     
 class ToothRecord(db.Model):
     __tablename__ = 'tooth_record'
@@ -83,6 +100,15 @@ class ToothRecord(db.Model):
     
     patient = db.relationship('Patient', backref=db.backref('tooth_records', lazy=True))
 
+class Prosthetic(db.Model):
+    __tablename__ = 'prosthetic'
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # 'bridge', 'partial', 'implant_bridge'
+    start_tooth = db.Column(db.String(2), nullable=False)
+    end_tooth = db.Column(db.String(2), nullable=False)
+    
+    patient = db.relationship('Patient', backref=db.backref('prosthetics', lazy=True))
 # FINANCIAL MODELS (Merged from Financial App)
 # ==========================================
 
