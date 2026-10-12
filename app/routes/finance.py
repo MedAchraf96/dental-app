@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 from app.models import DailyIncome, Expense, CashBalance, Payment, db,OwnerDraw
+from app.enums import ExpenseCategory
 from sqlalchemy import func
 from datetime import datetime
 import calendar
@@ -250,7 +251,7 @@ def get_monthly_summary():
     # 2. MANUAL VAT (Actual cash paid to 'Tax/VAT' category)
     manual_vat = db.session.query(func.sum(Payment.amount)).join(Expense).filter(
         func.strftime('%Y-%m', Payment.date) == month_str,
-        Expense.category == 'Tax/VAT'
+        Expense.category == ExpenseCategory.TAX_VAT
     ).scalar() or 0.0
 
     # 3. THEORETICAL VAT CALCULATION (For the tooltip info icon)
@@ -272,8 +273,8 @@ def get_monthly_summary():
     # 4. OPERATING CASH OUT (Exclude Tax/VAT and Owner's Draw)
     cash_out = db.session.query(func.sum(Payment.amount)).join(Expense).filter(
         func.strftime('%Y-%m', Payment.date) == month_str,
-        Expense.category != 'Tax/VAT',
-        Expense.category != "Owner's Draw"
+        Expense.category != ExpenseCategory.TAX_VAT,
+        Expense.category != ExpenseCategory.OWNERS_DRAW
     ).scalar() or 0.0
 
     # 5. Expense Breakdown (Operating Only)
@@ -281,8 +282,8 @@ def get_monthly_summary():
         Expense.category, func.sum(Payment.amount)
     ).join(Payment, Expense.id == Payment.expense_id).filter(
         func.strftime('%Y-%m', Payment.date) == month_str,
-        Expense.category != 'Tax/VAT',
-        Expense.category != "Owner's Draw"
+        Expense.category != ExpenseCategory.TAX_VAT,
+        Expense.category != ExpenseCategory.OWNERS_DRAW
     ).group_by(Expense.category).all()
 
     expense_breakdown = [{"category": row[0] or 'Uncategorized', "amount": float(row[1])} for row in breakdown_query]

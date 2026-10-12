@@ -1,12 +1,16 @@
 from flask_login import UserMixin
 from datetime import datetime
 from .extensions import db
+from .enums import (
+    UserRole, AppointmentStatus, TreatmentStatus,
+    ToothState, ProstheticType, PaymentStatus, IncomeDayType
+)
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'dentist', 'assistant', 'secretary'
+    role = db.Column(db.String(20), nullable=False, default=UserRole.DENTIST)
     name = db.Column(db.String(100))
 
 
@@ -58,7 +62,7 @@ class Appointment(db.Model):
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
     notes = db.Column(db.Text)
-    status = db.Column(db.String(20), default='scheduled')  # 'scheduled', 'completed', 'cancelled', 'deleted'
+    status = db.Column(db.String(20), default=AppointmentStatus.SCHEDULED)  # AppointmentStatus: scheduled, completed, cancelled, deleted
     completed_at = db.Column(db.DateTime)
     deleted_at = db.Column(db.DateTime)
 
@@ -78,7 +82,7 @@ class Treatment(db.Model):
     tooth_number = db.Column(db.String(2), nullable=True) # Null if it's a general cleaning
     procedure_name = db.Column(db.String(100), nullable=False) # e.g., "Composite Filling"
     cost = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(20), default='planned') # 'planned', 'in_progress', 'completed'
+    status = db.Column(db.String(20), default=TreatmentStatus.PLANNED) # TreatmentStatus: planned, in_progress, completed, cancelled
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Link back to Appointments
@@ -92,7 +96,7 @@ class ToothRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
     tooth_number = db.Column(db.String(2), nullable=False)  # e.g., '11', '48'
-    state = db.Column(db.String(20), default='healthy')    # 'healthy', 'decayed', 'filled', 'missing'
+    state = db.Column(db.String(20), default=ToothState.HEALTHY)    # ToothState: healthy, decayed, filled, missing, implant
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Ensure only one record per tooth per patient
@@ -104,7 +108,7 @@ class Prosthetic(db.Model):
     __tablename__ = 'prosthetic'
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
-    type = db.Column(db.String(20), nullable=False)  # 'bridge', 'partial', 'implant_bridge'
+    type = db.Column(db.String(20), nullable=False)  # ProstheticType: bridge, partial, implant_bridge
     start_tooth = db.Column(db.String(2), nullable=False)
     end_tooth = db.Column(db.String(2), nullable=False)
     
@@ -116,7 +120,7 @@ class DailyIncome(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False, unique=True)
     month = db.Column(db.Integer, nullable=False)
-    day_type = db.Column(db.String(20))
+    day_type = db.Column(db.String(20), default=IncomeDayType.WORKING_DAY)
     num_patients = db.Column(db.Integer, default=0)
     amount = db.Column(db.Float, default=0.0)
 
@@ -143,10 +147,12 @@ class Expense(db.Model):
         return self.total_amount - self.paid_amount
 
     @property
-    def status(self):
-        if self.paid_amount >= self.total_amount: return 'Paid'
-        if self.paid_amount > 0: return 'Partial'
-        return 'Unpaid'
+    def status(self) -> PaymentStatus:
+        if self.paid_amount >= self.total_amount:
+            return PaymentStatus.PAID
+        if self.paid_amount > 0:
+            return PaymentStatus.PARTIAL
+        return PaymentStatus.UNPAID
 
 class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)

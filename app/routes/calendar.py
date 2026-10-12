@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from app.models import Appointment, Patient, Treatment
+from app.enums import AppointmentStatus, TreatmentStatus, UserRole
 from datetime import datetime
 from app.extensions import db
 
@@ -25,14 +26,14 @@ def get_appointments():
     end = datetime.fromisoformat(end_date) if end_date else None
     
     query = Appointment.query.join(Patient).filter(
-        Appointment.status != 'deleted',
-        Appointment.status != 'cancelled'
+        Appointment.status != AppointmentStatus.DELETED,
+        Appointment.status != AppointmentStatus.CANCELLED
     )
     
     if start and end:
         query = query.filter(Appointment.start_time >= start, Appointment.end_time <= end)
     
-    if current_user.role.lower() not in ['admin', 'dentist']:
+    if current_user.role.lower() not in [UserRole.ADMIN, UserRole.DENTIST]:
         query = query.filter(Appointment.dentist_id == current_user.id)
     
     appointments = query.all()
@@ -58,7 +59,7 @@ def get_appointments():
             'dentist_id': appt.dentist_id,
             'patient_id': appt.patient_id,
             'completed_at': appt.completed_at.isoformat() if appt.completed_at else None,
-            'color': '#4285F4' if appt.status == 'scheduled' else ('#0F9D58' if appt.status == 'completed' else '#DB4437'),
+            'color': '#4285F4' if appt.status == AppointmentStatus.SCHEDULED else ('#0F9D58' if appt.status == AppointmentStatus.COMPLETED else '#DB4437'),
             'patient_phone': patient.phone
         })
     
@@ -113,7 +114,7 @@ def create_appointment():
                     patient_id=data['patient_id'],
                     procedure_name=name,
                     cost=0.0, 
-                    status='planned' # Explicitly goes into the Treatment Plan!
+                    status=TreatmentStatus.PLANNED # Explicitly goes into the Treatment Plan!
                 )
                 db.session.add(new_t)
                 db.session.flush() # Get the ID immediately
@@ -150,7 +151,7 @@ def get_planned_treatments(patient_id):
     # This allows multi-visit treatments to be selected again!
     treatments = Treatment.query.filter(
         Treatment.patient_id == patient_id,
-        ~Treatment.status.in_(['completed', 'cancelled'])
+        ~Treatment.status.in_([TreatmentStatus.COMPLETED, TreatmentStatus.CANCELLED])
     ).all()
     
     return jsonify([{
@@ -173,8 +174,8 @@ def update_appointment(appointment_id):
         
         conflict = Appointment.query.filter(
             Appointment.id != appointment_id,
-            Appointment.status != 'cancelled',
-            Appointment.status != 'deleted',
+            Appointment.status != AppointmentStatus.CANCELLED,
+            Appointment.status != AppointmentStatus.DELETED,
             ((Appointment.start_time < new_end) & (Appointment.end_time > new_start))
         ).first()
         
@@ -218,7 +219,7 @@ def delete_appointment(appointment_id):
             dentist_id=current_user.id
         ).first_or_404()
         
-        appointment.status = 'cancelled'
+        appointment.status = AppointmentStatus.CANCELLED
         appointment.deleted_at = datetime.utcnow()
         db.session.commit()
         
@@ -236,12 +237,12 @@ def complete_appointment(appointment_id):
             dentist_id=current_user.id
         ).first_or_404()
         
-        appointment.status = 'completed'
+        appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
         
         # NEW: Auto-mark linked treatments as completed
         for treatment in appointment.treatments.all():
-            treatment.status = 'completed'
+            treatment.status = TreatmentStatus.COMPLETED
             
         db.session.commit()
         

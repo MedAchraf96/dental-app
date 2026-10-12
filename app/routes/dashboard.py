@@ -2,6 +2,7 @@ from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta, time
 from app.models import Patient, Appointment
+from app.enums import AppointmentStatus
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -24,7 +25,7 @@ def dashboard_home():
     appointments = Appointment.query.filter(
         Appointment.start_time >= datetime.combine(target_date, time.min),
         Appointment.start_time <= datetime.combine(target_date, time.max),
-        Appointment.status != 'cancelled'
+        Appointment.status != AppointmentStatus.CANCELLED
     ).order_by(Appointment.start_time).all()
     
     # Check if no appointments
@@ -39,7 +40,7 @@ def dashboard_home():
         'appointments_date_label': date_label.capitalize() + "'s",
         'upcoming_appointments': Appointment.query.filter(
             Appointment.start_time > now,
-            Appointment.status == 'scheduled'
+            Appointment.status == AppointmentStatus.SCHEDULED
         ).count(),
         'recent_patients': Patient.query.count(),
         'no_appointments_message': no_appointments_message

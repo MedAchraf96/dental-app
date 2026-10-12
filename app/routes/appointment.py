@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 from app.models import Appointment, Patient, User
+from app.enums import AppointmentStatus, UserRole
 from datetime import datetime
 from app.database import db
 import logging
@@ -36,7 +37,7 @@ def list_appointments():
         query = query.filter(Appointment.start_time <= datetime.fromisoformat(date_to))
     
     # For non-Dentist/Admin, only show their own appointments
-    if current_user.role.lower() not in ['dentist', 'admin']:
+    if current_user.role.lower() not in [UserRole.DENTIST, UserRole.ADMIN]:
         query = query.filter(
             (Appointment.dentist_id == current_user.id) |
             (Patient.created_by == current_user.id)
@@ -64,13 +65,13 @@ def cancel_appointment(appointment_id):
     appointment = Appointment.query.get_or_404(appointment_id)
 
     # Ensure the user is authorized to cancel this appointment (check patient or admin role)
-    if appointment.patient_id != current_user.id and current_user.role != 'admin':
+    if appointment.patient_id != current_user.id and current_user.role.lower() != UserRole.ADMIN:
         flash('You do not have permission to cancel this appointment.', 'error')
         return redirect(url_for('appointment.list_appointments'))
 
     try:
         # Set status to canceled and mark the cancellation time
-        appointment.status = 'cancelled'
+        appointment.status = AppointmentStatus.CANCELLED
         appointment.deleted_at = datetime.utcnow()  # Mark when it was canceled
 
         # Commit changes to the database
@@ -88,7 +89,7 @@ def cancel_appointment(appointment_id):
 @appointment_bp.route('/appointments/bulk_hard_delete', methods=['POST'])
 @login_required
 def bulk_hard_delete_appointment():
-    if current_user.role.lower() not in ['dentist', 'admin']:
+    if current_user.role.lower() not in [UserRole.DENTIST, UserRole.ADMIN]:
         flash('You do not have permission to delete appointments.', 'error')
         return redirect(url_for('appointment.list_appointments'))
 
@@ -109,7 +110,7 @@ def bulk_hard_delete_appointment():
                 continue
 
             # Verify ownership/admin rights for each appointment
-            if appointment.patient_id != current_user.id and current_user.role != 'admin':
+            if appointment.patient_id != current_user.id and current_user.role.lower() != UserRole.ADMIN:
                 failure_count += 1
                 continue
 
@@ -140,7 +141,7 @@ def hard_delete_appointment(appointment_id):
     appointment = Appointment.query.get_or_404(appointment_id)
 
     # Ensure that the user is authorized to delete this appointment
-    if appointment.patient_id != current_user.id and current_user.role != 'admin':
+    if appointment.patient_id != current_user.id and current_user.role.lower() != UserRole.ADMIN:
         flash('You do not have permission to delete this appointment.', 'error')
         return redirect(url_for('appointment.list_appointments'))
 

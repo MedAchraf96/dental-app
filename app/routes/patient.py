@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy import select, delete, func, or_
 from app.models import db, Patient, Appointment, User, ToothRecord, Prosthetic, Treatment
+from app.enums import AppointmentStatus, TreatmentStatus, ToothState, ProstheticType
 
 patient_bp = Blueprint('patient', __name__, url_prefix='/patients')
 
@@ -94,7 +95,7 @@ def profile(patient_id):
             .join(User, Appointment.dentist_id == User.id)
             .where(
                 Appointment.patient_id == patient_id,
-                Appointment.status == 'scheduled',
+                Appointment.status == AppointmentStatus.SCHEDULED,
                 Appointment.start_time >= datetime.now()
             )
             .order_by(Appointment.start_time)
@@ -230,7 +231,7 @@ def add_treatment(patient_id):
     procedure_name = request.form.get('procedure_name', '').strip()
     tooth_number = request.form.get('tooth_number', '').strip()
     cost = request.form.get('cost', 0.0, type=float)
-    status = request.form.get('status', 'planned')
+    status = request.form.get('status', TreatmentStatus.PLANNED)
     
     if not procedure_name:
         flash('Procedure name is required.', 'error')
@@ -256,7 +257,7 @@ def update_treatment_status(treatment_id):
     treatment = Treatment.query.get_or_404(treatment_id)
     new_status = request.form.get('status')
     
-    if new_status in ['planned', 'in_progress', 'completed', 'cancelled']:
+    if new_status in TreatmentStatus:
         treatment.status = new_status
         db.session.commit()
         flash('Treatment status updated.', 'success')
@@ -349,6 +350,8 @@ def save_teeth_chart(patient_id):
     
     if not tooth_number or not state:
         return jsonify({'error': 'Missing data'}), 400
+    if state not in ToothState:
+        return jsonify({'error': f'Invalid tooth state: {state}'}), 400
         
     record = ToothRecord.query.filter_by(patient_id=patient_id, tooth_number=tooth_number).first()
     if record:
@@ -378,9 +381,13 @@ def get_prosthetics(patient_id):
 @login_required
 def save_prosthetic(patient_id):
     data = request.get_json()
+    p_type = data.get('type')
+    if not p_type or p_type not in ProstheticType:
+        return jsonify({'error': f'Invalid prosthetic type: {p_type}'}), 400
+
     new_prosthetic = Prosthetic(
         patient_id=patient_id,
-        type=data['type'],
+        type=p_type,
         start_tooth=str(data['start']),
         end_tooth=str(data['end'])
     )

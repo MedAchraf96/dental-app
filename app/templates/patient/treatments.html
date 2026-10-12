@@ -82,9 +82,9 @@
                         Status</label>
                     <select name="status"
                         style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px;">
-                        <option value="planned">Planned</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
+                        {% for s in [enums.TreatmentStatus.PLANNED, enums.TreatmentStatus.IN_PROGRESS, enums.TreatmentStatus.COMPLETED] %}
+                        <option value="{{ s.value }}">{{ s.value.replace('_', ' ')|title }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
@@ -127,13 +127,9 @@
                             <select name="status" onchange="this.form.submit()"
                                 class="status-select status-{{ t.status }}"
                                 style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ced4da; font-size: 12px; font-weight: 600;">
-                                <option value="planned" {% if t.status=='planned' %}selected{% endif %}>Planned</option>
-                                <option value="in_progress" {% if t.status=='in_progress' %}selected{% endif %}>In
-                                    Progress</option>
-                                <option value="completed" {% if t.status=='completed' %}selected{% endif %}>Completed
-                                </option>
-                                <option value="cancelled" {% if t.status=='cancelled' %}selected{% endif %}>Cancelled
-                                </option>
+                                {% for s in [enums.TreatmentStatus.PLANNED, enums.TreatmentStatus.IN_PROGRESS, enums.TreatmentStatus.COMPLETED, enums.TreatmentStatus.CANCELLED] %}
+                                <option value="{{ s.value }}" {% if t.status==s.value %}selected{% endif %}>{{ s.value.replace('_', ' ')|title }}</option>
+                                {% endfor %}
                             </select>
                         </form>
                     </td>

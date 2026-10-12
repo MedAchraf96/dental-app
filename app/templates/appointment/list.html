@@ -46,12 +46,9 @@
                     <label for="status" class="form-label">Status</label>
                     <select id="status" name="status" class="form-select form-select-sm">
                         <option value="all" {% if status_filter=='all' %}selected{% endif %}>All Statuses</option>
-                        <option value="scheduled" {% if status_filter=='scheduled' %}selected{% endif %}>Scheduled
-                        </option>
-                        <option value="completed" {% if status_filter=='completed' %}selected{% endif %}>Completed
-                        </option>
-                        <option value="cancelled" {% if status_filter=='cancelled' %}selected{% endif %}>Cancelled
-                        </option>
+                        {% for s in [enums.AppointmentStatus.SCHEDULED, enums.AppointmentStatus.COMPLETED, enums.AppointmentStatus.CANCELLED] %}
+                        <option value="{{ s.value }}" {% if status_filter==s.value %}selected{% endif %}>{{ s.value|capitalize }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-3">

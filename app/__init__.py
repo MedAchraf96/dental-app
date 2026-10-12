@@ -52,6 +52,10 @@ def create_app(config_class=DevelopmentConfig):
     app.logger.setLevel(logging.DEBUG)
     app.logger.info('Appointment Management Startup')
 
+    @app.context_processor
+    def inject_enums():
+        from app import enums
+        return {'enums': enums}
 
     return app
 
@@ -114,6 +118,7 @@ def initialize_database(app):
             print(f"✓ Database initialized at: {app.config['SQLALCHEMY_DATABASE_URI']}")
             
             from .models import User
+            from .enums import UserRole
             from werkzeug.security import generate_password_hash
             
             # 3. Check for existing admin user more robustly
@@ -127,7 +132,7 @@ def initialize_database(app):
                     new_admin = User(
                         username='admin',
                         password=generate_password_hash('admin123'),
-                        role='admin',
+                        role=UserRole.ADMIN,
                         name='System Administrator'
                     )
                     db.session.add(new_admin)
