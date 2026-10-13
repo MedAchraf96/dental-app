@@ -113,15 +113,36 @@ function initAppointmentForm(context, data = null) {
       submitBtn.textContent = 'Update Appointment';
       modalTitle.innerHTML = `${icon} Edit Appointment`;
 
-      // NEW: Load treatments and check the boxes for this specific appointment
+      // ✅ FIXED: Robust Treatment Loading
+      console.log("🔍 EDIT MODE DEBUG:");
+      console.log("Appointment Data:", data);
+      console.log("Treatment IDs from API:", data.treatment_ids);
+
       if (typeof window.loadPatientTreatments === 'function') {
         window.loadPatientTreatments(data.patient_id).then(() => {
-          if (data.treatment_ids) {
-            data.treatment_ids.forEach(id => {
-              const cb = document.querySelector(`.existing-treatment-cb[value="${id}"]`);
-              if (cb) cb.checked = true;
+
+          setTimeout(() => {
+            const checkboxes = document.querySelectorAll('.existing-treatment-cb');
+            console.log(`Found ${checkboxes.length} checkboxes in DOM`);
+
+            checkboxes.forEach(cb => {
+              console.log(`Checkbox value: ${cb.value} (type: ${typeof cb.value})`);
             });
-          }
+
+            const idsToCheck = Array.isArray(data.treatment_ids) ? data.treatment_ids : [];
+
+            checkboxes.forEach(cb => {
+              const cbValue = Number(cb.value);
+              const isMatch = idsToCheck.includes(cbValue);
+
+              if (isMatch) {
+                cb.checked = true;
+                console.log(`✅ CHECKED: Treatment ID ${cbValue}`);
+              }
+            });
+
+          }, 100);
+
         });
       }
       break;

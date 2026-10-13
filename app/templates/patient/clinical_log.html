@@ -1,0 +1,110 @@
+{% extends "patient/patient_base.html" %}
+
+{% block title %}Dossier Clinique - {{ patient.full_name }}{% endblock %}
+
+{% block patient_content %}
+<div class="container" style="max-width: 1000px; margin: 0 auto; padding: 20px;">
+
+    <!-- Patient Header -->
+    <div
+        style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 5px solid #1e3a8a; margin-bottom: 30px;">
+        <h2 style="margin: 0; color: #1e3a8a;">{{ patient.full_name }}</h2>
+        <p style="margin: 5px 0 0 0; color: #6c757d;">Historique complet par dent</p>
+    </div>
+
+    <!-- 1. GENERAL TREATMENTS (Scaling, Consultations) -->
+    {% if general_history %}
+    <h3 style="color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Soins Généraux</h3>
+    <div
+        style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        {% for t in general_history %}
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f3f5; padding: 10px 0;">
+            <div>
+                <strong>{{ t.procedure_name }}</strong>
+                <br><span style="font-size: 12px; color: #6c757d;">{{ t.completed_date.strftime('%d/%m/%Y') if
+                    t.completed_date else t.created_at.strftime('%d/%m/%Y') }}</span>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-weight: bold;">{{ "%.2f"|format(t.cost) }} DT</span>
+                <br>
+                {% if t.status == 'completed' %}
+                <span style="font-size: 11px; color: green;">{{ t.status|upper }}</span>
+                {% else %}
+                <span style="font-size: 11px; color: orange;">{{ t.status|upper }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 2. TOOTH HISTORIES (The Biography) -->
+    <h3 style="color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Historique par Dent</h3>
+
+    <!-- Sort teeth numerically -->
+    {% set sorted_teeth = tooth_history.keys()|list|sort %}
+
+    {% for tooth_num in sorted_teeth %}
+    <div
+        style="background: white; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden;">
+
+        <!-- Tooth Header -->
+        <div
+            style="background: #1e3a8a; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 18px; font-weight: bold;">
+                Dent #{{ tooth_num }}
+            </div>
+            <div style="font-size: 12px; opacity: 0.8;">
+                {{ tooth_history[tooth_num]|length }} intervention(s)
+            </div>
+        </div>
+
+        <!-- Timeline of Treatments for this Tooth -->
+        <div style="padding: 0;">
+            {% for t in tooth_history[tooth_num] %}
+            <div style="display: flex; border-bottom: 1px solid #e9ecef; padding: 15px; position: relative;">
+
+                <!-- Timeline Line -->
+                <div style="position: absolute; left: 20px; top: 0; bottom: 0; width: 2px; background: #e9ecef;"></div>
+
+                <!-- Date Circle -->
+                <div
+                    style="position: relative; z-index: 1; background: white; border: 2px solid #1e3a8a; border-radius: 50%; width: 12px; height: 12px; margin-top: 5px; margin-right: 20px;">
+                </div>
+
+                <!-- Content -->
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <strong style="color: #212529;">{{ t.procedure_name }}</strong>
+                        <span style="font-weight: bold; color: #1e3a8a;">{{ "%.2f"|format(t.cost) }} DT</span>
+                    </div>
+
+                    <!-- Clinical Notes (The "Why") -->
+                    {% if t.clinical_notes %}
+                    <div
+                        style="font-style: italic; color: #495057; font-size: 13px; margin-bottom: 5px; background: #f8f9fa; padding: 8px; border-radius: 4px;">
+                        {{ t.clinical_notes }}
+                    </div>
+                    {% endif %}
+
+                    <div style="font-size: 12px; color: #6c757d; display: flex; justify-content: space-between;">
+                        <span>{{ t.completed_date.strftime('%d/%m/%Y') if t.completed_date else
+                            t.created_at.strftime('%d/%m/%Y') }}</span>
+
+                        {% if t.status == 'completed' %}
+                        <span style="text-transform: uppercase; font-weight: 600; color: #10b981;">{{ t.status }}</span>
+                        {% elif t.status == 'in_progress' %}
+                        <span style="text-transform: uppercase; font-weight: 600; color: #f59e0b;">{{ t.status }}</span>
+                        {% else %}
+                        <span style="text-transform: uppercase; font-weight: 600; color: #3b82f6;">{{ t.status }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+</div>
+{% endblock %}

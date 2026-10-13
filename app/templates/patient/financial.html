@@ -1,86 +1,350 @@
 {% extends "patient/patient_base.html" %}
 
+{% block title %}Cahier Financier - {{ patient.full_name }}{% endblock %}
+
 {% block patient_content %}
-<div class="financial-container">
-    <h2>Financial Records</h2>
 
-    <!-- Financial Summary Cards -->
-    <div class="financial-summary">
+<style>
+    .ledger-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .ledger-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #1e3a8a;
+    }
+
+    .ledger-header h2 {
+        margin: 0;
+        color: #1e3a8a;
+        font-size: 22px;
+    }
+
+    /* Summary Cards */
+    .summary-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .summary-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+        text-align: center;
+    }
+
+    .summary-card .label {
+        font-size: 11px;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+    }
+
+    .summary-card .value {
+        font-size: 22px;
+        font-weight: 700;
+        color: #1e3a8a;
+    }
+
+    .summary-card.paid .value {
+        color: #28a745;
+    }
+
+    .summary-card.balance .value {
+        color: #dc3545;
+    }
+
+    /* Forms */
+    .add-entry-form {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 25px;
+    }
+
+    .add-entry-form h4 {
+        margin: 0 0 12px 0;
+        color: #1e3a8a;
+        font-size: 14px;
+        text-transform: uppercase;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .form-group {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+    }
+
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+
+    .btn-add {
+        background: #1e3a8a;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    /* Ledger Table */
+    .ledger-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border: 1px solid #dee2e6;
+    }
+
+    .ledger-table thead {
+        background: #1e3a8a;
+        color: white;
+    }
+
+    .ledger-table th {
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+
+    .ledger-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 13px;
+        vertical-align: top;
+    }
+
+    .ledger-table .prix-col {
+        text-align: right;
+        font-weight: 600;
+        color: #28a745;
+    }
+
+    .ledger-table .balance-col {
+        text-align: right;
+        font-weight: 700;
+        color: #dc3545;
+    }
+
+    /* Payment Form Row (Hidden by default) */
+    .payment-form-row {
+        display: none;
+        background: #e8f5e9;
+    }
+
+    .payment-form-row.active {
+        display: table-row;
+    }
+
+    .btn-pay {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+
+    .btn-toggle {
+        background: none;
+        border: 1px solid #28a745;
+        color: #28a745;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+</style>
+
+<div class="ledger-container">
+    <div class="ledger-header">
+        <div>
+            <h2>📒 Cahier Financier</h2>
+            <div style="color: #6c757d;">{{ patient.full_name }} — {{ patient.phone }}</div>
+        </div>
+        <a href="{{ url_for('patient.profile', patient_id=patient.id) }}" class="btn"
+            style="background: #6c757d; color: white; padding: 6px 14px; border-radius: 6px; text-decoration: none;">←
+            Back</a>
+    </div>
+
+    <!-- Summary Row -->
+    <div class="summary-row">
         <div class="summary-card">
-            <h3>Total Invoices</h3>
-            <div class="amount">{{ "${:,.2f}".format(total_invoices) }}</div>
+            <div class="label">Total Billed</div>
+            <div class="value">{{ "%.2f"|format(total_billed) }} DT</div>
         </div>
         <div class="summary-card">
-            <h3>Total Payments</h3>
-            <div class="amount">{{ "${:,.2f}".format(total_payments) }}</div>
+            <div class="label">Du Tiers</div>
+            <div class="value" style="color: #ffc107;">{{ "%.2f"|format(total_insurance) }} DT</div>
         </div>
-        <div class="summary-card {% if balance > 0 %}balance-due{% endif %}">
-            <h3>Balance</h3>
-            <div class="amount">{{ "${:,.2f}".format(balance) }}</div>
+        <div class="summary-card paid">
+            <div class="label">Total Paid</div>
+            <div class="value">{{ "%.2f"|format(total_paid) }} DT</div>
+        </div>
+        <div class="summary-card balance">
+            <div class="label">Remaining Balance</div>
+            <div class="value">{{ "%.2f"|format(total_balance) }} DT</div>
         </div>
     </div>
 
-    <!-- Add Transaction Form -->
-    <div class="add-transaction-form">
-        <h3>Add Transaction</h3>
-        <form method="POST" action="{{ url_for('patient.add_transaction', patient_id=patient.id) }}">
-            <div class="form-group">
-                <label for="type">Type</label>
-                <select name="type" id="type" class="form-control" required>
-                    <option value="invoice">Invoice</option>
-                    <option value="payment">Payment</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="amount">Amount</label>
-                <input type="number" step="0.01" min="0" name="amount" id="amount" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="description">Description</label>
-                <input type="text" name="description" id="description" class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="date">Date</label>
-                <input type="date" name="date" id="date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}"
-                    required>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Transaction</button>
-        </form>
-    </div>
+    <!-- Ledger Table -->
+    <table class="ledger-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Acte</th>
+                <th style="text-align: right;">Prix</th>
+                <th style="text-align: right;">Tiers</th>
+                <th style="text-align: right;">Paid</th>
+                <th style="text-align: right;">Balance</th>
+                <th style="text-align: center;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in ledger_entries %}
+            {% set entry_paid = entry.payments|sum(attribute='amount') %}
+            {% set entry_balance = (entry.cost - (entry.insurance_amount or 0)) - entry_paid %}
 
-    <!-- Transactions Table -->
-    <div class="transactions-table">
-        <h3>Transaction History</h3>
-        {% if transactions %}
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                    <th>Amount</th>
-                    <th>Added By</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for transaction in transactions %}
-                <tr>
-                    <td>{{ transaction.date.strftime('%m/%d/%Y') }}</td>
-                    <td>{{ transaction.type|title }}</td>
-                    <td>{{ transaction.description or 'N/A' }}</td>
-                    <td class="{% if transaction.type == 'invoice' %}text-danger{% else %}text-success{% endif %}">
-                        {{ "${:,.2f}".format(transaction.amount) }}
-                    </td>
-                    <td>{{ transaction.creator.name if transaction.creator else 'System' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p>No transactions found.</p>
-        {% endif %}
-    </div>
+            <tr>
+                <td>{{ entry.completed_date.strftime('%d/%m/%Y') if entry.completed_date else '-' }}</td>
+                <td>
+                    <div style="font-weight: 600;">
+                        {% if entry.tooth_number %}<span
+                            style="background: #e9ecef; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-right: 5px;">🦷
+                            {{ entry.tooth_number }}</span>{% endif %}
+                        {{ entry.procedure_name }}
+                    </div>
+                    {% if entry.clinical_notes %}<div style="font-size: 11px; color: #6c757d; font-style: italic;">{{
+                        entry.clinical_notes }}</div>{% endif %}
+                </td>
+                <td class="prix-col">{{ "%.2f"|format(entry.cost) }}</td>
+                <td class="prix-col" style="color: #ffc107;">{{ "%.2f"|format(entry.insurance_amount or 0) }}</td>
+                <td class="prix-col" style="color: #28a745;">{{ "%.2f"|format(entry_paid) }}</td>
+                <td class="balance-col">{{ "%.2f"|format(entry_balance) }}</td>
+                <td style="text-align: center;">
+                    {% if entry_balance > 0.01 %}
+                    <button type="button" class="btn-toggle" onclick="togglePayment('pay-form-{{ entry.id }}')">Record
+                        Payment</button>
+                    {% else %}
+                    <span style="color: #28a745; font-weight: bold;">✓ Paid</span>
+                    {% endif %}
+                </td>
+            </tr>
+
+            <!-- Hidden Payment Form Row -->
+            <tr id="pay-form-{{ entry.id }}" class="payment-form-row">
+                <td colspan="7" style="padding: 15px;">
+                    <form method="POST" action="{{ url_for('patient.add_payment', patient_id=patient.id) }}"
+                        style="display: flex; gap: 10px; align-items: flex-end;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="treatment_id" value="{{ entry.id }}">
+
+                        <div class="form-group" style="flex: 0 0 120px;">
+                            <label>Date</label>
+                            <input type="date" name="payment_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                        </div>
+                        <div class="form-group" style="flex: 0 0 100px;">
+                            <label>Amount (DT)</label>
+                            <input type="number" name="amount" step="0.01" max="{{ entry_balance }}" placeholder="0.00"
+                                required>
+                        </div>
+                        <div class="form-group" style="flex: 0 0 120px;">
+                            <label>Method</label>
+                            <select name="method">
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="Check">Check</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-pay">Save Payment</button>
+                        <button type="button" class="btn-toggle" style="border-color: #dc3545; color: #dc3545;"
+                            onclick="togglePayment('pay-form-{{ entry.id }}')">Cancel</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
+<!-- Vanilla JS to toggle the payment form -->
+<script>
+    function togglePayment(formId) {
+        const formRow = document.getElementById(formId);
+        if (formRow) {
+            formRow.classList.toggle('active');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const select = document.getElementById('procedure-select');
+        const costInput = document.getElementById('input-cost');
+        const codeInput = document.getElementById('input-code');
+        const cotationInput = document.getElementById('input-cotation');
+        const toothGroup = document.getElementById('tooth-group');
+        const toothInput = document.getElementById('input-tooth');
+
+        select.addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+
+            if (selectedOption.value) {
+                // Auto-fill fields
+                costInput.value = selectedOption.dataset.price || '0.00';
+                codeInput.value = selectedOption.dataset.code || '';
+                cotationInput.value = selectedOption.dataset.cotation || '';
+
+                // ✅ Smart Tooth Number Logic
+                const targetType = selectedOption.dataset.target;
+                if (targetType === 'single_tooth') {
+                    toothGroup.style.display = 'block'; // Show it
+                    toothInput.setAttribute('required', 'required'); // Make it mandatory
+                } else {
+                    toothGroup.style.display = 'none'; // Hide it
+                    toothInput.removeAttribute('required'); // Make it optional
+                    toothInput.value = ''; // Clear it
+                }
+            } else {
+                costInput.value = '';
+                codeInput.value = '';
+                cotationInput.value = '';
+                toothGroup.style.display = 'none';
+            }
+        });
+    });
+</script>
 
 {% endblock %}

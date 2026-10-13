@@ -4,6 +4,7 @@ from app.models import Appointment, Patient, Treatment
 from app.enums import AppointmentStatus, TreatmentStatus, UserRole
 from datetime import datetime
 from app.extensions import db
+from app.utils.tooth_helpers import update_tooth_chart_on_completion
 
 calendar_bp = Blueprint('calendar_api', __name__, url_prefix='/api')
 
@@ -46,7 +47,8 @@ def get_appointments():
         # NEW: Gather all treatment names for this appointment
         treatment_names = [t.procedure_name for t in appt.treatments.all()]
         display_treatment = ", ".join(treatment_names) if treatment_names else "Consultation"
-        
+        treatment_ids = [t.id for t in appt.treatments.all()]  # ✅ ADD THIS LINE
+
         appointments_data.append({
             'id': appt.id,
             'patient_name': full_name,
@@ -55,6 +57,7 @@ def get_appointments():
             'start_time': appt.start_time.isoformat(),
             'end_time': appt.end_time.isoformat(),
             'treatment_type': display_treatment, # Kept key name for frontend compatibility
+            'treatment_ids': treatment_ids,  # ✅ ADD THIS LINE
             'status': appt.status,
             'dentist_id': appt.dentist_id,
             'patient_id': appt.patient_id,
@@ -240,9 +243,19 @@ def complete_appointment(appointment_id):
         appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
         
-        # NEW: Auto-mark linked treatments as completed
+        # Auto-mark linked treatments as completed AND update chart
         for treatment in appointment.treatments.all():
             treatment.status = TreatmentStatus.COMPLETED
+            
+            # 1. Set Clinical Date to match the Appointment Date
+            treatment.completed_date = appointment.start_time.date()
+            
+            # 2. Set Audit Log to the exact moment of clicking
+            treatment.admin_completed_at = datetime.utcnow()
+            
+            # 3. Call the helper if the treatment has a specific tooth number
+            if treatment.tooth_number:
+                update_tooth_chart_on_completion(treatment)
             
         db.session.commit()
         

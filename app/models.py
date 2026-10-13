@@ -79,18 +79,64 @@ class Treatment(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
-    tooth_number = db.Column(db.String(2), nullable=True) # Null if it's a general cleaning
-    procedure_name = db.Column(db.String(100), nullable=False) # e.g., "Composite Filling"
+    tooth_number = db.Column(db.String(2), nullable=True) 
+    
+    procedure_name = db.Column(db.String(150), nullable=False) 
+    procedure_code = db.Column(db.String(20), nullable=True)
+    cotation = db.Column(db.String(20), nullable=True)
     cost = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(20), default=TreatmentStatus.PLANNED) # TreatmentStatus: planned, in_progress, completed, cancelled
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Link back to Appointments
+    status = db.Column(db.String(20), default=TreatmentStatus.PLANNED)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    clinical_notes = db.Column(db.Text, nullable=True)
+    insurance_amount = db.Column(db.Float, default=0.0)
+    
+    # The Clinical Date (The day of the appointment)
+    completed_date = db.Column(db.Date, nullable=True)
+    
+    # The Audit Log (The exact second the "Complete" button was clicked)
+    admin_completed_at = db.Column(db.DateTime, nullable=True)
+
     appointments = db.relationship('Appointment', secondary=appointment_treatments, back_populates='treatments')
 
     def __repr__(self):
         return f'<Treatment {self.id} - {self.procedure_name}>'
     
+class TreatmentCatalog(db.Model):
+    __tablename__ = 'treatment_catalog'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Basic Info
+    name = db.Column(db.String(150), nullable=False, unique=True) # e.g., "OBC: Groupe molaire"
+    category = db.Column(db.String(50)) # e.g., "Endo + OBC"
+    
+    # Official Tunisian Nomenclature
+    code = db.Column(db.String(20)) # e.g., "DCH010110"
+    cotation = db.Column(db.String(20)) # e.g., "D 30"
+    default_price = db.Column(db.Float, default=0.0) # Price in TND
+    
+    # Clinical Logic
+    target_type = db.Column(db.String(20), default='single_tooth') # 'single_tooth', 'general', 'arch'
+    
+    is_active = db.Column(db.Boolean, default=True)
+
+    def __repr__(self):
+        return f'<TreatmentCatalog {self.name}>'
+        
+class PatientPayment(db.Model):
+    __tablename__ = 'patient_payment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    treatment_id = db.Column(db.Integer, db.ForeignKey('treatment.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    date = db.Column(db.Date, default=datetime.utcnow)
+    method = db.Column(db.String(20), default='Cash') # Cash, Card, Check
+    note = db.Column(db.String(100))
+
+    # Relationship back to Treatment (this allows entry.payments to work in HTML)
+    treatment = db.relationship('Treatment', backref=db.backref('payments', lazy=True))
+
 class ToothRecord(db.Model):
     __tablename__ = 'tooth_record'
     id = db.Column(db.Integer, primary_key=True)
@@ -113,6 +159,7 @@ class Prosthetic(db.Model):
     end_tooth = db.Column(db.String(2), nullable=False)
     
     patient = db.relationship('Patient', backref=db.backref('prosthetics', lazy=True))
+
 # FINANCIAL MODELS (Merged from Financial App)
 # ==========================================
 
