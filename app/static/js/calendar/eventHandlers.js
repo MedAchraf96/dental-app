@@ -33,7 +33,7 @@ function initAppointmentForm(context, data = null) {
   patientSearchContainer.style.display = 'block';
   patientInfo.style.display = 'none';
 
-  // Clear any previous data and reset treatment lists
+  // Clear any previous data
   delete form.dataset.appointmentId;
   delete form.dataset.originalValues;
 
@@ -43,10 +43,29 @@ function initAppointmentForm(context, data = null) {
     window.renderNewTreatmentTags();
   }
 
-  // 2. ✅ ADD THIS: Clear the "From Treatment Plan" checkboxes container
-  const treatmentContainer = document.getElementById('existing-treatments-list');
-  if (treatmentContainer) {
-    treatmentContainer.innerHTML = '<p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px; margin: 0;">Select a patient to load plan...</p>';
+  // ✅ CRITICAL FIX: Reset the Treatment UI to "New" state
+  const linkedContainer = document.getElementById('linked-treatments-container');
+  const plannedContainer = document.getElementById('planned-treatments-list'); // Updated ID
+  const noLinkedMsg = document.getElementById('no-linked-msg');
+  const linkedTitle = document.getElementById('linked-treatments-title');
+  const addPlanSection = document.getElementById('section-add-plan');
+  const quickAddSection = document.getElementById('section-quick-add');
+
+  // Reset Containers
+  if (linkedContainer) linkedContainer.innerHTML = '';
+  if (noLinkedMsg) noLinkedMsg.style.display = 'block'; // Show default "No treatments" message
+
+  // Reset Titles and Visibility
+  if (linkedTitle) {
+    linkedTitle.innerHTML = 'Linked to this Appointment (Review):';
+    linkedTitle.style.color = '#64748b'; // Grey
+  }
+  if (addPlanSection) addPlanSection.style.display = 'block'; // Show "Add from Plan"
+  if (quickAddSection) quickAddSection.style.display = 'block'; // Show "Quick Add"
+
+  // Reset Planned List
+  if (plannedContainer) {
+    plannedContainer.innerHTML = '<div class="text-muted small" style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px; margin: 0;">Select a patient to load plan...</div>';
   }
 
   // Set form based on context
@@ -82,7 +101,6 @@ function initAppointmentForm(context, data = null) {
       const endTime = new Date(data.end_time);
       const duration = Math.round((endTime - startTime) / 60000);
 
-      // UPDATED: Store original values using the new structure
       const originalData = {
         date: formatDateForInput(startTime),
         time: formatTimeForInput(startTime),
@@ -113,39 +131,88 @@ function initAppointmentForm(context, data = null) {
       submitBtn.textContent = 'Update Appointment';
       modalTitle.innerHTML = `${icon} Edit Appointment`;
 
-      // ✅ FIXED: Robust Treatment Loading
-      console.log("🔍 EDIT MODE DEBUG:");
-      console.log("Appointment Data:", data);
-      console.log("Treatment IDs from API:", data.treatment_ids);
+      // ✅ SMART TREATMENT LOADING (Cleaned up)
+      if (linkedContainer) linkedContainer.innerHTML = '';
+      if (plannedContainer) plannedContainer.innerHTML = '<div class="text-muted small" style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px; margin: 0;">Loading treatment plan...</div>';
+      if (noLinkedMsg) noLinkedMsg.style.display = 'none';
 
+      // 🚨 LOGIC CHECK: Is this appointment already completed?
+      if (data.status === 'completed') {
+        if (addPlanSection) addPlanSection.style.display = 'none';
+        if (quickAddSection) quickAddSection.style.display = 'none';
+        if (linkedTitle) {
+          linkedTitle.innerHTML = '✓ Completed Treatments (Read-Only)';
+          linkedTitle.style.color = '#10b981'; // Green title
+        }
+      } else {
+        if (addPlanSection) addPlanSection.style.display = 'block';
+        if (quickAddSection) quickAddSection.style.display = 'block';
+        if (linkedTitle) {
+          linkedTitle.innerHTML = 'Linked to this Appointment (Review):';
+          linkedTitle.style.color = '#64748b'; // Normal grey title
+        }
+      }
+
+      // 1. Render Linked Treatments
+      // 1. Render Linked Treatments (Review Section)
+      if (data.treatments && data.treatments.length > 0) {
+        data.treatments.forEach(t => {
+          const div = document.createElement('div');
+          div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: #ffffff; border-left: 4px solid #3b82f6; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
+
+          // ✅ DYNAMIC BADGE LOGIC
+          let badgeBg = '#e2e8f0'; // Grey default
+          let badgeColor = '#475569';
+          let badgeText = t.status.toUpperCase();
+          let icon = '';
+
+          if (t.status === 'completed') {
+            badgeBg = '#d1fae5'; badgeColor = '#065f46'; badgeText = 'COMPLETED'; icon = '✓ ';
+          } else if (t.status === 'scheduled') {
+            badgeBg = '#dbeafe'; badgeColor = '#1e40af'; badgeText = 'SCHEDULED'; icon = '📅 '; // Blue for Scheduled
+          } else if (t.status === 'in_progress') {
+            badgeBg = '#fef3c7'; badgeColor = '#92400e'; badgeText = 'IN PROGRESS'; icon = '⏳ ';
+          }
+
+          div.innerHTML = `
+            <div style="flex: 1;">
+              <div style="font-weight: 600; font-size: 14px; color: #1e293b; margin-bottom: 4px;">
+                ${t.name}
+                ${t.tooth ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+              </div>
+              <div style="font-size: 12px; color: #64748b;">
+                ${t.cost.toFixed(2)} DT
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="background: ${badgeBg}; color: ${badgeColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase;">
+                ${icon}${badgeText}
+              </span>
+            </div>
+          `;
+          linkedContainer.appendChild(div);
+        });
+      } else {
+        if (noLinkedMsg) noLinkedMsg.style.display = 'block';
+      }
+
+      // 2. Render Planned Treatments
       if (typeof window.loadPatientTreatments === 'function') {
         window.loadPatientTreatments(data.patient_id).then(() => {
-
           setTimeout(() => {
-            const checkboxes = document.querySelectorAll('.existing-treatment-cb');
-            console.log(`Found ${checkboxes.length} checkboxes in DOM`);
-
-            checkboxes.forEach(cb => {
-              console.log(`Checkbox value: ${cb.value} (type: ${typeof cb.value})`);
-            });
-
-            const idsToCheck = Array.isArray(data.treatment_ids) ? data.treatment_ids : [];
+            const checkboxes = document.querySelectorAll('#planned-treatments-list input[type="checkbox"]');
+            const linkedIds = data.treatments ? data.treatments.map(t => t.id) : (data.treatment_ids || []);
 
             checkboxes.forEach(cb => {
               const cbValue = Number(cb.value);
-              const isMatch = idsToCheck.includes(cbValue);
-
-              if (isMatch) {
+              if (linkedIds.includes(cbValue)) {
                 cb.checked = true;
-                console.log(`✅ CHECKED: Treatment ID ${cbValue}`);
               }
             });
-
-          }, 100);
-
+          }, 150);
         });
       }
-      break;
+      break; // <-- ONLY ONE BREAK HERE!
 
     case 'timeslot':
       if (!data) return;
@@ -175,8 +242,6 @@ function handleTimeSlotClick(e) {
   initAppointmentForm('timeslot', slotDate);
 }
 
-
-
 async function handleCompleteAppointment(appointmentId, initCalendar) {
   if (!appointmentId) return;
 
@@ -197,16 +262,17 @@ async function handleEditAppointment(appointmentId, appointments) {
   try {
     if (!appointmentId) return;
 
-    const appt = appointments[appointmentId];
-    if (!appt) {
-      console.error('Appointment not found');
-      return;
+    // ✅ FIX: Add /api to the URL to match your backend route
+    const response = await fetch(`/api/appointments/${appointmentId}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    await initAppointmentForm('edit', {
-      ...appt,
-      id: appointmentId
-    });
+    const detailedData = await response.json();
+    console.log("✅ Fetched detailed data:", detailedData);
+
+    await initAppointmentForm('edit', detailedData);
 
   } catch (error) {
     console.error('Error handling edit appointment:', error);

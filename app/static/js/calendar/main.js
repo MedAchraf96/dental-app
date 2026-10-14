@@ -131,7 +131,7 @@ function setupModal() {
   }
   // 2. ADD THESE NEW FUNCTIONS right after the searchPatients function:
   window.loadPatientTreatments = async function (patientId) {
-    const container = document.getElementById('existing-treatments-list');
+    const container = document.getElementById('planned-treatments-list');
     if (!container) return;
 
     container.innerHTML = '<p style="color: #64748b; font-size: 12px; text-align: center; padding: 10px;">Loading treatments...</p>';
@@ -140,13 +140,16 @@ function setupModal() {
       const response = await fetch(`/api/patients/${patientId}/planned-treatments`);
       const treatments = await response.json();
 
-      if (treatments.length === 0) {
-        container.innerHTML = '<p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px; margin: 0;">No planned treatments for this patient.</p>';
+      // ✅ FILTER: Only show treatments that are truly "planned" (not scheduled/in-progress/completed)
+      const availableTreatments = treatments.filter(t => t.status === 'planned');
+
+      if (availableTreatments.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px; margin: 0;">No available planned treatments.</p>';
         return;
       }
 
-      container.innerHTML = treatments.map(t => `
-      <label style="display: flex; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; background: #ffffff; hover: background: #f8fafc;">
+      container.innerHTML = availableTreatments.map(t => `
+      <label style="display: flex; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; background: #ffffff;">
         <input type="checkbox" class="existing-treatment-cb" value="${t.id}" 
                style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer; accent-color: #3b82f6;">
         <div style="flex: 1;">
@@ -155,13 +158,13 @@ function setupModal() {
             ${t.tooth !== 'General' ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
           </div>
           <div style="font-size: 13px; color: #64748b;">
-            $${t.cost.toFixed(2)}
+            ${t.cost.toFixed(2)} DT
           </div>
         </div>
       </label>
     `).join('');
 
-      // Add hover effect via JS since inline hover doesn't work
+      // Add hover effect via JS
       container.querySelectorAll('label').forEach(label => {
         label.addEventListener('mouseenter', () => {
           label.style.background = '#f8fafc';
@@ -429,9 +432,6 @@ function updateAppointmentWidths() {
   });
 }
 
-
-
-
 function highlightAppointment(appointmentId) {
   // Remove any existing highlights
   document.querySelectorAll('.appointment').forEach(el => {
@@ -461,8 +461,6 @@ function debounce(func, wait) {
 // ======================
 // INITIALIZATION
 // ======================
-
-
 function waitForElementsWithRAF(ids, timeout = 5000) {
   return new Promise((resolve, reject) => {
     const start = performance.now();

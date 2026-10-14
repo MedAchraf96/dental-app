@@ -5,24 +5,44 @@
 {% block patient_content %}
 
 <style>
-    .status-select.status-planned {
-        background: #e0f2fe;
-        color: #0369a1;
+    /* Base style for all status dropdowns */
+    .status-select {
+        transition: all 0.2s ease;
     }
 
-    .status-select.status-in_progress {
-        background: #fef3c7;
-        color: #b45309;
+    /* Planned (Grey) */
+    .status-planned {
+        border: 1px solid #ced4da;
+        color: #475569;
+        background-color: #f8fafc;
     }
 
-    .status-select.status-completed {
-        background: #d1fae5;
-        color: #047857;
+    /* Scheduled (Blue) */
+    .status-scheduled {
+        border: 1px solid #3b82f6;
+        color: #1e40af;
+        background-color: #eff6ff;
     }
 
-    .status-select.status-cancelled {
-        background: #fee2e2;
-        color: #b91c1c;
+    /* In Progress (Yellow/Orange) */
+    .status-in_progress {
+        border: 1px solid #f59e0b;
+        color: #92400e;
+        background-color: #fffbeb;
+    }
+
+    /* Completed (Green) */
+    .status-completed {
+        border: 1px solid #10b981;
+        color: #065f46;
+        background-color: #ecfdf5;
+    }
+
+    /* Cancelled (Red) */
+    .status-cancelled {
+        border: 1px solid #ef4444;
+        color: #991b1b;
+        background-color: #fef2f2;
     }
 </style>
 
@@ -137,14 +157,22 @@
                         <form method="POST" action="{{ url_for('patient.update_treatment_status', treatment_id=t.id) }}"
                             style="display: inline-block;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <!-- ✅ Clean Select: Relies on CSS classes for colors -->
                             <select name="status" onchange="this.form.submit()"
-                                class="status-select status-{{ t.status }}"
-                                style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ced4da; font-size: 12px; font-weight: 600;">
-                                {% for s in [enums.TreatmentStatus.PLANNED, enums.TreatmentStatus.IN_PROGRESS,
-                                enums.TreatmentStatus.COMPLETED, enums.TreatmentStatus.CANCELLED] %}
-                                <option value="{{ s.value }}" {% if t.status==s.value %}selected{% endif %}>{{
-                                    s.value.replace('_', ' ')|title }}</option>
-                                {% endfor %}
+                                class="status-select status-{{ t.status.value if t.status.value else t.status }}"
+                                style="padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; outline: none;">
+
+                                <option value="planned" {% if t.status.value=='planned' or t.status=='planned'
+                                    %}selected{% endif %}>Planned</option>
+                                <option value="scheduled" {% if t.status.value=='scheduled' or t.status=='scheduled'
+                                    %}selected{% endif %}>Scheduled</option>
+                                <option value="in_progress" {% if t.status.value=='in_progress' or
+                                    t.status=='in_progress' %}selected{% endif %}>In Progress</option>
+                                <option value="completed" {% if t.status.value=='completed' or t.status=='completed'
+                                    %}selected{% endif %}>Completed</option>
+                                <option value="cancelled" {% if t.status.value=='cancelled' or t.status=='cancelled'
+                                    %}selected{% endif %}>Cancelled</option>
                             </select>
                         </form>
                     </td>
@@ -172,26 +200,25 @@
 </div>
 
 <script>
-    // ✅ NEW: Smart Dropdown Logic with Filtering
     document.addEventListener('DOMContentLoaded', () => {
         const select = document.getElementById('procedure-select');
         const costInput = document.querySelector('input[name="cost"]');
         const toothGroup = document.getElementById('tooth-group');
         const toothInput = document.getElementById('tooth_input');
+        const errorDiv = document.getElementById('tooth_error');
 
-        // ✅ Check on page load if a tooth was pre-filled from the URL
+        // ✅ 1. Check on page load if a tooth was pre-filled from the URL
         const urlParams = new URLSearchParams(window.location.search);
         const toothFromUrl = urlParams.get('tooth');
 
         if (toothFromUrl) {
-            toothInput.value = toothFromUrl; // Force set the value
-            toothGroup.style.display = 'block'; // Show the box
-            toothInput.style.borderColor = '#10b981'; // Green border
-
-            // ✅ Filter the dropdown to show only tooth-specific procedures
+            toothInput.value = toothFromUrl;
+            toothGroup.style.display = 'block';
+            toothInput.style.borderColor = '#10b981';
             filterProceduresForTooth();
         }
 
+        // ✅ 2. Handle Procedure Selection Change
         select.addEventListener('change', function () {
             const selectedOption = this.options[this.selectedIndex];
 
@@ -208,26 +235,46 @@
                     toothGroup.style.display = 'none';
                     toothInput.removeAttribute('required');
                     toothInput.value = ''; // Clear it
+                    toothInput.style.borderColor = '#ced4da'; // Reset border
+                    if (errorDiv) errorDiv.style.display = 'none';
                 }
             } else {
                 costInput.value = '0.00';
             }
         });
 
-        // ✅ Function to filter procedures for tooth-specific treatments
+        // ✅ 3. Handle Manual Clearing of Tooth Input
+        // If the user deletes the tooth number, reset everything to "General" mode
+        if (toothInput) {
+            toothInput.addEventListener('input', function () {
+                if (this.value.trim() === '') {
+                    showAllProcedures();
+                    this.style.borderColor = '#ced4da';
+                    if (errorDiv) errorDiv.style.display = 'none';
+
+                    // Optional: Reset the dropdown and cost when tooth is cleared
+                    select.value = '';
+                    costInput.value = '0.00';
+                } else {
+                    // Re-validate and filter if they start typing again
+                    validateToothInput(this);
+                    filterProceduresForTooth();
+                }
+            });
+        }
+
+        // ✅ 4. Function to filter procedures for tooth-specific treatments
         function filterProceduresForTooth() {
             const options = select.querySelectorAll('option');
             let hasVisibleOptions = false;
 
             options.forEach(option => {
                 if (option.disabled && option.value === '') {
-                    // Keep the "Select a procedure" placeholder
-                    return;
+                    return; // Keep the "Select a procedure" placeholder
                 }
 
                 const targetType = option.dataset.target;
 
-                // Only show procedures that require a tooth
                 if (targetType === 'single_tooth') {
                     option.style.display = 'block';
                     hasVisibleOptions = true;
@@ -236,18 +283,17 @@
                 }
             });
 
-            // Auto-select the first visible option if none selected
+            // Auto-select the first visible option if none is selected
             if (hasVisibleOptions && !select.value) {
                 const firstToothProc = Array.from(options).find(opt => opt.style.display !== 'none' && opt.value);
                 if (firstToothProc) {
                     select.value = firstToothProc.value;
-                    // Trigger the change event to auto-fill cost
-                    select.dispatchEvent(new Event('change'));
+                    select.dispatchEvent(new Event('change')); // Trigger cost auto-fill
                 }
             }
         }
 
-        // ✅ Function to show all procedures (when no tooth selected)
+        // ✅ 5. Function to show all procedures (when no tooth selected)
         window.showAllProcedures = function () {
             const options = select.querySelectorAll('option');
             options.forEach(option => {
@@ -256,28 +302,28 @@
         }
     });
 
-    // ✅ EXISTING: Your excellent validation logic
+    // ✅ 6. Existing Validation Logic (Untouched, it's perfect)
     function validateToothInput(input) {
         const val = input.value.trim().toUpperCase();
         const errorDiv = document.getElementById('tooth_error');
 
         if (val === '') {
             input.style.borderColor = '#ced4da';
-            errorDiv.style.display = 'none';
+            if (errorDiv) errorDiv.style.display = 'none';
             return;
         }
 
         const validKeywords = ['FULL UPPER', 'FULL LOWER', 'FULL MOUTH'];
         if (validKeywords.includes(val)) {
             input.style.borderColor = '#10b981';
-            errorDiv.style.display = 'none';
+            if (errorDiv) errorDiv.style.display = 'none';
             return;
         }
 
         const singleToothRegex = /^[1-4][1-8]$/;
         if (singleToothRegex.test(val)) {
             input.style.borderColor = '#10b981';
-            errorDiv.style.display = 'none';
+            if (errorDiv) errorDiv.style.display = 'none';
             return;
         }
 
@@ -295,14 +341,16 @@
 
             if ((isUpper || isLower) && startTooth !== endTooth) {
                 input.style.borderColor = '#10b981';
-                errorDiv.style.display = 'none';
+                if (errorDiv) errorDiv.style.display = 'none';
                 return;
             }
         }
 
         input.style.borderColor = '#ef4444';
-        errorDiv.style.display = 'block';
-        errorDiv.innerText = "Invalid. Use 11-48, same-arch range (e.g., 13-23), or FULL UPPER/LOWER/MOUTH.";
+        if (errorDiv) {
+            errorDiv.style.display = 'block';
+            errorDiv.innerText = "Invalid. Use 11-48, same-arch range (e.g., 13-23), or FULL UPPER/LOWER/MOUTH.";
+        }
     }
 </script>
 {% endblock %}

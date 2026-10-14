@@ -253,31 +253,45 @@ def add_treatment(patient_id):
 @login_required
 def update_treatment_status(treatment_id):
     treatment = Treatment.query.get_or_404(treatment_id)
-    new_status = request.form.get('status')
+    new_status_str = request.form.get('status')
     
-    if new_status in [e.value for e in TreatmentStatus]:
-        treatment.status = new_status
-        
-        # ✅ PRO LOGIC: If marking as completed
-        if new_status == TreatmentStatus.COMPLETED.value:
-            # 1. Record exactly when the button was clicked (Audit Log)
-            treatment.admin_completed_at = datetime.utcnow()
+    print(f"🔄 ATTEMPTING STATUS UPDATE: Treatment {treatment_id} -> '{new_status_str}'")
+    
+    # Get all valid string values from the Enum: ['planned', 'scheduled', 'in_progress', 'completed', 'cancelled']
+    valid_values = [e.value for e in TreatmentStatus]
+    
+    if new_status_str in valid_values:
+        try:
+            # ✅ CRITICAL FIX: Convert the string to the actual Enum object before assigning
+            treatment.status = TreatmentStatus(new_status_str)
             
-            # 2. Ensure the Clinical Date is set (default to today if empty)
-            if not treatment.completed_date:
-                treatment.completed_date = datetime.now().date()
+            # ✅ PRO LOGIC: If marking as completed
+            if new_status_str == TreatmentStatus.COMPLETED.value:
+                # 1. Record exactly when the button was clicked (Audit Log)
+                treatment.admin_completed_at = datetime.utcnow()
                 
-            # 3. Update the visual chart if it's a specific tooth
-            if treatment.tooth_number:
-                update_tooth_chart_on_completion(treatment)
+                # 2. Ensure the Clinical Date is set (default to today if empty)
+                if not treatment.completed_date:
+                    treatment.completed_date = datetime.now().date()
+                    
+                # 3. Update the visual chart if it's a specific tooth
+                if treatment.tooth_number:
+                    update_tooth_chart_on_completion(treatment)
             
-        db.session.commit()
-        flash('Treatment status updated.', 'success')
+            db.session.commit()
+            print(f"✅ SUCCESS: Treatment {treatment_id} status updated to {new_status_str}")
+            flash('Treatment status updated.', 'success')
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ DATABASE ERROR: {e}")
+            flash(f'Error updating status: {str(e)}', 'error')
     else:
-        flash('Invalid status provided!', 'error')
+        print(f"❌ INVALID STATUS: '{new_status_str}' is not in {valid_values}")
+        flash(f'Invalid status provided: {new_status_str}', 'error')
 
     return redirect(url_for('patient.treatments', patient_id=treatment.patient_id))
-
+    
 @patient_bp.route('/treatments/<int:treatment_id>/delete', methods=['POST'])
 @login_required
 def delete_treatment(treatment_id):
