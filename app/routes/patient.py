@@ -32,6 +32,12 @@ def home():
         flash('Error loading patient records', 'error')
         return redirect(url_for('dashboard.dashboard_home'))
 
+@patient_bp.route('/<int:patient_id>')
+@login_required
+def patient_root(patient_id):
+    # Automatically sends the user to the Documents hub
+    return redirect(url_for('patient.clinical_log', patient_id=patient_id))
+
 @patient_bp.route("/add", methods=["GET"])
 @login_required
 def add_patient():
@@ -80,7 +86,7 @@ def add_patient_route():
         flash('Error adding patient!', 'error')
         return redirect(url_for('patient.add_patient'))
 
-@patient_bp.route('/<int:patient_id>')
+@patient_bp.route('/<int:patient_id>/profile')
 @login_required
 def profile(patient_id):
     try:
@@ -104,6 +110,7 @@ def profile(patient_id):
             'patient/profile.html',
             patient=patient,
             upcoming_appointments=upcoming_appointments,
+            active_tab='profile',
             now=datetime.now()
         )
     except Exception as e:
@@ -215,7 +222,8 @@ def treatments(patient_id):
         patient=patient,
         treatments=patient_treatments,
         selected_tooth=selected_tooth,
-        catalog=catalog
+        catalog=catalog,
+        active_tab='treatments',
     )
 
 @patient_bp.route('/<int:patient_id>/treatments/add', methods=['POST'])
@@ -352,6 +360,7 @@ def financial(patient_id):
         total_insurance=total_insurance,
         total_paid=total_paid,
         total_balance=total_balance,
+        active_tab='financial',
         now=datetime.now()
     )
 
@@ -398,7 +407,10 @@ def teeth_chart(patient_id):
     if not patient:
         flash('Patient not found!', 'error')
         return redirect(url_for('patient.home'))
-    return render_template('patient/teeth_chart.html', patient=patient)
+    return render_template('patient/teeth_chart.html', 
+                            patient=patient,
+                            active_tab='teeth_chart',
+                            )
 
 @patient_bp.route('/<int:patient_id>/api/teeth-chart', methods=['GET'])
 @login_required
@@ -490,22 +502,106 @@ def clinical_log(patient_id):
         flash('Patient not found!', 'error')
         return redirect(url_for('patient.home'))
 
-    # Fetch ALL treatments sorted by date (oldest first for timeline)
-    all_treatments = Treatment.query.filter_by(patient_id=patient_id).order_by(Treatment.created_at.asc()).all()
+    # 1. Calculate Age
+    age = None
+    if patient.date_of_birth:
+        today = datetime.today()
+        age = today.year - patient.date_of_birth.year - ((today.month, today.day) < (patient.date_of_birth.month, patient.date_of_birth.day))
 
-    # Group treatments by Tooth Number
-    tooth_history = defaultdict(list)
-    general_history = []
+    # 2. Fetch Appointments
+    appointments = Appointment.query.filter(
+        Appointment.patient_id == patient_id,
+        Appointment.status.in_(['completed', 'scheduled'])
+    ).order_by(Appointment.start_time.desc()).all()
 
-    for t in all_treatments:
-        if t.tooth_number:
-            tooth_history[t.tooth_number].append(t)
-        else:
-            general_history.append(t) # Scaling, Consultations, etc.
+    all_treatments = Treatment.query.filter_by(patient_id=patient_id).all()
+    linked_treatment_ids = set()
+    visit_data = []
+    
+    # 3. Initialize Grand Totals
+    grand_total_cost = 0.0
+    grand_total_paid = 0.0
 
+    for appt in appointments:
+        appt_treatments = appt.treatments.all()
+        for t in appt_treatments:
+            linked_treatment_ids.add(t.id)
+            
+        total_paid_appt = 0
+        for t in appt_treatments:
+            payments = PatientPayment.query.filter_by(treatment_id=t.id).all()
+            total_paid_appt += sum(p.amount for p in payments)
+            
+        visit_cost = sum(t.cost for t in appt_treatments)
+        
+        # Add to Grand Totals
+        grand_total_cost += visit_cost
+        grand_total_paid += total_paid_appt
+
+        visit_data.append({
+            'type': 'appointment',
+            'date': appt.start_time,
+            'status': appt.status,
+            'treatments': appt_treatments,
+            'total_cost': visit_cost,
+            'total_paid': total_paid_appt
+        })
+
+    # 4. Fetch Orphan Planned Treatments
+    orphan_treatments = [t for t in all_treatments if t.id not in linked_treatment_ids and t.status == 'planned']
+    if orphan_treatments:
+        orphan_cost = sum(t.cost for t in orphan_treatments)
+        grand_total_cost += orphan_cost # Add planned cost to grand total
+        
+        visit_data.append({
+            'type': 'planned',
+            'date': datetime.now(), 
+            'status': 'planned',
+            'treatments': orphan_treatments,
+            'total_cost': orphan_cost,
+            'total_paid': 0
+        })
+
+    # Sort by date (Newest first)
+    visit_data.sort(key=lambda x: x['date'], reverse=True)
+
+    # 5. Render Template with ALL variables explicitly passed
     return render_template(
         'patient/clinical_log.html',
         patient=patient,
-        tooth_history=tooth_history, 
-        general_history=general_history
+        patient_age=age,
+        visit_data=visit_data,
+        grand_total_cost=grand_total_cost,
+        grand_total_paid=grand_total_paid,
+        active_tab='documents'
     )
+
+# New Route: Save Clinical Notes for a specific treatment inline
+@patient_bp.route('/treatments/<int:treatment_id>/update-notes', methods=['POST'])
+@login_required
+def update_treatment_notes(treatment_id):
+    treatment = Treatment.query.get_or_404(treatment_id)
+    new_notes = request.form.get('clinical_notes', '')
+    
+    try:
+        treatment.clinical_notes = new_notes
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    patient = db.session.get(Patient, patient_id)
+    if not patient:
+        return jsonify({'success': False, 'error': 'Patient not found'}), 404
+        
+    try:
+        # Get the new notes from the request
+        new_notes = request.form.get('clinical_notes', '')
+        patient.notes = new_notes
+        db.session.commit()
+        
+        # Return a success JSON response
+        return jsonify({'success': True, 'message': 'Notes saved'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500   

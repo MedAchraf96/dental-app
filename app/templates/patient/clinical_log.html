@@ -1,110 +1,443 @@
 {% extends "patient/patient_base.html" %}
 
-{% block title %}Dossier Clinique - {{ patient.full_name }}{% endblock %}
-
 {% block patient_content %}
-<div class="container" style="max-width: 1000px; margin: 0 auto; padding: 20px;">
+<style>
+    .medical-file-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
 
-    <!-- Patient Header -->
-    <div
-        style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 5px solid #1e3a8a; margin-bottom: 30px;">
-        <h2 style="margin: 0; color: #1e3a8a;">{{ patient.full_name }}</h2>
-        <p style="margin: 5px 0 0 0; color: #6c757d;">Historique complet par dent</p>
+    .file-header {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        color: white;
+        padding: 32px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1);
+    }
+
+    .file-header h1 {
+        margin: 0 0 12px 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .header-info {
+        display: flex;
+        gap: 32px;
+        flex-wrap: wrap;
+        font-size: 0.95rem;
+    }
+
+    .header-info span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.95;
+    }
+
+    .text-danger {
+        color: #fca5a5 !important;
+        font-weight: 600;
+    }
+
+    .grand-total-banner {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left: 4px solid #1e3a8a;
+    }
+
+    .banner-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .banner-stats {
+        display: flex;
+        gap: 48px;
+    }
+
+    .stat-box {
+        text-align: right;
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .stat-box.paid .stat-value {
+        color: #10b981;
+    }
+
+    .stat-box.balance .stat-value {
+        color: #ef4444;
+    }
+
+    .table-responsive {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .medical-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .medical-table thead th {
+        background: #f1f5f9;
+        color: #475569;
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .group-header td {
+        background: linear-gradient(to right, #f8fafc, #f1f5f9);
+        padding: 16px 20px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .group-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        color: #1e3a8a;
+        font-size: 0.95rem;
+    }
+
+    .group-total-cell {
+        text-align: right;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .cost-cell {
+        color: #334155;
+    }
+
+    .paid-cell {
+        color: #10b981;
+    }
+
+    .treatment-row td {
+        padding: 20px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+
+    .treatment-row:last-child td {
+        border-bottom: none;
+    }
+
+    .treatment-row:hover {
+        background: #f8fafc;
+    }
+
+    .date-display {
+        font-size: 0.875rem;
+        color: #64748b;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .proc-name {
+        font-weight: 600;
+        color: #0f172a;
+        font-size: 0.95rem;
+        margin-bottom: 4px;
+    }
+
+    .proc-code {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        font-family: monospace;
+    }
+
+    .tooth-badge {
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        color: #1e40af;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        display: inline-block;
+    }
+
+    .badge {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        display: inline-block;
+    }
+
+    .status-completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-scheduled {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-planned {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .col-money {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+
+    .notes-wrapper {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+    }
+
+    .inline-notes {
+        flex: 1;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-family: inherit;
+        font-size: 0.85rem;
+        resize: vertical;
+        min-height: 44px;
+        background: #fffbeb;
+        transition: all 0.2s;
+        line-height: 1.5;
+    }
+
+    .inline-notes:focus {
+        border-color: #3b82f6;
+        background: white;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .save-note-btn {
+        background: white;
+        border: 1px solid #e2e8f0;
+        color: #3b82f6;
+        border-radius: 8px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+
+    .save-note-btn:hover {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+        transform: translateY(-1px);
+    }
+
+    .col-date {
+        width: 110px;
+    }
+
+    .col-proc {
+        width: 25%;
+    }
+
+    .col-tooth {
+        width: 90px;
+        text-align: center;
+    }
+
+    .col-status {
+        width: 120px;
+        text-align: center;
+    }
+
+    .col-notes {
+        width: auto;
+    }
+
+    .col-money {
+        width: 120px;
+        padding-right: 24px !important;
+    }
+</style>
+
+<div class="medical-file-container">
+    <div class="file-header">
+        <h1>{{ patient.first_name }} {{ patient.last_name }}</h1>
+        <div class="header-info">
+            <span><i class="bi bi-telephone-fill"></i> <strong>Tél:</strong> {{ patient.phone or 'N/A' }}</span>
+            <span><i class="bi bi-calendar-heart"></i> <strong>Âge:</strong> {{ patient_age }} ans</span>
+            <span><i class="bi bi-shield-exclamation"></i> <strong>Allergies:</strong> <span class="text-danger">{{
+                    patient.allergies or 'Aucune' }}</span></span>
+        </div>
     </div>
 
-    <!-- 1. GENERAL TREATMENTS (Scaling, Consultations) -->
-    {% if general_history %}
-    <h3 style="color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Soins Généraux</h3>
-    <div
-        style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-        {% for t in general_history %}
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f3f5; padding: 10px 0;">
-            <div>
-                <strong>{{ t.procedure_name }}</strong>
-                <br><span style="font-size: 12px; color: #6c757d;">{{ t.completed_date.strftime('%d/%m/%Y') if
-                    t.completed_date else t.created_at.strftime('%d/%m/%Y') }}</span>
+    <div class="grand-total-banner">
+        <div class="banner-title"><i class="bi bi-pie-chart"></i> Résumé Financier Global</div>
+        <div class="banner-stats">
+            <div class="stat-box">
+                <span class="stat-label">Coût Total</span>
+                <span class="stat-value">{{ grand_total_cost | default(0) }} DT</span>
             </div>
-            <div style="text-align: right;">
-                <span style="font-weight: bold;">{{ "%.2f"|format(t.cost) }} DT</span>
-                <br>
-                {% if t.status == 'completed' %}
-                <span style="font-size: 11px; color: green;">{{ t.status|upper }}</span>
-                {% else %}
-                <span style="font-size: 11px; color: orange;">{{ t.status|upper }}</span>
-                {% endif %}
+            <div class="stat-box paid">
+                <span class="stat-label">Total Payé</span>
+                <span class="stat-value">{{ grand_total_paid | default(0) }} DT</span>
             </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- 2. TOOTH HISTORIES (The Biography) -->
-    <h3 style="color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Historique par Dent</h3>
-
-    <!-- Sort teeth numerically -->
-    {% set sorted_teeth = tooth_history.keys()|list|sort %}
-
-    {% for tooth_num in sorted_teeth %}
-    <div
-        style="background: white; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden;">
-
-        <!-- Tooth Header -->
-        <div
-            style="background: #1e3a8a; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-size: 18px; font-weight: bold;">
-                Dent #{{ tooth_num }}
+            <div class="stat-box balance">
+                <span class="stat-label">Reste à Payer</span>
+                <span class="stat-value">{{ (grand_total_cost - grand_total_paid) | default(0) }} DT</span>
             </div>
-            <div style="font-size: 12px; opacity: 0.8;">
-                {{ tooth_history[tooth_num]|length }} intervention(s)
-            </div>
-        </div>
-
-        <!-- Timeline of Treatments for this Tooth -->
-        <div style="padding: 0;">
-            {% for t in tooth_history[tooth_num] %}
-            <div style="display: flex; border-bottom: 1px solid #e9ecef; padding: 15px; position: relative;">
-
-                <!-- Timeline Line -->
-                <div style="position: absolute; left: 20px; top: 0; bottom: 0; width: 2px; background: #e9ecef;"></div>
-
-                <!-- Date Circle -->
-                <div
-                    style="position: relative; z-index: 1; background: white; border: 2px solid #1e3a8a; border-radius: 50%; width: 12px; height: 12px; margin-top: 5px; margin-right: 20px;">
-                </div>
-
-                <!-- Content -->
-                <div style="flex: 1;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <strong style="color: #212529;">{{ t.procedure_name }}</strong>
-                        <span style="font-weight: bold; color: #1e3a8a;">{{ "%.2f"|format(t.cost) }} DT</span>
-                    </div>
-
-                    <!-- Clinical Notes (The "Why") -->
-                    {% if t.clinical_notes %}
-                    <div
-                        style="font-style: italic; color: #495057; font-size: 13px; margin-bottom: 5px; background: #f8f9fa; padding: 8px; border-radius: 4px;">
-                        {{ t.clinical_notes }}
-                    </div>
-                    {% endif %}
-
-                    <div style="font-size: 12px; color: #6c757d; display: flex; justify-content: space-between;">
-                        <span>{{ t.completed_date.strftime('%d/%m/%Y') if t.completed_date else
-                            t.created_at.strftime('%d/%m/%Y') }}</span>
-
-                        {% if t.status == 'completed' %}
-                        <span style="text-transform: uppercase; font-weight: 600; color: #10b981;">{{ t.status }}</span>
-                        {% elif t.status == 'in_progress' %}
-                        <span style="text-transform: uppercase; font-weight: 600; color: #f59e0b;">{{ t.status }}</span>
-                        {% else %}
-                        <span style="text-transform: uppercase; font-weight: 600; color: #3b82f6;">{{ t.status }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
         </div>
     </div>
-    {% endfor %}
 
+    <div class="table-responsive">
+        <table class="medical-table">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-proc">Procédure</th>
+                    <th class="col-tooth">Dent</th>
+                    <th class="col-status">Statut</th>
+                    <th class="col-notes">Notes Cliniques</th>
+                    <th class="col-money">Coût</th>
+                    <th class="col-money">Payé</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for visit in visit_data %}
+                <tr class="group-header">
+                    <td colspan="5">
+                        <div class="group-title">
+                            {% if visit.type == 'appointment' %}
+                            <i class="bi bi-calendar-check-fill"></i> Visite du {{ visit.date.strftime('%d/%m/%Y') }}
+                            <span class="badge status-{{ visit.status }}">{{ visit.status | upper }}</span>
+                            {% else %}
+                            <i class="bi bi-clock-history"></i> Traitements Planifiés
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="group-total-cell cost-cell">Total: {{ visit.total_cost | default(0) }} DT</td>
+                    <td class="group-total-cell paid-cell">Payé: {{ visit.total_paid | default(0) }} DT</td>
+                </tr>
+
+                {% for t in visit.treatments %}
+                <tr class="treatment-row">
+                    <td class="col-date"><span class="date-display">{{ t.completed_date.strftime('%d/%m/%Y') if
+                            t.completed_date else '-' }}</span></td>
+                    <td class="col-proc">
+                        <div class="proc-name">{{ t.procedure_name }}</div>
+                        {% if t.procedure_code %}<div class="proc-code">Code: {{ t.procedure_code }}</div>{% endif %}
+                    </td>
+                    <td class="col-tooth">
+                        {% if t.tooth_number %}<span class="tooth-badge">{{ t.tooth_number }}</span>{% else %}<span
+                            class="text-muted">-</span>{% endif %}
+                    </td>
+                    <td class="col-status"><span class="badge status-{{ t.status }}">{{ t.status | upper }}</span></td>
+                    <td class="col-notes">
+                        <div class="notes-wrapper">
+                            <textarea class="inline-notes" data-treatment-id="{{ t.id }}"
+                                placeholder="Ajouter une note...">{{ t.clinical_notes or '' }}</textarea>
+                            <button class="save-note-btn" data-treatment-id="{{ t.id }}" type="button"
+                                title="Enregistrer"><i class="bi bi-check-lg"></i></button>
+                        </div>
+                    </td>
+                    <td class="col-money cost-cell">{{ t.cost | default(0) }} DT</td>
+                    <td class="col-money paid-cell">{{ (t.payments | sum(attribute='amount') if t.payments else 0) }} DT
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const csrfToken = "{{ csrf_token() }}";
+        const saveButtons = document.querySelectorAll('.save-note-btn');
+
+        saveButtons.forEach(btn => {
+            btn.addEventListener('click', async function () {
+                const treatmentId = this.getAttribute('data-treatment-id');
+                const textarea = document.querySelector(`textarea[data-treatment-id="${treatmentId}"]`);
+                if (!textarea) return;
+
+                const originalIcon = this.innerHTML;
+                this.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+                this.disabled = true;
+
+                try {
+                    const response = await fetch(`/patients/treatments/${treatmentId}/update-notes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken },
+                        body: `clinical_notes=${encodeURIComponent(textarea.value)}&csrf_token=${csrfToken}`
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.innerHTML = '<i class="bi bi-check-circle-fill"></i>';
+                        this.style.background = '#10b981';
+                        this.style.color = 'white';
+                        this.style.borderColor = '#10b981';
+                    } else {
+                        throw new Error('Save failed');
+                    }
+                } catch (error) {
+                    this.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+                    this.style.background = '#ef4444';
+                    this.style.color = 'white';
+                    this.style.borderColor = '#ef4444';
+                }
+
+                setTimeout(() => {
+                    this.innerHTML = originalIcon;
+                    this.style.background = '';
+                    this.style.color = '';
+                    this.style.borderColor = '';
+                    this.disabled = false;
+                }, 2000);
+            });
+        });
+    });
+</script>
 {% endblock %}

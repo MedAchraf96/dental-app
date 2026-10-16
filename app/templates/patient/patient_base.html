@@ -4,9 +4,11 @@
 <div class="patient-container">
    <!-- Patient Tabs Navigation -->
    <div class="patient-tabs">
-      <a href="{{ url_for('patient.profile', patient_id=patient.id) }}"
-         class="tab-btn {% if active_tab == 'profile' %}active{% endif %}">
-         <i class="bi bi-person"></i> Profile
+
+      <!-- ✅ MOVED TO FIRST POSITION: Documents (Central Hub) -->
+      <a href="{{ url_for('patient.clinical_log', patient_id=patient.id) }}"
+         class="tab-btn {% if active_tab == 'documents' %}active{% endif %}">
+         <i class="bi bi-file-medical"></i> Documents
       </a>
 
       <a href="{{ url_for('patient.teeth_chart', patient_id=patient.id) }}"
@@ -23,10 +25,9 @@
          class="tab-btn {% if active_tab == 'financial' %}active{% endif %}">
          <i class="bi bi-cash-stack"></i> Financial
       </a>
-
-      <a href="{{ url_for('patient.clinical_log', patient_id=patient.id) }}"
-         class="tab-btn {% if active_tab == 'documents' %}active{% endif %}">
-         <i class="bi bi-file-medical"></i> Documents
+      <a href="{{ url_for('patient.profile', patient_id=patient.id) }}"
+         class="tab-btn {% if active_tab == 'profile' %}active{% endif %}">
+         <i class="bi bi-person"></i> Profile
       </a>
    </div>
 
