@@ -1,6 +1,5 @@
 import { formatDateForInput, formatTimeForInput } from "./helper.js";
-import { completeAppointment, deleteAppointment, createAppointment, updateAppointment } from "./API.js";
-
+import { completeAppointment, cancelAppointment, createAppointment, updateAppointment } from "./API.js";
 // ==========================================
 // SMART QUICK ADD LOGIC (Dynamic Rows + Catalog Search)
 // ==========================================
@@ -216,9 +215,13 @@ function initAppointmentForm(context, data = null) {
     case 'edit':
       if (!data) return;
 
-      if (deleteBtn) deleteBtn.style.display = 'inline-block';
-      if (completeBtn && data.status === 'scheduled') {
-        completeBtn.style.display = 'inline-block';
+      if (deleteBtn) {
+        deleteBtn.onclick = async () => {
+          const appointmentId = form.dataset.appointmentId;
+          if (await handleCancelAppointment(appointmentId, appointments, initCalendar)) {
+            modal.style.display = 'none';
+          }
+        };
       }
 
       patientSearchLabel.style.display = 'none';
@@ -382,20 +385,20 @@ async function handleEditAppointment(appointmentId, appointments) {
   }
 }
 
-async function handleDeleteAppointment(appointmentId, appointments, initCalendar) {
+async function handleCancelAppointment(appointmentId, appointments, initCalendar) {
   if (!appointmentId) return;
-  if (!confirm('Are you sure you want to delete this appointment?')) return false;
+  if (!confirm('Are you sure you want to cancel this appointment?')) return false;
 
   try {
-    const result = await deleteAppointment(appointmentId);
+    const result = await cancelAppointment(appointmentId);
     if (result) {
       delete appointments[appointmentId];
       await initCalendar();
       return true;
     }
   } catch (error) {
-    console.error('Error deleting appointment:', error);
-    alert('Failed to delete appointment. Please try again.');
+    console.error('Error cancelling appointment:', error);
+    alert('Failed to cancel appointment. Please try again.');
   }
   return false;
 }
@@ -489,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
 export {
   handleTimeSlotClick,
   handleCompleteAppointment,
-  handleDeleteAppointment,
+  handleCancelAppointment,
   handleEditAppointment,
   initAppointmentForm
 }

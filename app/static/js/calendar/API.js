@@ -12,7 +12,7 @@ export async function fetchAppointments(startDate, endDate) {
       }
     });
     const data = await response.json();
-    
+
     return data.reduce((acc, appt) => {
       acc[appt.id] = appt;
       return acc;
@@ -33,7 +33,7 @@ export async function createAppointment(appointmentData) {
       },
       body: JSON.stringify(appointmentData)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Failed to create appointment');
@@ -55,7 +55,7 @@ export async function updateAppointment(appointmentId, appointmentData) {
       },
       body: JSON.stringify(appointmentData)
     });
-    
+
     if (!response.ok) throw new Error('Failed to update appointment');
     return await response.json();
   } catch (error) {
@@ -64,19 +64,19 @@ export async function updateAppointment(appointmentId, appointmentData) {
   }
 }
 
-export async function deleteAppointment(appointmentId) {
+export async function cancelAppointment(appointmentId) {
   try {
-    const response = await fetch(`/api/appointments/${appointmentId}`, {
-      method: 'DELETE',
+    const response = await fetch(`/api/appointments/${appointmentId}/cancel`, {
+      method: 'POST',
       headers: {
         'X-CSRF-Token': getCSRFToken()
       }
     });
-    
-    if (!response.ok) throw new Error('Failed to delete appointment');
+
+    if (!response.ok) throw new Error('Failed to cancel appointment');
     return await response.json();
   } catch (error) {
-    console.error('Error deleting appointment:', error);
+    console.error('Error cancelling appointment:', error);
     throw error;
   }
 }
@@ -91,7 +91,7 @@ export async function completeAppointment(appointmentId) {
           'X-CSRF-Token': getCSRFToken()
         }
       });
-      
+
       if (!response.ok) throw new Error('Failed to complete appointment');
       return await response.json();
     } catch (error) {

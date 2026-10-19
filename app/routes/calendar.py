@@ -309,35 +309,32 @@ def update_appointment(appointment_id):
         traceback.print_exc()
         return jsonify({'error': str(e)}), 400
     
-@calendar_bp.route('/appointments/<int:appointment_id>', methods=['DELETE'])
+@calendar_bp.route('/appointments/<int:appointment_id>/cancel', methods=['POST'])
 @login_required
-def delete_appointment(appointment_id):
+def cancel_appointment(appointment_id):
     try:
         appointment = Appointment.query.get_or_404(appointment_id)
-        
+
         # ✅ STEP 1: Revert all linked treatments back to PLANNED status
         for treatment in appointment.treatments.all():
             if treatment.status == TreatmentStatus.SCHEDULED.value:
                 treatment.status = TreatmentStatus.PLANNED.value
                 print(f"  ↩️ Reverted treatment '{treatment.procedure_name}' to PLANNED")
-        
-        # ✅ STEP 2: Clear the relationship (remove links)
-        appointment.treatments.clear()
-        
-        # ✅ STEP 3: Delete the appointment
-        db.session.delete(appointment)
+
+        # ✅ STEP 2: Soft-cancel the appointment (keeps history for the delete page)
+        appointment.status = AppointmentStatus.CANCELLED
         db.session.commit()
-        
-        print(f"✅ Appointment {appointment_id} deleted successfully")
-        
+
+        print(f"✅ Appointment {appointment_id} cancelled successfully")
+
         return jsonify({
             'success': True,
-            'message': 'Appointment deleted'
+            'message': 'Appointment cancelled'
         }), 200
-        
+
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERROR deleting appointment: {str(e)}")
+        print(f"❌ ERROR cancelling appointment: {str(e)}")
         return jsonify({'error': str(e)}), 400
     
 @calendar_bp.route('/appointments/<int:appointment_id>/complete', methods=['POST'])
