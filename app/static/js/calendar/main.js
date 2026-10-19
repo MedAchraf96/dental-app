@@ -15,7 +15,7 @@ import {
 import { renderCalendar, renderDayColumn, renderDayLabels } from "./CalRender.js";
 import {
   handleCompleteAppointment,
-  handleDeleteAppointment,
+  handleCancelAppointment,
   initAppointmentForm
 } from "./eventHandlers.js";
 import { PIXELS_PER_MINUTE } from "./state.js";
@@ -218,7 +218,7 @@ function setupModal() {
   if (deleteBtn) {
     deleteBtn.onclick = async () => {
       const appointmentId = form.dataset.appointmentId;
-      if (await handleDeleteAppointment(appointmentId, appointments, initCalendar)) {
+      if (await handleCancelAppointment(appointmentId, appointments, initCalendar)) {
         modal.style.display = 'none';
       }
     };
@@ -344,79 +344,79 @@ function setupModal() {
     updateDurationOptions();
   };
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    try {
-      // 1. Gather the new treatment data
-      const existingIds = Array.from(document.querySelectorAll('.existing-treatment-cb:checked')).map(cb => parseInt(cb.value));
-
-      // 2. Validate: Must have a patient AND (at least one existing treatment OR at least one new treatment)
-      if (!patientIdInput.value || (existingIds.length === 0 && newTreatmentsList.length === 0)) {
-        alert('Please select a patient and choose at least one treatment or add a new procedure.');
-        return;
-      }
-
-      // 3. Check if editing and no changes were made (Updated to match new data structure)
-      if (form.dataset.appointmentId && form.dataset.originalValues) {
-        const currentValues = JSON.stringify({
-          date: e.target.appointmentDate.value,
-          time: e.target.startTime.value,
-          duration: e.target.duration.value,
-          patient_id: patientIdInput.value,
-          existing_treatments: existingIds.sort(),
-          new_treatments: [...newTreatmentsList].sort()
-        });
-
-        if (currentValues === form.dataset.originalValues) {
-          alert('No changes detected. Appointment not updated.');
-          modal.style.display = 'none';
+  /* form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+  
+      try {
+        // 1. Gather the new treatment data
+        const existingIds = Array.from(document.querySelectorAll('.existing-treatment-cb:checked')).map(cb => parseInt(cb.value));
+  
+        // 2. Validate: Must have a patient AND (at least one existing treatment OR at least one new treatment)
+        if (!patientIdInput.value || (existingIds.length === 0 && newTreatmentsList.length === 0)) {
+          alert('Please select a patient and choose at least one treatment or add a new procedure.');
           return;
         }
+  
+        // 3. Check if editing and no changes were made (Updated to match new data structure)
+        if (form.dataset.appointmentId && form.dataset.originalValues) {
+          const currentValues = JSON.stringify({
+            date: e.target.appointmentDate.value,
+            time: e.target.startTime.value,
+            duration: e.target.duration.value,
+            patient_id: patientIdInput.value,
+            existing_treatments: existingIds.sort(),
+            new_treatments: [...newTreatmentsList].sort()
+          });
+  
+          if (currentValues === form.dataset.originalValues) {
+            alert('No changes detected. Appointment not updated.');
+            modal.style.display = 'none';
+            return;
+          }
+        }
+  
+        const date = e.target.appointmentDate.value;
+        const time = e.target.startTime.value;
+        const duration = parseInt(e.target.duration.value);
+  
+        const start = new Date(`${date}T${time}`);
+        const end = new Date(start.getTime() + duration * 60000);
+  
+        const validationError = validateAppointmentTime(start, end, appointments, form.dataset.appointmentId);
+        if (validationError) {
+          alert(validationError);
+          return;
+        }
+  
+        // 4. Build the NEW payload for the backend
+        const payload = {
+          patient_id: patientIdInput.value,
+          start_time: formatForServer(start),
+          end_time: formatForServer(end),
+          treatment_ids: existingIds,
+          new_treatments: newTreatmentsList
+        };
+  
+        // 5. Send to backend
+        if (form.dataset.appointmentId) {
+          await updateAppointment(form.dataset.appointmentId, payload);
+        } else {
+          await createAppointment(payload);
+        }
+  
+        // 6. Reset the treatment lists on successful save
+        newTreatmentsList = [];
+        renderNewTreatmentTags();
+        document.querySelectorAll('.existing-treatment-cb').forEach(cb => cb.checked = false);
+  
+        modal.style.display = 'none';
+        await initCalendar();
+  
+      } catch (error) {
+        console.error('Appointment operation failed:', error);
+        alert(`Error: ${error.message}`);
       }
-
-      const date = e.target.appointmentDate.value;
-      const time = e.target.startTime.value;
-      const duration = parseInt(e.target.duration.value);
-
-      const start = new Date(`${date}T${time}`);
-      const end = new Date(start.getTime() + duration * 60000);
-
-      const validationError = validateAppointmentTime(start, end, appointments, form.dataset.appointmentId);
-      if (validationError) {
-        alert(validationError);
-        return;
-      }
-
-      // 4. Build the NEW payload for the backend
-      const payload = {
-        patient_id: patientIdInput.value,
-        start_time: formatForServer(start),
-        end_time: formatForServer(end),
-        treatment_ids: existingIds,
-        new_treatments: newTreatmentsList
-      };
-
-      // 5. Send to backend
-      if (form.dataset.appointmentId) {
-        await updateAppointment(form.dataset.appointmentId, payload);
-      } else {
-        await createAppointment(payload);
-      }
-
-      // 6. Reset the treatment lists on successful save
-      newTreatmentsList = [];
-      renderNewTreatmentTags();
-      document.querySelectorAll('.existing-treatment-cb').forEach(cb => cb.checked = false);
-
-      modal.style.display = 'none';
-      await initCalendar();
-
-    } catch (error) {
-      console.error('Appointment operation failed:', error);
-      alert(`Error: ${error.message}`);
-    }
-  });
+   });*/
 }
 
 
@@ -562,6 +562,8 @@ async function initCalendar(forceFullRender = false, forceDays = []) {
     }
   }
 }
+
+window.initCalendar = initCalendar;
 
 function finalizeView(targetApptId) {
   renderDayLabels(currentDate);

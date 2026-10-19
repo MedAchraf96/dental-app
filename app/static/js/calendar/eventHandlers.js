@@ -215,13 +215,34 @@ function initAppointmentForm(context, data = null) {
     case 'edit':
       if (!data) return;
 
+    // ✅ FIX: Make the delete button visible when editing
+    case 'edit':
+      if (!data) return;
+
+      // ✅ FIX: Show Delete button and attach the corrected handler
       if (deleteBtn) {
+        deleteBtn.style.display = 'inline-block';
         deleteBtn.onclick = async () => {
           const appointmentId = form.dataset.appointmentId;
-          if (await handleCancelAppointment(appointmentId, appointments, initCalendar)) {
+          if (await handleCancelAppointment(appointmentId)) {
             modal.style.display = 'none';
           }
         };
+      }
+
+      // ✅ FIX: Show Complete button (unless already completed)
+      if (completeBtn) {
+        if (data.status !== 'completed') {
+          completeBtn.style.display = 'inline-block';
+          completeBtn.onclick = async () => {
+            const appointmentId = form.dataset.appointmentId;
+            if (await handleCompleteAppointment(appointmentId)) {
+              modal.style.display = 'none';
+            }
+          };
+        } else {
+          completeBtn.style.display = 'none';
+        }
       }
 
       patientSearchLabel.style.display = 'none';
@@ -356,18 +377,38 @@ function handleTimeSlotClick(e) {
   const slotDate = new Date(e.currentTarget.dataset.date);
   initAppointmentForm('timeslot', slotDate);
 }
-
-async function handleCompleteAppointment(appointmentId, initCalendar) {
-  if (!appointmentId) return;
+async function handleCompleteAppointment(appointmentId) {
+  if (!appointmentId) return false;
   try {
     const result = await completeAppointment(appointmentId);
     if (result) {
-      await initCalendar();
+      if (typeof window.initCalendar === 'function') {
+        await window.initCalendar();
+      }
       return true;
     }
   } catch (error) {
     console.error('Error completing appointment:', error);
     alert('Failed to complete appointment');
+  }
+  return false;
+}
+
+async function handleCancelAppointment(appointmentId) {
+  if (!appointmentId) return false;
+  if (!confirm('Are you sure you want to cancel this appointment?')) return false;
+
+  try {
+    const result = await cancelAppointment(appointmentId);
+    if (result) {
+      if (typeof window.initCalendar === 'function') {
+        await window.initCalendar();
+      }
+      return true;
+    }
+  } catch (error) {
+    console.error('Error cancelling appointment:', error);
+    alert('Failed to cancel appointment. Please try again.');
   }
   return false;
 }
@@ -385,23 +426,7 @@ async function handleEditAppointment(appointmentId, appointments) {
   }
 }
 
-async function handleCancelAppointment(appointmentId, appointments, initCalendar) {
-  if (!appointmentId) return;
-  if (!confirm('Are you sure you want to cancel this appointment?')) return false;
 
-  try {
-    const result = await cancelAppointment(appointmentId);
-    if (result) {
-      delete appointments[appointmentId];
-      await initCalendar();
-      return true;
-    }
-  } catch (error) {
-    console.error('Error cancelling appointment:', error);
-    alert('Failed to cancel appointment. Please try again.');
-  }
-  return false;
-}
 
 // ✅ 3. INTERCEPT FORM SUBMISSION TO SEND DYNAMIC ROWS
 document.addEventListener('DOMContentLoaded', () => {
