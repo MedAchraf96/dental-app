@@ -506,7 +506,8 @@ async function initCalendar(forceFullRender = false, forceDays = []) {
 
     const startOfWeek = getStartOfWeek(currentDate);
     const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    // Week runs Monday–Saturday only (Sunday is not shown in the calendar)
+    endOfWeek.setDate(startOfWeek.getDate() + 5);
 
     const oldAppointments = appointments;
     appointments = await fetchAppointments(startOfWeek, endOfWeek);
