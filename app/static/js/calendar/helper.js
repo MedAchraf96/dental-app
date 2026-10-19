@@ -10,9 +10,10 @@ function getStartOfWeek(date) {
   return d;
 }
 function formatForServer(date) {
-  const pad = num => num.toString().padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T` +
-    `${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+  // Convert the local Date object to a proper UTC ISO string.
+  // We strip the milliseconds (.000) to keep the backend payload clean, 
+  // but we KEEP the 'Z' so the backend knows it's UTC.
+  return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
 
 function formatTime(date) {

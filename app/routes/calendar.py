@@ -43,29 +43,27 @@ def get_appointments():
     for appt in appointments:
         patient = appt.patient
         full_name = f"{patient.first_name} {patient.last_name}"
-        
-        # NEW: Gather all treatment names for this appointment
         treatment_names = [t.procedure_name for t in appt.treatments.all()]
         display_treatment = ", ".join(treatment_names) if treatment_names else "Consultation"
-        treatment_ids = [t.id for t in appt.treatments.all()]  # ✅ ADD THIS LINE
+        treatment_ids = [t.id for t in appt.treatments.all()]
 
         appointments_data.append({
             'id': appt.id,
             'patient_name': full_name,
             'patient_first_name': patient.first_name,
             'patient_last_name': patient.last_name,
-            'start_time': appt.start_time.isoformat(),
-            'end_time': appt.end_time.isoformat(),
-            'treatment_type': display_treatment, # Kept key name for frontend compatibility
-            'treatment_ids': treatment_ids,  # ✅ ADD THIS LINE
+            'start_time': appt.start_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'end_time': appt.end_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'treatment_type': display_treatment, 
+            'treatment_ids': treatment_ids,  
             'status': appt.status,
             'dentist_id': appt.dentist_id,
             'patient_id': appt.patient_id,
-            'completed_at': appt.completed_at.isoformat() if appt.completed_at else None,
+            'completed_at': appt.completed_at.strftime('%Y-%m-%dT%H:%M:%SZ') if appt.completed_at else None,
             'color': '#4285F4' if appt.status == AppointmentStatus.SCHEDULED else ('#0F9D58' if appt.status == AppointmentStatus.COMPLETED else '#DB4437'),
             'patient_phone': patient.phone
         })
-    
+
     return jsonify(appointments_data)
 
 @calendar_bp.route('/appointments', methods=['POST'])
@@ -226,6 +224,19 @@ def update_appointment(appointment_id):
         appointment.start_time = datetime.fromisoformat(start_time_str)
         appointment.end_time = datetime.fromisoformat(end_time_str)
         
+        # ✅ STEP 0: Handle treatments to unlink (User unchecked them)
+        treatments_to_unlink = data.get('treatments_to_unlink', [])
+        if treatments_to_unlink:
+            print(f"🔗 Unlinking {len(treatments_to_unlink)} treatments")
+            for treatment_id in treatments_to_unlink:
+                treatment = Treatment.query.get(treatment_id)
+                # Check if it exists and is actually linked to this appointment
+                if treatment and treatment in appointment.treatments.all():
+                    # Revert status back to PLANNED so it shows up in the treatment plan again
+                    treatment.status = TreatmentStatus.PLANNED
+                    appointment.treatments.remove(treatment)
+                    print(f"  ✓ Unlinked treatment: {treatment.procedure_name} (ID: {treatment_id})")
+        
         # ✅ STEP 1: Handle new treatments (Quick Add)
         new_treatments_data = data.get('new_treatments', [])
         print(f"🆕 Processing {len(new_treatments_data)} new treatments")
@@ -304,7 +315,7 @@ def update_appointment(appointment_id):
         
     except Exception as e:
         db.session.rollback()
-        print(" ERROR UPDATING APPOINTMENT:", str(e))
+        print("❌ ERROR UPDATING APPOINTMENT:", str(e))
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 400
@@ -407,8 +418,8 @@ def get_appointment(appointment_id):
 
     return jsonify({
         'id': appointment.id,
-        'start_time': appointment.start_time.isoformat(),
-        'end_time': appointment.end_time.isoformat(),
+        'start_time': appointment.start_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'end_time': appointment.end_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
         'treatment_type': ", ".join([t['name'] for t in treatments_data]) if treatments_data else "Consultation",
         'treatments': treatments_data,       # <--- THIS IS THE MISSING PIECE
         'treatment_ids': [t['id'] for t in treatments_data],

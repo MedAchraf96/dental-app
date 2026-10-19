@@ -174,7 +174,7 @@
                     </div>
                     <!-- ✅ END OF NEW SMART TREATMENT SECTION ✅ -->
 
-                    <div class="form-row">
+                    <div class="form-row" id="appt-time-inputs">
                         <div class="form-group">
                             <label for="appointmentDate">Date</label>
                             <input type="date" id="appointmentDate" required>
@@ -228,6 +228,16 @@
                                 style="display: block; margin-top: 4px; font-size: 0.8rem;"></small>
                         </div>
                     </div>
+                    <div id="appt-time-readonly"
+                        style="display: none; margin-top: 15px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <label
+                            style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 5px; display: block;">Appointment
+                            Time:</label>
+                        <div id="completed-time-text"
+                            style="font-size: 15px; color: #1e293b; font-weight: 500; display: flex; align-items: center;">
+                            <!-- Text will be injected here by JavaScript -->
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -237,7 +247,6 @@
                     <button type="button" id="completeAppointmentBtn" class="btn btn-success" style="display: none;">
                         <i class="bi bi-check-circle"></i> Complete
                     </button>
-                    <button type="button" class="btn-secondary cancel-btn">Cancel</button>
                     <button type="submit" class="btn-primary save-btn">Save Appointment</button>
                 </div>
         </form>

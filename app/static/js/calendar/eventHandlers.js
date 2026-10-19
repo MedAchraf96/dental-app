@@ -199,6 +199,10 @@ function initAppointmentForm(context, data = null) {
 
   switch (context) {
     case 'new':
+      const timeInputsNew = document.getElementById('appt-time-inputs');
+      const timeReadonlyNew = document.getElementById('appt-time-readonly');
+      if (timeInputsNew) timeInputsNew.style.display = 'flex';
+      if (timeReadonlyNew) timeReadonlyNew.style.display = 'none';
       const now = new Date();
       let defaultDate = new Date();
       if (defaultDate.getDay() === 0) {
@@ -215,11 +219,12 @@ function initAppointmentForm(context, data = null) {
     case 'edit':
       if (!data) return;
 
-    // ✅ FIX: Make the delete button visible when editing
-    case 'edit':
-      if (!data) return;
+      // ✅ 1. MOVED TO TOP: Define Date objects first so they can be used anywhere below
+      const startTime = new Date(data.start_time);
+      const endTime = new Date(data.end_time);
+      const duration = Math.round((endTime - startTime) / 60000);
 
-      // ✅ FIX: Show Delete button and attach the corrected handler
+      // 2. Button visibility logic
       if (deleteBtn) {
         deleteBtn.style.display = 'inline-block';
         deleteBtn.onclick = async () => {
@@ -230,7 +235,6 @@ function initAppointmentForm(context, data = null) {
         };
       }
 
-      // ✅ FIX: Show Complete button (unless already completed)
       if (completeBtn) {
         if (data.status !== 'completed') {
           completeBtn.style.display = 'inline-block';
@@ -245,13 +249,39 @@ function initAppointmentForm(context, data = null) {
         }
       }
 
+      // ✅ 3. Swap between Form Inputs and Read-Only Text
+      const timeInputsContainer = document.getElementById('appt-time-inputs');
+      const timeReadonlyContainer = document.getElementById('appt-time-readonly');
+      const completedTimeText = document.getElementById('completed-time-text');
+
+      if (data.status === 'completed') {
+        if (timeInputsContainer) timeInputsContainer.style.display = 'none';
+        if (timeReadonlyContainer) timeReadonlyContainer.style.display = 'block';
+
+        const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+        const timeOptions = { hour: '2-digit', minute: '2-digit' };
+
+        // Now these work perfectly because startTime/endTime are defined at the top!
+        const formattedDate = startTime.toLocaleDateString('en-US', dateOptions);
+        const formattedStart = startTime.toLocaleTimeString('en-US', timeOptions);
+        const formattedEnd = endTime.toLocaleTimeString('en-US', timeOptions);
+
+        if (completedTimeText) {
+          completedTimeText.innerHTML = `
+            <i class="bi bi-calendar-check-fill" style="color: #10b981; margin-right: 8px; font-size: 18px;"></i>
+            ${formattedDate} &bull; ${formattedStart} - ${formattedEnd}
+          `;
+        }
+      } else {
+        if (timeInputsContainer) timeInputsContainer.style.display = 'flex';
+        if (timeReadonlyContainer) timeReadonlyContainer.style.display = 'none';
+      }
+
+      // 4. Hide patient search for editing
       patientSearchLabel.style.display = 'none';
       patientSearchContainer.style.display = 'none';
 
-      const startTime = new Date(data.start_time);
-      const endTime = new Date(data.end_time);
-      const duration = Math.round((endTime - startTime) / 60000);
-
+      // 5. Populate original data and form fields
       const originalData = {
         date: formatDateForInput(startTime),
         time: formatTimeForInput(startTime),
@@ -278,6 +308,7 @@ function initAppointmentForm(context, data = null) {
       submitBtn.textContent = 'Update Appointment';
       modalTitle.innerHTML = `${icon} Edit Appointment`;
 
+      // 6. Setup treatment containers
       if (linkedContainer) linkedContainer.innerHTML = '';
       if (plannedContainer) plannedContainer.innerHTML = '<div class="text-muted small" style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px; margin: 0;">Loading treatment plan...</div>';
       if (noLinkedMsg) noLinkedMsg.style.display = 'none';
@@ -298,6 +329,7 @@ function initAppointmentForm(context, data = null) {
         }
       }
 
+      // 7. Render linked treatments (WITH CHECKBOXES FOR SCHEDULED)
       if (data.treatments && data.treatments.length > 0) {
         data.treatments.forEach(t => {
           const div = document.createElement('div');
@@ -316,14 +348,23 @@ function initAppointmentForm(context, data = null) {
             badgeBg = '#fef3c7'; badgeColor = '#92400e'; badgeText = 'IN PROGRESS'; rowIcon = '⏳ ';
           }
 
+          // ✅ NEW: Add checkbox ONLY for scheduled treatments so they can be unchecked/removed
+          const checkboxHtml = t.status === 'scheduled' ? `
+            <input type="checkbox" class="linked-treatment-cb" value="${t.id}" checked
+                   style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;">
+          ` : '';
+
           div.innerHTML = `
-            <div style="flex: 1;">
-              <div style="font-weight: 600; font-size: 14px; color: #1e293b; margin-bottom: 4px;">
-                ${t.name}
-                ${t.tooth ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
-              </div>
-              <div style="font-size: 12px; color: #64748b;">
-                ${t.cost.toFixed(2)} DT
+            <div style="display: flex; align-items: center; flex: 1;">
+              ${checkboxHtml}
+              <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 14px; color: #1e293b; margin-bottom: 4px;">
+                  ${t.name}
+                  ${t.tooth ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+                </div>
+                <div style="font-size: 12px; color: #64748b;">
+                  ${t.cost.toFixed(2)} DT
+                </div>
               </div>
             </div>
             <div style="text-align: right;">
@@ -338,6 +379,7 @@ function initAppointmentForm(context, data = null) {
         if (noLinkedMsg) noLinkedMsg.style.display = 'block';
       }
 
+      // 8. Load planned treatments and check linked boxes
       if (typeof window.loadPatientTreatments === 'function') {
         window.loadPatientTreatments(data.patient_id).then(() => {
           setTimeout(() => {
@@ -357,6 +399,12 @@ function initAppointmentForm(context, data = null) {
 
     case 'timeslot':
       if (!data) return;
+      const timeInputsTs = document.getElementById('appt-time-inputs');
+      const timeReadonlyTs = document.getElementById('appt-time-readonly');
+      if (timeInputsTs) timeInputsTs.style.display = 'flex';
+      if (timeReadonlyTs) timeReadonlyTs.style.display = 'none';
+
+
       document.getElementById('appointmentDate').value = formatDateForInput(data);
       document.getElementById('startTime').value = formatTimeForInput(data);
       document.getElementById('duration').value = '30';
@@ -426,92 +474,125 @@ async function handleEditAppointment(appointmentId, appointments) {
   }
 }
 
-
-
-// ✅ 3. INTERCEPT FORM SUBMISSION TO SEND DYNAMIC ROWS
+// ✅ 3. INTERCEPT FORM SUBMISSION TO SEND DYNAMIC ROWS (MERGED & FIXED)
 document.addEventListener('DOMContentLoaded', () => {
   const appointmentForm = document.getElementById('appointmentForm');
-  if (appointmentForm) {
-    appointmentForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
+  if (!appointmentForm) return;
 
-      const patientIdInput = document.getElementById('patientId');
-      const patientId = patientIdInput.value;
+  appointmentForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
 
-      if (!patientId) {
-        alert('⚠️ Please select a patient first.');
+    const patientIdInput = document.getElementById('patientId');
+    const patientId = patientIdInput.value;
+
+    if (!patientId) {
+      alert('⚠️ Please select a patient first.');
+      return;
+    }
+
+    const submitBtn = appointmentForm.querySelector('.save-btn');
+    const originalBtnText = submitBtn.innerHTML;
+
+    const currentApptId = appointmentForm.dataset.appointmentId;
+
+    // ✅ 1. Gather treatment data
+    const checkedPlannedBoxes = document.querySelectorAll('#planned-treatments-list input[type="checkbox"]:checked');
+    const existingIds = Array.from(checkedPlannedBoxes).map(cb => parseInt(cb.value));
+    const newTreatments = window.newTreatmentsList || [];
+
+    // ✅ NEW: Count already-linked treatments that are STILL checked
+    const checkedLinkedBoxes = document.querySelectorAll('.linked-treatment-cb:checked');
+    const remainingLinkedIds = Array.from(checkedLinkedBoxes).map(cb => parseInt(cb.value));
+
+    // ✅ 2. Validate: Must have patient AND at least one treatment total
+    const totalTreatments = remainingLinkedIds.length + existingIds.length + newTreatments.length;
+
+    if (totalTreatments === 0) {
+      alert('Please choose at least one treatment or add a new procedure.');
+      return;
+    }
+
+    // ✅ 3. Find treatments to unlink (those that were originally linked but are now unchecked)
+    const allLinkedCheckboxes = document.querySelectorAll('.linked-treatment-cb');
+    const treatmentsToUnlink = Array.from(allLinkedCheckboxes)
+      .filter(cb => !cb.checked)
+      .map(cb => parseInt(cb.value));
+
+    // ✅ 4. Prevent saving if nothing changed (Updated to include unlinked treatments)
+    if (currentApptId && appointmentForm.dataset.originalValues) {
+      const currentValues = JSON.stringify({
+        date: document.getElementById('appointmentDate').value,
+        time: document.getElementById('startTime').value,
+        duration: document.getElementById('duration').value,
+        patient_id: patientId,
+        existing_treatments: [...existingIds].sort(),
+        new_treatments: [...newTreatments].sort(),
+        unlinked_treatments: [...treatmentsToUnlink].sort() // ✅ Added so unchecking counts as a change!
+      });
+
+      if (currentValues === appointmentForm.dataset.originalValues) {
+        alert('No changes detected. Appointment not updated.');
+        document.getElementById('appointmentModal').style.display = 'none';
         return;
       }
+    }
+    // ✅ 4. Build payload
+    const date = document.getElementById('appointmentDate').value;
+    const startTime = document.getElementById('startTime').value;
+    const duration = parseInt(document.getElementById('duration').value, 10);
 
-      const submitBtn = appointmentForm.querySelector('.save-btn');
-      const originalBtnText = submitBtn.innerHTML;
+    const startDate = new Date(`${date}T${startTime}:00`);
+    const endDate = new Date(startDate.getTime() + duration * 60000);
 
-      // 🔍 DEBUG: Check what the form thinks its ID is
-      const currentApptId = appointmentForm.dataset.appointmentId;
-      console.log("🔍 DEBUG - Form Dataset ID:", currentApptId);
-      console.log("🔍 DEBUG - Button Text:", submitBtn.textContent);
+    const appointmentData = {
+      patient_id: parseInt(patientId, 10),
+      start_time: startDate.toISOString(),
+      end_time: endDate.toISOString(),
+      treatment_ids: existingIds,
+      new_treatments: newTreatments,
+      treatments_to_unlink: treatmentsToUnlink // ✅ ADD THIS LINE
 
-      submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
-      submitBtn.disabled = true;
+    };
 
-      try {
-        const date = document.getElementById('appointmentDate').value;
-        const startTime = document.getElementById('startTime').value;
-        const duration = parseInt(document.getElementById('duration').value, 10);
+    // ✅ 5. UI Feedback: Disable button
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+    submitBtn.disabled = true;
 
-        const startDate = new Date(`${date}T${startTime}:00`);
-        const endDate = new Date(startDate.getTime() + duration * 60000);
-
-        const checkedBoxes = document.querySelectorAll('#planned-treatments-list input[type="checkbox"]:checked');
-        const treatmentIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
-
-        const appointmentData = {
-          patient_id: parseInt(patientId, 10),
-          start_time: startDate.toISOString(),
-          end_time: endDate.toISOString(),
-          treatment_ids: treatmentIds,
-          new_treatments: window.newTreatmentsList || []
-        };
-
-        let result;
-
-        // 🔍 DEBUG: The decision point
-        if (currentApptId) {
-          console.log("🔄 CALLING UPDATE (PUT) for ID:", currentApptId);
-          result = await updateAppointment(currentApptId, appointmentData);
-        } else {
-          console.log("⚠️ CALLING CREATE (POST) because ID is missing!");
-          result = await createAppointment(appointmentData);
-        }
-
-        if (result) {
-          const modal = document.getElementById('appointmentModal');
-          if (modal) {
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-              const bsModal = bootstrap.Modal.getInstance(modal);
-              if (bsModal) bsModal.hide();
-            } else {
-              modal.style.display = 'none';
-            }
-          }
-
-          appointmentForm.reset();
-          window.newTreatmentsList = [];
-          window.renderNewTreatmentRows();
-
-          if (typeof window.initCalendar === 'function') {
-            await window.initCalendar();
-          }
-        }
-      } catch (error) {
-        console.error('Failed to save appointment:', error);
-        alert('Error saving appointment: ' + error.message);
-      } finally {
-        submitBtn.innerHTML = originalBtnText;
-        submitBtn.disabled = false;
+    try {
+      // ✅ 6. Send to backend (NO 'result' variable needed!)
+      if (currentApptId) {
+        console.log("🔄 CALLING UPDATE (PUT) for ID:", currentApptId);
+        await updateAppointment(currentApptId, appointmentData);
+      } else {
+        console.log("⚠️ CALLING CREATE (POST)");
+        await createAppointment(appointmentData);
       }
-    });
-  }
+
+      // ✅ 7. SUCCESS! (This runs unconditionally if no error is thrown)
+      const modal = document.getElementById('appointmentModal');
+      if (modal) modal.style.display = 'none';
+
+      appointmentForm.reset();
+      window.newTreatmentsList = [];
+      if (typeof window.renderNewTreatmentRows === 'function') {
+        window.renderNewTreatmentRows();
+      }
+
+      // ✅ 8. FORCE CALENDAR REFRESH
+      if (typeof window.initCalendar === 'function') {
+        console.log("🔄 Refreshing calendar...");
+        await window.initCalendar();
+      }
+
+    } catch (error) {
+      console.error('Failed to save appointment:', error);
+      alert('Error saving appointment: ' + error.message);
+    } finally {
+      // ✅ 9. Always re-enable the button, even if it failed
+      submitBtn.innerHTML = originalBtnText;
+      submitBtn.disabled = false;
+    }
+  });
 });
 
 export {
