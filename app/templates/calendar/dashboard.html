@@ -3,6 +3,60 @@
 {% block title %}Calendar - Dental Practice{% endblock %}
 
 {% block content %}
+<style>
+    .quick-add-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    .row-name {
+        flex: 2;
+        font-weight: 600;
+        font-size: 14px;
+        color: #1e293b;
+    }
+
+    .row-tooth,
+    .row-cost {
+        flex: 1;
+        padding: 6px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        font-size: 13px;
+        background: white;
+    }
+
+    .row-tooth:focus,
+    .row-cost:focus {
+        outline: none;
+        border-color: #3b82f6;
+    }
+
+    .row-delete {
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    }
+
+    .row-delete:hover {
+        background: #dc2626;
+    }
+</style>
 <div class="calendar-container">
     <header class="page-header">
         <div class="header-content">
@@ -97,88 +151,95 @@
                         </div>
                     </div>
 
-                    <!-- SECTION 3: Quick Add (Emergency) -->
+                    <!-- SECTION 3: Quick Add (Smart Autocomplete) -->
                     <div id="section-quick-add">
                         <div style="font-size: 12px; color: #64748b; margin-bottom: 5px; font-weight: 600;">Quick Add
-                            (Creates new treatment):</div>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="new-treatment-input" placeholder="e.g., Scaling, Emergency..."
+                            (Search Catalog):</div>
+
+                        <!-- Input with Autocomplete -->
+                        <div style="position: relative;">
+                            <input type="text" id="new-treatment-input"
+                                placeholder="Type to search (e.g., OBC, Scaling)..." autocomplete="off"
                                 style="flex: 1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
-                            <button type="button" onclick="addNewTreatmentTag()"
-                                style="padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
+
+                            <!-- Search Results Dropdown -->
+                            <div id="catalog-search-results"
+                                style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; max-height: 200px; overflow-y: auto; display: none;">
+                                <!-- Results will be injected here -->
+                            </div>
                         </div>
-                        <div id="new-treatments-tags"
-                            style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;"></div>
+
+                        <!-- Dynamic Rows Container -->
+                        <div id="new-treatments-rows" style="margin-top: 10px;"></div>
+                    </div>
+                    <!-- ✅ END OF NEW SMART TREATMENT SECTION ✅ -->
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="appointmentDate">Date</label>
+                            <input type="date" id="appointmentDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="startTime">Start Time</label>
+                            <select id="startTime" required>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="09:15">09:15 AM</option>
+                                <option value="09:30">09:30 AM</option>
+                                <option value="09:45">09:45 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="10:15">10:15 AM</option>
+                                <option value="10:30">10:30 AM</option>
+                                <option value="10:45">10:45 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="11:15">11:15 AM</option>
+                                <option value="11:30">11:30 AM</option>
+                                <option value="11:45">11:45 AM</option>
+                                <option value="13:00">01:00 PM</option>
+                                <option value="13:15">01:15 PM</option>
+                                <option value="13:30">01:30 PM</option>
+                                <option value="13:45">01:45 PM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="14:15">02:15 PM</option>
+                                <option value="14:30">02:30 PM</option>
+                                <option value="14:45">02:45 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="15:15">03:15 PM</option>
+                                <option value="15:30">03:30 PM</option>
+                                <option value="15:45">03:45 PM</option>
+                                <option value="16:00">04:00 PM</option>
+                                <option value="16:15">04:15 PM</option>
+                                <option value="16:30">04:30 PM</option>
+                                <option value="16:45">04:45 PM</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="duration">Duration (min)</label>
+                            <select id="duration" required>
+                                <option value="15">15 min</option>
+                                <option value="30" selected>30 min</option>
+                                <option value="45">45 min</option>
+                                <option value="60">1 hour</option>
+                                <option value="75">1h 15m</option>
+                                <option value="90">1.5 hours</option>
+                                <option value="105">1h 45m</option>
+                                <option value="120">2 hours</option>
+                            </select>
+                            <small id="runwayHint" class="form-text text-muted"
+                                style="display: block; margin-top: 4px; font-size: 0.8rem;"></small>
+                        </div>
                     </div>
                 </div>
-                <!-- ✅ END OF NEW SMART TREATMENT SECTION ✅ -->
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="appointmentDate">Date</label>
-                        <input type="date" id="appointmentDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="startTime">Start Time</label>
-                        <select id="startTime" required>
-                            <option value="09:00">09:00 AM</option>
-                            <option value="09:15">09:15 AM</option>
-                            <option value="09:30">09:30 AM</option>
-                            <option value="09:45">09:45 AM</option>
-                            <option value="10:00">10:00 AM</option>
-                            <option value="10:15">10:15 AM</option>
-                            <option value="10:30">10:30 AM</option>
-                            <option value="10:45">10:45 AM</option>
-                            <option value="11:00">11:00 AM</option>
-                            <option value="11:15">11:15 AM</option>
-                            <option value="11:30">11:30 AM</option>
-                            <option value="11:45">11:45 AM</option>
-                            <option value="13:00">01:00 PM</option>
-                            <option value="13:15">01:15 PM</option>
-                            <option value="13:30">01:30 PM</option>
-                            <option value="13:45">01:45 PM</option>
-                            <option value="14:00">02:00 PM</option>
-                            <option value="14:15">02:15 PM</option>
-                            <option value="14:30">02:30 PM</option>
-                            <option value="14:45">02:45 PM</option>
-                            <option value="15:00">03:00 PM</option>
-                            <option value="15:15">03:15 PM</option>
-                            <option value="15:30">03:30 PM</option>
-                            <option value="15:45">03:45 PM</option>
-                            <option value="16:00">04:00 PM</option>
-                            <option value="16:15">04:15 PM</option>
-                            <option value="16:30">04:30 PM</option>
-                            <option value="16:45">04:45 PM</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="duration">Duration (min)</label>
-                        <select id="duration" required>
-                            <option value="15">15 min</option>
-                            <option value="30" selected>30 min</option>
-                            <option value="45">45 min</option>
-                            <option value="60">1 hour</option>
-                            <option value="75">1h 15m</option>
-                            <option value="90">1.5 hours</option>
-                            <option value="105">1h 45m</option>
-                            <option value="120">2 hours</option>
-                        </select>
-                        <small id="runwayHint" class="form-text text-muted"
-                            style="display: block; margin-top: 4px; font-size: 0.8rem;"></small>
-                    </div>
+                <div class="modal-footer">
+                    <button type="button" id="deleteAppointmentBtn" class="btn btn-danger" style="display: none;">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                    <button type="button" id="completeAppointmentBtn" class="btn btn-success" style="display: none;">
+                        <i class="bi bi-check-circle"></i> Complete
+                    </button>
+                    <button type="button" class="btn-secondary cancel-btn">Cancel</button>
+                    <button type="submit" class="btn-primary save-btn">Save Appointment</button>
                 </div>
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" id="deleteAppointmentBtn" class="btn btn-danger" style="display: none;">
-                    <i class="bi bi-trash"></i> Delete
-                </button>
-                <button type="button" id="completeAppointmentBtn" class="btn btn-success" style="display: none;">
-                    <i class="bi bi-check-circle"></i> Complete
-                </button>
-                <button type="button" class="btn-secondary cancel-btn">Cancel</button>
-                <button type="submit" class="btn-primary save-btn">Save Appointment</button>
-            </div>
         </form>
     </div>
 </div>

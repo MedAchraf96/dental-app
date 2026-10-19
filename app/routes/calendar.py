@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
-from app.models import Appointment, Patient, Treatment
+from app.models import Appointment, Patient, Treatment, TreatmentCatalog
 from app.enums import AppointmentStatus, TreatmentStatus, UserRole
 from datetime import datetime
 from app.extensions import db
@@ -68,7 +68,6 @@ def get_appointments():
     
     return jsonify(appointments_data)
 
-
 @calendar_bp.route('/appointments', methods=['POST'])
 @login_required
 def create_appointment():
@@ -76,8 +75,13 @@ def create_appointment():
     print(" RECEIVED PAYLOAD:", data) # DEBUG
     
     try:
-        start_time = datetime.strptime(data['start_time'], '%Y-%m-%dT%H:%M:%S')
-        end_time = datetime.strptime(data['end_time'], '%Y-%m-%dT%H:%M:%S')
+        # ✅ FIX: Use fromisoformat() to handle ISO 8601 with milliseconds and Z
+        # Remove the 'Z' and replace with '+00:00' for Python compatibility
+        start_time_str = data['start_time'].replace('Z', '+00:00')
+        end_time_str = data['end_time'].replace('Z', '+00:00')
+        
+        start_time = datetime.fromisoformat(start_time_str)
+        end_time = datetime.fromisoformat(end_time_str)
         
         appointment = Appointment(
             dentist_id=current_user.id,
@@ -95,42 +99,46 @@ def create_appointment():
         if existing_ids:
             existing_treatments = Treatment.query.filter(Treatment.id.in_(existing_ids)).all()
             for t in existing_treatments:
-                # ✅ CRITICAL FIX: Change status from PLANNED to SCHEDULED
                 if t.status == TreatmentStatus.PLANNED:
                     t.status = TreatmentStatus.SCHEDULED
             treatments_to_link.extend(existing_treatments)
 
-        # 2. Create and link NEW treatments on the fly
-        new_treatment_names = data.get('new_treatments', [])
-        print(" NEW TREATMENTS TO CREATE:", new_treatment_names) # DEBUG
+        # 2. Create and link NEW treatments on the fly (Dynamic Rows)
+        new_treatments_data = data.get('new_treatments', [])
+        print("🆕 NEW TREATMENTS DATA:", new_treatments_data) # DEBUG
         
-        for name in new_treatment_names:
-            name = name.strip()
-            if not name: continue
+        for t_data in new_treatments_data:
+            name = t_data.get('name', '').strip()
+            tooth = t_data.get('tooth', '').strip() if t_data.get('tooth') else None
+            cost = float(t_data.get('cost', 0.0))
             
-            # Check if it already exists to avoid duplicates
+            if not name:
+                continue
+            
+            # Check if a PLANNED treatment with this exact name already exists
             existing = Treatment.query.filter_by(
                 patient_id=data['patient_id'], 
-                procedure_name=name
+                procedure_name=name,
+                status=TreatmentStatus.PLANNED.value
             ).first()
             
             if existing:
-                # If it exists but was planned, mark it scheduled
-                if existing.status == TreatmentStatus.PLANNED:
-                    existing.status = TreatmentStatus.SCHEDULED
+                if tooth:
+                    existing.tooth_number = tooth
+                existing.cost = cost 
+                existing.status = TreatmentStatus.SCHEDULED
                 treatments_to_link.append(existing)
-                print(f"  ↳ Linked existing treatment: {name}")
+                print(f"  ↳ Linked & Updated existing planned treatment: {name}")
             else:
-                # Create the new Treatment Plan record
-                # ✅ CRITICAL FIX: Set initial status to SCHEDULED instead of PLANNED
                 new_t = Treatment(
                     patient_id=data['patient_id'],
                     procedure_name=name,
-                    cost=0.0, 
+                    tooth_number=tooth,
+                    cost=cost, 
                     status=TreatmentStatus.SCHEDULED 
                 )
                 db.session.add(new_t)
-                db.session.flush() # Get the ID immediately
+                db.session.flush()
                 treatments_to_link.append(new_t)
                 print(f"  ↳ Created NEW treatment: {name}")
 
@@ -158,6 +166,32 @@ def create_appointment():
         print("❌ ERROR SAVING APPOINTMENT:", str(e)) # DEBUG
         return jsonify({'error': str(e)}), 400
 
+@calendar_bp.route('/catalog/search')
+@login_required
+def search_treatment_catalog():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+    
+    # Search for procedures matching the query
+    results = TreatmentCatalog.query.filter(
+        TreatmentCatalog.is_active == True,
+        TreatmentCatalog.name.ilike(f'%{query}%')
+    ).limit(10).all()
+    
+    data = []
+    for item in results:
+        data.append({
+            'id': item.id,
+            'name': item.name,
+            'code': item.code,
+            'cotation': item.cotation,
+            'default_cost': item.default_price, # Assuming your column is named 'cost'
+            'requires_tooth': item.target_type == 'single_tooth' if hasattr(item, 'target_type') else False
+        })
+    
+    return jsonify(data)
+
 @calendar_bp.route('/patients/<int:patient_id>/planned-treatments')
 @login_required
 def get_planned_treatments(patient_id):
@@ -180,90 +214,130 @@ def get_planned_treatments(patient_id):
 @login_required
 def update_appointment(appointment_id):
     data = request.get_json()
+    print("🔄 UPDATE PAYLOAD:", data)
     
     try:
         appointment = Appointment.query.get_or_404(appointment_id)
-        new_start = datetime.fromisoformat(data['start_time'])
-        new_end = datetime.fromisoformat(data['end_time'])
         
-        # 1. Conflict Check
-        conflict = Appointment.query.filter(
-            Appointment.id != appointment_id,
-            Appointment.status != AppointmentStatus.CANCELLED,
-            Appointment.status != AppointmentStatus.DELETED,
-            ((Appointment.start_time < new_end) & (Appointment.end_time > new_start))
-        ).first()
+        # Update basic appointment details
+        start_time_str = data['start_time'].replace('Z', '+00:00')
+        end_time_str = data['end_time'].replace('Z', '+00:00')
         
-        if conflict:
-            conflict_patient = f"{conflict.patient.first_name} {conflict.patient.last_name}"
-            return jsonify({
-                'error': f'Time conflicts with {conflict_patient}\'s appointment at {conflict.start_time.strftime("%I:%M %p")}'
-            }), 400
+        appointment.start_time = datetime.fromisoformat(start_time_str)
+        appointment.end_time = datetime.fromisoformat(end_time_str)
+        
+        # ✅ STEP 1: Handle new treatments (Quick Add)
+        new_treatments_data = data.get('new_treatments', [])
+        print(f"🆕 Processing {len(new_treatments_data)} new treatments")
+        
+        for t_data in new_treatments_data:
+            name = t_data.get('name', '').strip()
+            tooth = t_data.get('tooth', '').strip() if t_data.get('tooth') else None
+            cost = float(t_data.get('cost', 0.0))
             
-        appointment.start_time = new_start
-        appointment.end_time = new_end
+            if not name:
+                continue
+            
+            # Check if this treatment is already linked to this appointment
+            already_linked = False
+            for existing_t in appointment.treatments.all():
+                if existing_t.procedure_name == name and existing_t.tooth_number == tooth:
+                    already_linked = True
+                    print(f"  ⚠️ Treatment '{name}' already linked, skipping")
+                    break
+            
+            if already_linked:
+                continue
+            
+            # Check if a PLANNED treatment with this name exists for this patient
+            existing_planned = Treatment.query.filter_by(
+                patient_id=appointment.patient_id,
+                procedure_name=name,
+                status=TreatmentStatus.PLANNED.value
+            ).first()
+            
+            if existing_planned:
+                # Update the planned treatment and mark as scheduled
+                if tooth:
+                    existing_planned.tooth_number = tooth
+                existing_planned.cost = cost
+                existing_planned.status = TreatmentStatus.SCHEDULED
+                appointment.treatments.append(existing_planned)
+                print(f"  ✓ Linked existing planned treatment: {name} (ID: {existing_planned.id})")
+            else:
+                # Create a brand new treatment
+                new_t = Treatment(
+                    patient_id=appointment.patient_id,
+                    procedure_name=name,
+                    tooth_number=tooth,
+                    cost=cost,
+                    status=TreatmentStatus.SCHEDULED
+                )
+                db.session.add(new_t)
+                db.session.flush()  # Get the ID immediately
+                appointment.treatments.append(new_t)
+                print(f"  ✓ Created and linked NEW treatment: {name} (ID: {new_t.id})")
         
-        # 2. Smart Treatment Linking (The "Scheduled" Logic)
-        new_treatment_ids = set(data.get('treatment_ids', []))
-        current_treatment_ids = set(t.id for t in appointment.treatments.all())
+        # ✅ STEP 2: Handle treatment_ids from checkboxes (Treatment Plan)
+        treatment_ids = data.get('treatment_ids', [])
+        if treatment_ids:
+            print(f"📋 Linking {len(treatment_ids)} treatments from checkboxes")
+            existing_treatments = Treatment.query.filter(Treatment.id.in_(treatment_ids)).all()
+            
+            for t in existing_treatments:
+                if t.status == TreatmentStatus.PLANNED:
+                    t.status = TreatmentStatus.SCHEDULED
+                if t not in appointment.treatments:
+                    appointment.treatments.append(t)
+                    print(f"  ✓ Linked treatment from plan: {t.procedure_name} (ID: {t.id})")
         
-        to_add = new_treatment_ids - current_treatment_ids
-        to_remove = current_treatment_ids - new_treatment_ids
-        
-        # Link new treatments and mark as SCHEDULED
-        if to_add:
-            treatments_to_link = Treatment.query.filter(Treatment.id.in_(to_add)).all()
-            for t in treatments_to_link:
-                # ✅ USE THE ENUM HERE
-                t.status = TreatmentStatus.SCHEDULED 
-            appointment.treatments.extend(treatments_to_link)
-        
-        # Unlink removed treatments and revert to PLANNED
-        if to_remove:
-            treatments_to_unlink = Treatment.query.filter(Treatment.id.in_(to_remove)).all()
-            for t in treatments_to_unlink:
-                # ✅ USE THE ENUM HERE
-                t.status = TreatmentStatus.PLANNED
-            for t in treatments_to_unlink:
-                appointment.treatments.remove(t)
-        
+        # ✅ STEP 3: COMMIT ALL CHANGES
+        print("💾 Committing changes to database...")
         db.session.commit()
-        
-        # 3. Prepare Response Data
-        patient = appointment.patient
-        treatment_names = [t.procedure_name for t in appointment.treatments.all()]
+        print("✅ Appointment updated successfully!")
         
         return jsonify({
             'id': appointment.id,
-            'patient_name': f"{patient.first_name} {patient.last_name}",
-            'start_time': appointment.start_time.isoformat(),
-            'end_time': appointment.end_time.isoformat(),
-            'treatment_type': ", ".join(treatment_names) if treatment_names else "Consultation",
-            'patient_phone': patient.phone
-        })
+            'message': 'Appointment updated',
+            'treatment_count': len(appointment.treatments.all())
+        }), 200
+        
     except Exception as e:
         db.session.rollback()
+        print(" ERROR UPDATING APPOINTMENT:", str(e))
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
     
 @calendar_bp.route('/appointments/<int:appointment_id>', methods=['DELETE'])
 @login_required
 def delete_appointment(appointment_id):
     try:
-        appointment = Appointment.query.filter_by(
-            id=appointment_id,
-            dentist_id=current_user.id
-        ).first_or_404()
+        appointment = Appointment.query.get_or_404(appointment_id)
         
-        for t in appointment.treatments.all():
-            if t.status == TreatmentStatus.SCHEDULED:
-                t.status = TreatmentStatus.PLANNED
-        appointment.status = AppointmentStatus.CANCELLED
-        appointment.deleted_at = datetime.utcnow()
+        # ✅ STEP 1: Revert all linked treatments back to PLANNED status
+        for treatment in appointment.treatments.all():
+            if treatment.status == TreatmentStatus.SCHEDULED.value:
+                treatment.status = TreatmentStatus.PLANNED.value
+                print(f"  ↩️ Reverted treatment '{treatment.procedure_name}' to PLANNED")
+        
+        # ✅ STEP 2: Clear the relationship (remove links)
+        appointment.treatments.clear()
+        
+        # ✅ STEP 3: Delete the appointment
+        db.session.delete(appointment)
         db.session.commit()
         
-        return jsonify({'success': True, 'message': 'Appointment cancelled'})
+        print(f"✅ Appointment {appointment_id} deleted successfully")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Appointment deleted'
+        }), 200
+        
     except Exception as e:
         db.session.rollback()
+        print(f"❌ ERROR deleting appointment: {str(e)}")
         return jsonify({'error': str(e)}), 400
     
 @calendar_bp.route('/appointments/<int:appointment_id>/complete', methods=['POST'])

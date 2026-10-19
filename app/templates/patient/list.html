@@ -35,7 +35,7 @@
         </thead>
         <tbody>
           {% for patient in patients %}
-          <tr data-href="{{ url_for('patient.profile', patient_id=patient.id) }}"
+          <tr data-href="{{ url_for('patient.clinical_log', patient_id=patient.id) }}"
             onclick="window.location.href = this.dataset.href;"
             style="cursor: pointer; transition: background-color 0.2s;"
             onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor=''">
@@ -45,8 +45,6 @@
               {{ patient.phone }}<br>
               <small class="text-muted">{{ patient.email }}</small>
             </td>
-
-            <!-- The Actions <td> is completely removed -->
           </tr>
           {% endfor %}
         </tbody>
