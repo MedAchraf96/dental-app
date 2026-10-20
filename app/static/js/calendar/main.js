@@ -653,4 +653,78 @@ function finalizeView(targetApptId) {
       alert('Initialization error: ' + error.message);
     }
   }
+  // ✅ Check for URL parameters to auto-open new appointment form
+  const urlParams = new URLSearchParams(window.location.search);
+  const autoPatientId = urlParams.get('patient');
+  const autoTreatmentId = urlParams.get('treatment');
+
+  if (autoPatientId) {
+    setTimeout(async () => {
+      // 1. Open the new appointment form
+      const addButton = document.getElementById('add-appointment-header');
+      if (addButton) addButton.click();
+
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // 2. Fetch patient details using the ID (Clean & Secure)
+      try {
+        const response = await fetch(`/patients/${autoPatientId}/api/details`);
+        if (response.ok) {
+          const patient = await response.json();
+
+          // Populate the hidden ID
+          const patientIdInput = document.getElementById('patientId');
+          if (patientIdInput) patientIdInput.value = patient.id;
+
+          // Populate the visible search field
+          const patientSearch = document.getElementById('patientSearch');
+          if (patientSearch) patientSearch.value = `${patient.first_name} ${patient.last_name}`;
+
+          // Show the patient info section
+          const patientInfo = document.getElementById('selectedPatientInfo');
+          const patientFullName = document.getElementById('patientFullName');
+          const patientPhone = document.getElementById('patientPhone');
+
+          if (patientInfo) patientInfo.style.display = 'block';
+          if (patientFullName) patientFullName.textContent = `${patient.first_name} ${patient.last_name}`;
+          if (patientPhone) patientPhone.textContent = patient.phone || 'Not provided';
+
+          // Load treatments for this patient
+          if (typeof window.loadPatientTreatments === 'function') {
+            window.loadPatientTreatments(patient.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching patient details:', error);
+      }
+
+      // 3. Wait for treatments to load, then check ONLY the specific one
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      if (autoTreatmentId) {
+        const checkboxes = document.querySelectorAll('#planned-treatments-list input[type="checkbox"]');
+
+        checkboxes.forEach(cb => {
+          if (cb.value === autoTreatmentId) {
+            cb.checked = true;
+            cb.parentElement.style.background = '#d1fae5';
+            cb.parentElement.style.borderColor = '#10b981';
+          } else {
+            cb.checked = false;
+          }
+        });
+
+        // Toast notification
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+                position: fixed; top: 20px; right: 20px; background: #10b981; color: white;
+                padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 10000;
+            `;
+        toast.innerHTML = `<i class="bi bi-check-circle"></i> Treatment selected for scheduling`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+    }, 500);
+  }
 })();

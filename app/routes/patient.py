@@ -540,6 +540,7 @@ def clinical_log(patient_id):
 
         visit_data.append({
             'type': 'appointment',
+            'id': appt.id,
             'date': appt.start_time,
             'status': appt.status,
             'treatments': appt_treatments,
@@ -552,14 +553,17 @@ def clinical_log(patient_id):
     if orphan_treatments:
         orphan_cost = sum(t.cost for t in orphan_treatments)
         grand_total_cost += orphan_cost # Add planned cost to grand total
-        
+        planned_treatment_ids = [t.id for t in orphan_treatments]
+
         visit_data.append({
             'type': 'planned',
+            'id': None,
             'date': datetime.now(), 
             'status': 'planned',
             'treatments': orphan_treatments,
             'total_cost': orphan_cost,
-            'total_paid': 0
+            'total_paid': 0,
+            'planned_treatment_ids': planned_treatment_ids
         })
 
     # Sort by date (Newest first)
@@ -575,7 +579,17 @@ def clinical_log(patient_id):
         grand_total_paid=grand_total_paid,
         active_tab='documents'
     )
-
+@patient_bp.route('/<int:patient_id>/api/details')
+@login_required
+def patient_details_api(patient_id):
+    patient = Patient.query.get_or_404(patient_id)
+    return jsonify({
+        'id': patient.id,
+        'first_name': patient.first_name,
+        'last_name': patient.last_name,
+        'phone': patient.phone or ''
+    })
+    
 # New Route: Save Clinical Notes for a specific treatment inline
 @patient_bp.route('/treatments/<int:treatment_id>/update-notes', methods=['POST'])
 @login_required

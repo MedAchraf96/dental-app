@@ -2,6 +2,74 @@
 
 {% block patient_content %}
 <style>
+    /* Make specific planned treatment rows clickable */
+    .clickable-treatment-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .clickable-treatment-row:hover {
+        background-color: #ecfdf5 !important;
+        /* Light green hover */
+    }
+
+    .clickable-treatment-row:hover td {
+        color: #059669;
+    }
+
+    /* Add a subtle arrow to the procedure name on hover */
+    .clickable-treatment-row:hover .proc-name::after {
+        content: ' \2192';
+        /* Right arrow */
+        color: #059669;
+        font-weight: bold;
+    }
+
+    /* Make appointment group headers clickable */
+    .clickable-header {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .clickable-header:hover {
+        background-color: #f1f5f9 !important;
+        /* Light gray hover */
+    }
+
+    .clickable-header:hover .group-title {
+        color: #2563eb;
+        /* Primary blue text on hover */
+    }
+
+    /* Animate the arrow icon on hover */
+    .clickable-header:hover .group-title .link-arrow {
+        opacity: 1;
+        transform: translateX(4px);
+        transition: all 0.2s ease;
+    }
+
+    /* Make the patient name in the header clickable and styled nicely */
+    .patient-name-link {
+        color: #ffffff;
+        /* Matches your existing h1 color */
+        text-decoration: none;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .patient-name-link:hover {
+        color: #c3c8d1;
+        /* Primary blue on hover */
+        text-decoration: none;
+        text-underline-offset: 4px;
+    }
+
+    .patient-name-link:hover i {
+        opacity: 1;
+        transform: translate(2px, -2px);
+    }
+
     .medical-file-container {
         max-width: 1400px;
         margin: 0 auto;
@@ -302,7 +370,14 @@
 
 <div class="medical-file-container">
     <div class="file-header">
-        <h1>{{ patient.first_name }} {{ patient.last_name }}</h1>
+        <h1>
+            <a href="{{ url_for('patient.profile', patient_id=patient.id) }}" class="patient-name-link"
+                title="Go to Patient Profile">
+                {{ patient.first_name }} {{ patient.last_name }}
+                <i class="bi bi-box-arrow-up-right"
+                    style="font-size: 0.6em; vertical-align: middle; margin-left: 8px; opacity: 0.6;"></i>
+            </a>
+        </h1>
         <div class="header-info">
             <span><i class="bi bi-telephone-fill"></i> <strong>Tél:</strong> {{ patient.phone or 'N/A' }}</span>
             <span><i class="bi bi-calendar-heart"></i> <strong>Âge:</strong> {{ patient_age }} ans</span>
@@ -344,14 +419,25 @@
             </thead>
             <tbody>
                 {% for visit in visit_data %}
-                <tr class="group-header">
+                <!-- 1. Group Header Row -->
+                <tr class="group-header {% if visit.type == 'appointment' %}clickable-header{% endif %}" {% if
+                    visit.type=='appointment'
+                    %}onclick="window.location.href='{{ url_for('calendar_api.dashboard') }}?appt={{ visit.id }}'" {%
+                    endif %}>
+
                     <td colspan="5">
                         <div class="group-title">
                             {% if visit.type == 'appointment' %}
                             <i class="bi bi-calendar-check-fill"></i> Visite du {{ visit.date.strftime('%d/%m/%Y') }}
                             <span class="badge status-{{ visit.status }}">{{ visit.status | upper }}</span>
-                            {% else %}
+                            <i class="bi bi-arrow-right-circle link-arrow"
+                                style="margin-left: 8px; opacity: 0.4; font-size: 1.1em;"></i>
+                            {% elif visit.type == 'planned' %}
                             <i class="bi bi-clock-history"></i> Traitements Planifiés
+                            <span class="badge" style="background: #dbeafe; color: #1e40af; margin-left: 8px;">
+                                {{ visit.treatments | length }} traitement{{ 's' if visit.treatments | length > 1 else
+                                '' }}
+                            </span>
                             {% endif %}
                         </div>
                     </td>
@@ -359,10 +445,17 @@
                     <td class="group-total-cell paid-cell">Payé: {{ visit.total_paid | default(0) }} DT</td>
                 </tr>
 
+                <!-- 2. Treatment Rows -->
                 {% for t in visit.treatments %}
-                <tr class="treatment-row">
-                    <td class="col-date"><span class="date-display">{{ t.completed_date.strftime('%d/%m/%Y') if
-                            t.completed_date else '-' }}</span></td>
+                <tr class="treatment-row {% if visit.type == 'planned' %}clickable-treatment-row{% endif %}" {% if
+                    visit.type=='planned'
+                    %}onclick="window.location.href='{{ url_for('calendar_api.dashboard') }}?patient={{ patient.id }}&treatment={{ t.id }}'"
+                    {% endif %}>
+
+                    <td class="col-date">
+                        <span class="date-display">{{ t.completed_date.strftime('%d/%m/%Y') if t.completed_date else '-'
+                            }}</span>
+                    </td>
                     <td class="col-proc">
                         <div class="proc-name">{{ t.procedure_name }}</div>
                         {% if t.procedure_code %}<div class="proc-code">Code: {{ t.procedure_code }}</div>{% endif %}
