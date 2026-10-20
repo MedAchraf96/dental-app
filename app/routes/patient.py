@@ -553,7 +553,6 @@ def clinical_log(patient_id):
     if orphan_treatments:
         orphan_cost = sum(t.cost for t in orphan_treatments)
         grand_total_cost += orphan_cost # Add planned cost to grand total
-        planned_treatment_ids = [t.id for t in orphan_treatments]
 
         visit_data.append({
             'type': 'planned',
@@ -563,7 +562,6 @@ def clinical_log(patient_id):
             'treatments': orphan_treatments,
             'total_cost': orphan_cost,
             'total_paid': 0,
-            'planned_treatment_ids': planned_treatment_ids
         })
 
     # Sort by date (Newest first)

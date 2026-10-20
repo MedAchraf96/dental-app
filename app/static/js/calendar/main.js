@@ -1,16 +1,12 @@
 import {
   getStartOfWeek,
-  formatForServer,
   formatDateForInput,
-  validateAppointmentTime,
   updateWeekDisplay,
   checkRunway,
   getTimeSlots,
 } from "./helper.js";
 import {
   fetchAppointments,
-  createAppointment,
-  updateAppointment
 } from "./API.js";
 import { renderCalendar, renderDayColumn, renderDayLabels } from "./CalRender.js";
 import {
@@ -22,38 +18,6 @@ import { PIXELS_PER_MINUTE } from "./state.js";
 import {
   setupInteractionHandlers
 } from "./interaction.js";
-
-// ======================
-// GLOBAL TREATMENT TAGS STATE
-// ======================
-let newTreatmentsList = [];
-
-window.renderNewTreatmentTags = function () {
-  const container = document.getElementById('new-treatments-tags');
-  if (!container) return;
-  container.innerHTML = newTreatmentsList.map((name, index) => `
-    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
-      ${name}
-      <span onclick="window.removeNewTreatment(${index})" style="cursor: pointer; font-weight: bold;">&times;</span>
-    </span>
-  `).join('');
-};
-
-window.addNewTreatmentTag = function () {
-  const input = document.getElementById('new-treatment-input');
-  if (!input) return;
-  const name = input.value.trim();
-  if (!name) return;
-
-  newTreatmentsList.push(name);
-  input.value = '';
-  window.renderNewTreatmentTags();
-};
-
-window.removeNewTreatment = function (index) {
-  newTreatmentsList.splice(index, 1);
-  window.renderNewTreatmentTags();
-};
 // ======================
 // CALENDAR DATA AND STATE
 // ======================
@@ -198,12 +162,9 @@ function setupModal() {
   document.querySelectorAll('.close, .cancel-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       modal.style.display = 'none';
-      // Reset treatment lists
-      newTreatmentsList = [];
-      renderNewTreatmentTags();
-      document.querySelectorAll('.existing-treatment-cb').forEach(cb => cb.checked = false);
     });
   });
+
 
   window.addEventListener('click', e => {
     if (e.target === modal) {
@@ -343,80 +304,6 @@ function setupModal() {
     updateTimeOptions();
     updateDurationOptions();
   };
-
-  /* form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-  
-      try {
-        // 1. Gather the new treatment data
-        const existingIds = Array.from(document.querySelectorAll('.existing-treatment-cb:checked')).map(cb => parseInt(cb.value));
-  
-        // 2. Validate: Must have a patient AND (at least one existing treatment OR at least one new treatment)
-        if (!patientIdInput.value || (existingIds.length === 0 && newTreatmentsList.length === 0)) {
-          alert('Please select a patient and choose at least one treatment or add a new procedure.');
-          return;
-        }
-  
-        // 3. Check if editing and no changes were made (Updated to match new data structure)
-        if (form.dataset.appointmentId && form.dataset.originalValues) {
-          const currentValues = JSON.stringify({
-            date: e.target.appointmentDate.value,
-            time: e.target.startTime.value,
-            duration: e.target.duration.value,
-            patient_id: patientIdInput.value,
-            existing_treatments: existingIds.sort(),
-            new_treatments: [...newTreatmentsList].sort()
-          });
-  
-          if (currentValues === form.dataset.originalValues) {
-            alert('No changes detected. Appointment not updated.');
-            modal.style.display = 'none';
-            return;
-          }
-        }
-  
-        const date = e.target.appointmentDate.value;
-        const time = e.target.startTime.value;
-        const duration = parseInt(e.target.duration.value);
-  
-        const start = new Date(`${date}T${time}`);
-        const end = new Date(start.getTime() + duration * 60000);
-  
-        const validationError = validateAppointmentTime(start, end, appointments, form.dataset.appointmentId);
-        if (validationError) {
-          alert(validationError);
-          return;
-        }
-  
-        // 4. Build the NEW payload for the backend
-        const payload = {
-          patient_id: patientIdInput.value,
-          start_time: formatForServer(start),
-          end_time: formatForServer(end),
-          treatment_ids: existingIds,
-          new_treatments: newTreatmentsList
-        };
-  
-        // 5. Send to backend
-        if (form.dataset.appointmentId) {
-          await updateAppointment(form.dataset.appointmentId, payload);
-        } else {
-          await createAppointment(payload);
-        }
-  
-        // 6. Reset the treatment lists on successful save
-        newTreatmentsList = [];
-        renderNewTreatmentTags();
-        document.querySelectorAll('.existing-treatment-cb').forEach(cb => cb.checked = false);
-  
-        modal.style.display = 'none';
-        await initCalendar();
-  
-      } catch (error) {
-        console.error('Appointment operation failed:', error);
-        alert(`Error: ${error.message}`);
-      }
-   });*/
 }
 
 
@@ -507,7 +394,7 @@ async function initCalendar(forceFullRender = false, forceDays = []) {
     const startOfWeek = getStartOfWeek(currentDate);
     const endOfWeek = new Date(startOfWeek);
     // Week runs Monday–Saturday only (Sunday is not shown in the calendar)
-    endOfWeek.setDate(startOfWeek.getDate() + 5);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
 
     const oldAppointments = appointments;
     appointments = await fetchAppointments(startOfWeek, endOfWeek);

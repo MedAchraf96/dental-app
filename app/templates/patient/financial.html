@@ -64,22 +64,6 @@
         color: #dc3545;
     }
 
-    /* Forms */
-    .add-entry-form {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        padding: 15px;
-        margin-bottom: 25px;
-    }
-
-    .add-entry-form h4 {
-        margin: 0 0 12px 0;
-        color: #1e3a8a;
-        font-size: 14px;
-        text-transform: uppercase;
-    }
-
     .form-row {
         display: flex;
         gap: 10px;
@@ -108,16 +92,6 @@
         border: 1px solid #ced4da;
         border-radius: 4px;
         font-size: 13px;
-    }
-
-    .btn-add {
-        background: #1e3a8a;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 600;
     }
 
     /* Ledger Table */
@@ -309,42 +283,6 @@
             formRow.classList.toggle('active');
         }
     }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const select = document.getElementById('procedure-select');
-        const costInput = document.getElementById('input-cost');
-        const codeInput = document.getElementById('input-code');
-        const cotationInput = document.getElementById('input-cotation');
-        const toothGroup = document.getElementById('tooth-group');
-        const toothInput = document.getElementById('input-tooth');
-
-        select.addEventListener('change', function () {
-            const selectedOption = this.options[this.selectedIndex];
-
-            if (selectedOption.value) {
-                // Auto-fill fields
-                costInput.value = selectedOption.dataset.price || '0.00';
-                codeInput.value = selectedOption.dataset.code || '';
-                cotationInput.value = selectedOption.dataset.cotation || '';
-
-                // ✅ Smart Tooth Number Logic
-                const targetType = selectedOption.dataset.target;
-                if (targetType === 'single_tooth') {
-                    toothGroup.style.display = 'block'; // Show it
-                    toothInput.setAttribute('required', 'required'); // Make it mandatory
-                } else {
-                    toothGroup.style.display = 'none'; // Hide it
-                    toothInput.removeAttribute('required'); // Make it optional
-                    toothInput.value = ''; // Clear it
-                }
-            } else {
-                costInput.value = '';
-                codeInput.value = '';
-                cotationInput.value = '';
-                toothGroup.style.display = 'none';
-            }
-        });
-    });
 </script>
 
 {% endblock %}
