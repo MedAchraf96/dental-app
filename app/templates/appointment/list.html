@@ -25,8 +25,7 @@
                     <span class="selected-count fw-bold me-2">0</span> selected
                     <div class="ms-auto">
                         {% if current_user.is_authenticated and current_user.role.lower() in ['dentist', 'admin'] %}
-                        <button type="submit" class="btn btn-sm btn-danger bulk-delete-btn"
-                            onclick="return confirmBulkDelete()">
+                        <button type="submit" class="btn btn-sm btn-danger bulk-delete-btn">
                             <i class="bi bi-trash me-1"></i> Delete Selected
                         </button>
                         {% endif %}
@@ -35,8 +34,6 @@
             </form>
         </div>
     </div>
-    <div id="bulk-ids-container" style="display:none;"></div>
-
 
     <!-- Filter Card -->
     <div class="card mb-4">
@@ -46,8 +43,10 @@
                     <label for="status" class="form-label">Status</label>
                     <select id="status" name="status" class="form-select form-select-sm">
                         <option value="all" {% if status_filter=='all' %}selected{% endif %}>All Statuses</option>
-                        {% for s in [enums.AppointmentStatus.SCHEDULED, enums.AppointmentStatus.COMPLETED, enums.AppointmentStatus.CANCELLED] %}
-                        <option value="{{ s.value }}" {% if status_filter==s.value %}selected{% endif %}>{{ s.value|capitalize }}</option>
+                        {% for s in [enums.AppointmentStatus.SCHEDULED, enums.AppointmentStatus.COMPLETED,
+                        enums.AppointmentStatus.CANCELLED] %}
+                        <option value="{{ s.value }}" {% if status_filter==s.value %}selected{% endif %}>{{
+                            s.value|capitalize }}</option>
                         {% endfor %}
                     </select>
                 </div>
