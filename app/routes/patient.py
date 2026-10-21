@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy import select, delete, func, or_
-from app.models import db, Patient, Appointment, User, ToothRecord, Prosthetic, Treatment,PatientPayment,TreatmentCatalog
+from app.models import db, Patient, Appointment, User, ToothRecord, Prosthetic, Treatment,PatientPayment,TreatmentCatalog,ClinicalNote
 from app.enums import AppointmentStatus, TreatmentStatus, ToothState, ProstheticType
 from app.utils.tooth_helpers import update_tooth_chart_on_completion
 from collections import defaultdict 
@@ -545,7 +545,7 @@ def clinical_log(patient_id):
 
         visit_data.append({
             'type': 'appointment',
-            'id': appt.id,
+            'id': appt.id, # Ensure this is here
             'date': appt.start_time,
             'status': appt.status,
             'treatments': appt_treatments,
@@ -604,30 +604,32 @@ def patient_details_api(patient_id):
 # ==========================================
 # CLINICAL NOTES & TREATMENT STATUS
 # ==========================================
-
-# Updated Route: Append Clinical Notes for a specific treatment inline (Option A)
 @patient_bp.route('/treatments/<int:treatment_id>/update-notes', methods=['POST'])
 @login_required
 def update_treatment_notes(treatment_id):
-    treatment = Treatment.query.get_or_404(treatment_id)
-    new_notes = request.form.get('clinical_notes', '').strip()
+    data = request.get_json() # We will send JSON from the frontend now
+    content = data.get('content', '').strip()
+    appointment_id = data.get('appointment_id') # Can be None
     
-    if not new_notes:
+    if not content:
         return jsonify({'success': False, 'error': 'Note cannot be empty'}), 400
 
     try:
-        # ✅ OPTION A: Append with timestamp
-        timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
-        formatted_entry = f"\n\n[{timestamp}] {new_notes}"
-        
-        # If there are existing notes, append. If not, just start with the timestamp.
-        if treatment.clinical_notes:
-            treatment.clinical_notes = treatment.clinical_notes + formatted_entry
-        else:
-            treatment.clinical_notes = f"[{timestamp}] {new_notes}"
-            
+        # Create the new relational note
+        new_note = ClinicalNote(
+            content=content,
+            treatment_id=treatment_id,
+            appointment_id=appointment_id,
+            author_id=current_user.id
+        )
+        db.session.add(new_note)
         db.session.commit()
-        return jsonify({'success': True, 'notes': treatment.clinical_notes})
+        
+        return jsonify({
+            'success': True, 
+            'note_id': new_note.id,
+            'created_at': new_note.created_at.strftime('%d/%m/%Y %H:%M')
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

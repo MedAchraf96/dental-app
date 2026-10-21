@@ -2,129 +2,9 @@
 
 {% block patient_content %}
 <style>
-    /* Container for action buttons */
-    .action-buttons {
-        display: flex;
-        gap: 8px;
-        flex-shrink: 0;
-        align-items: stretch;
-    }
-
-    /* Base style for new action buttons */
-    .action-btn {
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        width: 44px;
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-decoration: none;
-        background: white;
-    }
-
-    .action-btn i {
-        font-size: 1.2rem;
-    }
-
-    /* Continue Button (Orange) */
-    .continue-btn {
-        background: #fff7ed;
-        border-color: #fdba74;
-        color: #ea580c;
-    }
-
-    .continue-btn:hover {
-        background: #ea580c;
-        color: white;
-        border-color: #ea580c;
-        transform: translateY(-1px);
-    }
-
-    /* Mark Complete Button (Green) */
-    .complete-treatment-btn {
-        background: #f0fdf4;
-        border-color: #86efac;
-        color: #16a34a;
-    }
-
-    .complete-treatment-btn:hover {
-        background: #16a34a;
-        color: white;
-        border-color: #16a34a;
-        transform: translateY(-1px);
-    }
-
-    /* Make specific planned treatment rows clickable */
-    .clickable-treatment-row {
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .clickable-treatment-row:hover {
-        background-color: #ecfdf5 !important;
-        /* Light green hover */
-    }
-
-    .clickable-treatment-row:hover td {
-        color: #059669;
-    }
-
-    /* Add a subtle arrow to the procedure name on hover */
-    .clickable-treatment-row:hover .proc-name::after {
-        content: ' \2192';
-        /* Right arrow */
-        color: #059669;
-        font-weight: bold;
-    }
-
-    /* Make appointment group headers clickable */
-    .clickable-header {
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .clickable-header:hover td {
-        background-color: #f1f5f9 !important;
-        /* Light gray hover */
-    }
-
-    .clickable-header:hover .group-title {
-        color: #2563eb;
-        /* Primary blue text on hover */
-    }
-
-    /* Animate the arrow icon on hover */
-    .clickable-header:hover .group-title .link-arrow {
-        opacity: 1;
-        transform: translateX(4px);
-        transition: all 0.2s ease;
-    }
-
-    /* Make the patient name in the header clickable and styled nicely */
-    .patient-name-link {
-        color: #ffffff;
-        /* Matches your existing h1 color */
-        text-decoration: underline;
-        transition: all 0.2s ease;
-        display: inline-flex;
-        align-items: center;
-    }
-
-    .patient-name-link:hover {
-        color: #c3c8d1;
-        /* Primary blue on hover */
-        text-decoration: none;
-        text-underline-offset: 4px;
-    }
-
-    .patient-name-link:hover i {
-        opacity: 1;
-        transform: translate(2px, -2px);
-    }
-
+    /* ==========================================
+       GLOBAL & LAYOUT
+       ========================================== */
     .medical-file-container {
         max-width: 1400px;
         margin: 0 auto;
@@ -167,67 +47,21 @@
         font-weight: 600;
     }
 
-    .grand-total-banner {
-        background: white;
-        border-radius: 12px;
-        padding: 24px;
-        margin-bottom: 24px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-left: 4px solid #1e3a8a;
-    }
-
-    .banner-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #1e293b;
-    }
-
-    .banner-stats {
-        display: flex;
-        gap: 48px;
-    }
-
-    .stat-box {
-        text-align: right;
-    }
-
-    .stat-label {
-        display: block;
-        font-size: 0.8rem;
-        color: #64748b;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #1e293b;
-    }
-
-    .stat-box.paid .stat-value {
-        color: #10b981;
-    }
-
-    .stat-box.balance .stat-value {
-        color: #ef4444;
-    }
-
+    /* ==========================================
+       TABLE STYLING
+       ========================================== */
     .table-responsive {
         background: white;
         border-radius: 12px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
+        overflow-x: auto;
     }
 
     .medical-table {
         width: 100%;
         border-collapse: separate;
         border-spacing: 0;
+        min-width: 900px;
     }
 
     .medical-table thead th {
@@ -240,6 +74,7 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
         border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
     }
 
     .group-header td {
@@ -257,24 +92,10 @@
         font-size: 0.95rem;
     }
 
-    .group-total-cell {
-        text-align: right;
-        font-size: 0.9rem;
-        font-weight: 600;
-    }
-
-    .cost-cell {
-        color: #334155;
-    }
-
-    .paid-cell {
-        color: #10b981;
-    }
-
     .treatment-row td {
-        padding: 20px 16px;
+        padding: 16px;
         border-bottom: 1px solid #f1f5f9;
-        vertical-align: middle;
+        vertical-align: top;
     }
 
     .treatment-row:last-child td {
@@ -283,6 +104,267 @@
 
     .treatment-row:hover {
         background: #f8fafc;
+    }
+
+    /* Column Widths (Adjusted for 5 columns) */
+    .col-date {
+        width: 110px;
+        white-space: nowrap;
+    }
+
+    .col-proc {
+        width: 20%;
+    }
+
+    .col-tooth {
+        width: 90px;
+        text-align: center;
+    }
+
+    .col-status {
+        width: 120px;
+        text-align: center;
+    }
+
+    .col-notes {
+        width: auto;
+        vertical-align: top;
+    }
+
+    /* ==========================================
+       COMPACT NOTES SYSTEM
+       ========================================== */
+    .notes-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .notes-stack {
+        max-height: 110px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-right: 4px;
+    }
+
+    .notes-stack::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .notes-stack::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    .mini-sticky-note {
+        background: #fffbeb;
+        border-left: 3px solid #f59e0b;
+        border-radius: 4px;
+        padding: 6px 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        animation: slideIn 0.3s ease;
+    }
+
+    .mini-note-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3px;
+        border-bottom: 1px dashed #fde68a;
+        padding-bottom: 2px;
+    }
+
+    .mini-date {
+        font-size: 0.65rem;
+        color: #92400e;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .mini-note-appt-link {
+        color: #d97706;
+        font-size: 0.8rem;
+        transition: transform 0.2s;
+    }
+
+    .mini-note-appt-link:hover {
+        transform: scale(1.2);
+        color: #b45309;
+    }
+
+    .mini-note-body {
+        font-size: 0.75rem;
+        color: #451a03;
+        line-height: 1.4;
+        word-break: break-word;
+        white-space: pre-wrap;
+        /* ✅ Preserves line breaks from textarea */
+    }
+
+    .note-input-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .mini-textarea {
+        flex: 1;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        font-family: inherit;
+        background: white;
+        transition: all 0.2s;
+        resize: vertical;
+        min-height: 38px;
+        max-height: 120px;
+        line-height: 1.4;
+    }
+
+    .mini-textarea:focus {
+        outline: none;
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+    }
+
+    .mini-save-btn {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #64748b;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+
+    .mini-save-btn:hover {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+
+    .action-buttons-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 4px;
+    }
+
+    .mini-action-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border: 1px solid transparent;
+        font-size: 1rem;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+
+    .mini-action-btn.continue {
+        background: #fff7ed;
+        color: #ea580c;
+        border-color: #fdba74;
+    }
+
+    .mini-action-btn.continue:hover {
+        background: #ea580c;
+        color: white;
+        border-color: #ea580c;
+    }
+
+    .mini-action-btn.complete {
+        background: #f0fdf4;
+        color: #16a34a;
+        border-color: #86efac;
+    }
+
+    .mini-action-btn.complete:hover {
+        background: #16a34a;
+        color: white;
+        border-color: #16a34a;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ==========================================
+       INTERACTIVE ELEMENTS
+       ========================================== */
+    .patient-name-link {
+        color: #ffffff;
+        text-decoration: underline;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .patient-name-link:hover {
+        color: #c3c8d1;
+        text-decoration: none;
+        text-underline-offset: 4px;
+    }
+
+    .patient-name-link:hover i {
+        opacity: 1;
+        transform: translate(2px, -2px);
+    }
+
+    .clickable-header {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .clickable-header:hover td {
+        background-color: #f1f5f9 !important;
+    }
+
+    .clickable-header:hover .group-title {
+        color: #2563eb;
+    }
+
+    .clickable-header:hover .group-title .link-arrow {
+        opacity: 1;
+        transform: translateX(4px);
+        transition: all 0.2s ease;
+    }
+
+    .clickable-treatment-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .clickable-treatment-row:hover {
+        background-color: #ecfdf5 !important;
+    }
+
+    .clickable-treatment-row:hover td {
+        color: #059669;
+    }
+
+    .clickable-treatment-row:hover .proc-name::after {
+        content: ' \2192';
+        color: #059669;
+        font-weight: bold;
     }
 
     .date-display {
@@ -340,83 +422,9 @@
         color: #4b5563;
     }
 
-    .notes-wrapper {
-        display: flex;
-        gap: 8px;
-        align-items: stretch;
-    }
-
-    .inline-notes {
-        flex: 1;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 10px 14px;
-        font-family: inherit;
-        font-size: 0.85rem;
-        resize: vertical;
-        min-height: 44px;
-        background: #fffbeb;
-        transition: all 0.2s;
-        line-height: 1.5;
-    }
-
-    .inline-notes:focus {
-        border-color: #3b82f6;
-        background: white;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .save-note-btn {
-        background: white;
-        border: 1px solid #e2e8f0;
-        color: #3b82f6;
-        border-radius: 8px;
-        width: 44px;
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s;
-        flex-shrink: 0;
-    }
-
-    .save-note-btn:hover {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-        transform: translateY(-1px);
-    }
-
-    .col-date {
-        width: 110px;
-    }
-
-    .col-proc {
-        width: 25%;
-    }
-
-    .col-tooth {
-        width: 90px;
-        text-align: center;
-    }
-
-    .col-status {
-        width: 120px;
-        text-align: center;
-    }
-
-    .col-notes {
-        width: auto;
-    }
-
-    .col-money {
-        width: 120px;
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-        font-weight: 600;
-        padding-right: 24px !important;
+    .status-in_progress {
+        background: #fef3c7;
+        color: #92400e;
     }
 </style>
 
@@ -437,25 +445,6 @@
                     patient.allergies or 'Aucune' }}</span></span>
         </div>
     </div>
-
-    <div class="grand-total-banner">
-        <div class="banner-title"><i class="bi bi-pie-chart"></i> Résumé Financier Global</div>
-        <div class="banner-stats">
-            <div class="stat-box">
-                <span class="stat-label">Coût Total</span>
-                <span class="stat-value">{{ grand_total_cost | default(0) }} DT</span>
-            </div>
-            <div class="stat-box paid">
-                <span class="stat-label">Total Payé</span>
-                <span class="stat-value">{{ grand_total_paid | default(0) }} DT</span>
-            </div>
-            <div class="stat-box balance">
-                <span class="stat-label">Reste à Payer</span>
-                <span class="stat-value">{{ (grand_total_cost - grand_total_paid) | default(0) }} DT</span>
-            </div>
-        </div>
-    </div>
-
     <div class="table-responsive">
         <table class="medical-table">
             <thead>
@@ -465,8 +454,6 @@
                     <th class="col-tooth">Dent</th>
                     <th class="col-status">Statut</th>
                     <th class="col-notes">Notes Cliniques</th>
-                    <th class="col-money">Coût</th>
-                    <th class="col-money">Payé</th>
                 </tr>
             </thead>
             <tbody>
@@ -476,7 +463,6 @@
                     visit.type=='appointment'
                     %}onclick="window.location.href='{{ url_for('calendar_api.dashboard') }}?appt={{ visit.id }}'" {%
                     endif %}>
-
                     <td colspan="5">
                         <div class="group-title">
                             {% if visit.type == 'appointment' %}
@@ -493,8 +479,6 @@
                             {% endif %}
                         </div>
                     </td>
-                    <td class="group-total-cell cost-cell">Total: {{ visit.total_cost | default(0) }} DT</td>
-                    <td class="group-total-cell paid-cell">Payé: {{ visit.total_paid | default(0) }} DT</td>
                 </tr>
 
                 <!-- 2. Treatment Rows -->
@@ -517,37 +501,51 @@
                             class="text-muted">-</span>{% endif %}
                     </td>
                     <td class="col-status"><span class="badge status-{{ t.status }}">{{ t.status | upper }}</span></td>
+
                     <td class="col-notes">
                         <div class="notes-wrapper">
-                            <textarea class="inline-notes" data-treatment-id="{{ t.id }}"
-                                placeholder="Ajouter une note...">{{ t.clinical_notes or '' }}</textarea>
+                            <!-- Compact Notes Stack -->
+                            <div class="notes-stack" id="notes-stack-{{ t.id }}">
+                                {% for note in t.note_entries.all() %}
+                                {% if note.appointment_id == visit.id %}
+                                <div class="mini-sticky-note">
+                                    <div class="mini-note-header">
+                                        <span class="mini-date">{{ note.created_at.strftime('%d/%m %H:%M') }}</span>
+                                        <a href="{{ url_for('calendar_api.dashboard') }}?appt={{ note.appointment_id }}"
+                                            class="mini-note-appt-link" title="View Appointment">
+                                            <i class="bi bi-calendar-event"></i>
+                                        </a>
+                                    </div>
+                                    <div class="mini-note-body">{{ note.content }}</div>
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
 
-                            <div class="action-buttons">
-                                <!-- Save Note Button -->
-                                <button class="save-note-btn" data-treatment-id="{{ t.id }}" type="button"
-                                    title="Enregistrer">
-                                    <i class="bi bi-check-lg"></i>
+                            <!-- Input Row (Always Visible) -->
+                            <div class="note-input-row">
+                                <textarea class="mini-textarea" id="input-{{ t.id }}" placeholder="Add clinical note..."
+                                    rows="2"></textarea>
+                                <button class="mini-save-btn" data-treatment-id="{{ t.id }}"
+                                    data-appointment-id="{{ visit.id }}" type="button" title="Save Note">
+                                    <i class="bi bi-send-fill"></i>
                                 </button>
+                            </div>
 
-                                {% if t.status == 'in_progress' %}
-                                <!-- Continue Treatment Button (Orange) -->
+                            <!-- Action Buttons (Only for In Progress) -->
+                            {% if t.status == 'in_progress' %}
+                            <div class="action-buttons-row">
                                 <a href="{{ url_for('calendar_api.dashboard') }}?patient={{ patient.id }}&continue_treatment={{ t.id }}"
-                                    class="action-btn continue-btn"
-                                    title="Continuer le traitement (Planifier la prochaine séance)">
+                                    class="mini-action-btn continue" title="Continuer le traitement">
                                     <i class="bi bi-arrow-right-circle"></i>
                                 </a>
-
-                                <!-- Mark as Completed Button (Green) -->
-                                <button class="action-btn complete-treatment-btn" data-treatment-id="{{ t.id }}"
-                                    type="button" title="Marquer comme terminé">
+                                <button class="mini-action-btn complete" data-treatment-id="{{ t.id }}"
+                                    title="Marquer comme terminé">
                                     <i class="bi bi-check-circle"></i>
                                 </button>
-                                {% endif %}
                             </div>
+                            {% endif %}
                         </div>
-                    </td>
-                    <td class="col-money cost-cell">{{ t.cost | default(0) }} DT</td>
-                    <td class="col-money paid-cell">{{ (t.payments | sum(attribute='amount') if t.payments else 0) }} DT
                     </td>
                 </tr>
                 {% endfor %}
@@ -562,20 +560,17 @@
         const csrfToken = "{{ csrf_token() }}";
 
         // ==========================================
-        // 1. SAVE NOTE LOGIC (With Auto-Clear)
+        // 1. SAVE NOTE LOGIC
         // ==========================================
-        const saveButtons = document.querySelectorAll('.save-note-btn');
+        const saveButtons = document.querySelectorAll('.mini-save-btn');
         saveButtons.forEach(btn => {
             btn.addEventListener('click', async function () {
                 const treatmentId = this.getAttribute('data-treatment-id');
-                const textarea = document.querySelector(`textarea[data-treatment-id="${treatmentId}"]`);
-                if (!textarea) return;
+                const appointmentId = this.getAttribute('data-appointment-id');
+                const input = document.getElementById(`input-${treatmentId}`);
+                const content = input.value.trim();
 
-                const noteText = textarea.value.trim();
-                if (!noteText) {
-                    alert("Please enter a note before saving.");
-                    return;
-                }
+                if (!content) return;
 
                 const originalIcon = this.innerHTML;
                 this.innerHTML = '<i class="bi bi-hourglass-split"></i>';
@@ -584,43 +579,63 @@
                 try {
                     const response = await fetch(`/patients/treatments/${treatmentId}/update-notes`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken },
-                        body: `clinical_notes=${encodeURIComponent(noteText)}&csrf_token=${csrfToken}`
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            content: content,
+                            appointment_id: appointmentId ? parseInt(appointmentId) : null
+                        })
                     });
+
                     const result = await response.json();
 
                     if (result.success) {
+                        const stack = document.getElementById(`notes-stack-${treatmentId}`);
+
+                        // Inject the COMPACT HTML structure
+                        const newNoteHTML = `
+                            <div class="mini-sticky-note">
+                                <div class="mini-note-header">
+                                    <span class="mini-date">${result.created_at}</span>
+                                    <a href="/api/calendar?appt=${appointmentId}" class="mini-note-appt-link" title="View Appointment">
+                                        <i class="bi bi-calendar-event"></i>
+                                    </a>
+                                </div>
+                                <div class="mini-note-body">${content.replace(/\n/g, '<br>')}</div>
+                            </div>
+                        `;
+
+                        stack.insertAdjacentHTML('afterbegin', newNoteHTML);
+                        input.value = ''; // Clear input
+
                         this.innerHTML = '<i class="bi bi-check-circle-fill"></i>';
                         this.style.background = '#10b981';
                         this.style.color = 'white';
-                        this.style.borderColor = '#10b981';
-
-                        // ✅ Clear textarea since notes are now appended
-                        textarea.value = '';
                     } else {
                         throw new Error(result.error || 'Save failed');
                     }
                 } catch (error) {
+                    console.error('Error saving note:', error);
                     this.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
                     this.style.background = '#ef4444';
                     this.style.color = 'white';
-                    this.style.borderColor = '#ef4444';
                 }
 
+                // Reset button after 2 seconds
                 setTimeout(() => {
                     this.innerHTML = originalIcon;
                     this.style.background = '';
                     this.style.color = '';
-                    this.style.borderColor = '';
                     this.disabled = false;
                 }, 2000);
             });
         });
-
         // ==========================================
         // 2. MARK TREATMENT COMPLETE LOGIC
         // ==========================================
-        const completeBtns = document.querySelectorAll('.complete-treatment-btn');
+        const completeBtns = document.querySelectorAll('.mini-action-btn.complete');
         completeBtns.forEach(btn => {
             btn.addEventListener('click', async function () {
                 if (!confirm('Are you sure you want to mark this treatment as fully completed?')) return;
@@ -638,16 +653,18 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        // Reload page to update status badges and hide buttons
                         window.location.reload();
                     } else {
                         throw new Error(result.error || 'Failed to complete treatment');
                     }
                 } catch (error) {
+                    console.error('Error completing treatment:', error);
                     this.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
                     this.style.color = '#ef4444';
+
                     setTimeout(() => {
                         this.innerHTML = originalIcon;
+                        this.style.color = '';
                         this.disabled = false;
                     }, 2000);
                 }

@@ -160,6 +160,28 @@ class Prosthetic(db.Model):
     
     patient = db.relationship('Patient', backref=db.backref('prosthetics', lazy=True))
 
+class ClinicalNote(db.Model):
+    __tablename__ = 'clinical_notes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    
+    # Optional links to Treatment and Appointment
+    treatment_id = db.Column(db.Integer, db.ForeignKey('treatment.id'), nullable=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=True)
+    
+    # Track who wrote it and when
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # ✅ FIX: Renamed backrefs to 'note_entries' to avoid collision with the old column
+    treatment = db.relationship('Treatment', backref=db.backref('note_entries', lazy='dynamic', order_by='ClinicalNote.created_at.desc()'))
+    appointment = db.relationship('Appointment', backref=db.backref('note_entries_appt', lazy='dynamic', order_by='ClinicalNote.created_at.desc()'))
+    author = db.relationship('User', backref='written_notes')
+
+    def __repr__(self):
+        return f'<ClinicalNote {self.id}>'
+
 # FINANCIAL MODELS (Merged from Financial App)
 # ==========================================
 
