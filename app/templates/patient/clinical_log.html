@@ -2,6 +2,61 @@
 
 {% block patient_content %}
 <style>
+    /* Container for action buttons */
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+        align-items: stretch;
+    }
+
+    /* Base style for new action buttons */
+    .action-btn {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        background: white;
+    }
+
+    .action-btn i {
+        font-size: 1.2rem;
+    }
+
+    /* Continue Button (Orange) */
+    .continue-btn {
+        background: #fff7ed;
+        border-color: #fdba74;
+        color: #ea580c;
+    }
+
+    .continue-btn:hover {
+        background: #ea580c;
+        color: white;
+        border-color: #ea580c;
+        transform: translateY(-1px);
+    }
+
+    /* Mark Complete Button (Green) */
+    .complete-treatment-btn {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #16a34a;
+    }
+
+    .complete-treatment-btn:hover {
+        background: #16a34a;
+        color: white;
+        border-color: #16a34a;
+        transform: translateY(-1px);
+    }
+
     /* Make specific planned treatment rows clickable */
     .clickable-treatment-row {
         cursor: pointer;
@@ -466,8 +521,29 @@
                         <div class="notes-wrapper">
                             <textarea class="inline-notes" data-treatment-id="{{ t.id }}"
                                 placeholder="Ajouter une note...">{{ t.clinical_notes or '' }}</textarea>
-                            <button class="save-note-btn" data-treatment-id="{{ t.id }}" type="button"
-                                title="Enregistrer"><i class="bi bi-check-lg"></i></button>
+
+                            <div class="action-buttons">
+                                <!-- Save Note Button -->
+                                <button class="save-note-btn" data-treatment-id="{{ t.id }}" type="button"
+                                    title="Enregistrer">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+
+                                {% if t.status == 'in_progress' %}
+                                <!-- Continue Treatment Button (Orange) -->
+                                <a href="{{ url_for('calendar_api.dashboard') }}?patient={{ patient.id }}&continue_treatment={{ t.id }}"
+                                    class="action-btn continue-btn"
+                                    title="Continuer le traitement (Planifier la prochaine séance)">
+                                    <i class="bi bi-arrow-right-circle"></i>
+                                </a>
+
+                                <!-- Mark as Completed Button (Green) -->
+                                <button class="action-btn complete-treatment-btn" data-treatment-id="{{ t.id }}"
+                                    type="button" title="Marquer comme terminé">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                                {% endif %}
+                            </div>
                         </div>
                     </td>
                     <td class="col-money cost-cell">{{ t.cost | default(0) }} DT</td>
@@ -484,13 +560,22 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const csrfToken = "{{ csrf_token() }}";
-        const saveButtons = document.querySelectorAll('.save-note-btn');
 
+        // ==========================================
+        // 1. SAVE NOTE LOGIC (With Auto-Clear)
+        // ==========================================
+        const saveButtons = document.querySelectorAll('.save-note-btn');
         saveButtons.forEach(btn => {
             btn.addEventListener('click', async function () {
                 const treatmentId = this.getAttribute('data-treatment-id');
                 const textarea = document.querySelector(`textarea[data-treatment-id="${treatmentId}"]`);
                 if (!textarea) return;
+
+                const noteText = textarea.value.trim();
+                if (!noteText) {
+                    alert("Please enter a note before saving.");
+                    return;
+                }
 
                 const originalIcon = this.innerHTML;
                 this.innerHTML = '<i class="bi bi-hourglass-split"></i>';
@@ -500,7 +585,7 @@
                     const response = await fetch(`/patients/treatments/${treatmentId}/update-notes`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken },
-                        body: `clinical_notes=${encodeURIComponent(textarea.value)}&csrf_token=${csrfToken}`
+                        body: `clinical_notes=${encodeURIComponent(noteText)}&csrf_token=${csrfToken}`
                     });
                     const result = await response.json();
 
@@ -509,8 +594,11 @@
                         this.style.background = '#10b981';
                         this.style.color = 'white';
                         this.style.borderColor = '#10b981';
+
+                        // ✅ Clear textarea since notes are now appended
+                        textarea.value = '';
                     } else {
-                        throw new Error('Save failed');
+                        throw new Error(result.error || 'Save failed');
                     }
                 } catch (error) {
                     this.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
@@ -526,6 +614,43 @@
                     this.style.borderColor = '';
                     this.disabled = false;
                 }, 2000);
+            });
+        });
+
+        // ==========================================
+        // 2. MARK TREATMENT COMPLETE LOGIC
+        // ==========================================
+        const completeBtns = document.querySelectorAll('.complete-treatment-btn');
+        completeBtns.forEach(btn => {
+            btn.addEventListener('click', async function () {
+                if (!confirm('Are you sure you want to mark this treatment as fully completed?')) return;
+
+                const treatmentId = this.getAttribute('data-treatment-id');
+                const originalIcon = this.innerHTML;
+                this.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+                this.disabled = true;
+
+                try {
+                    const response = await fetch(`/patients/treatments/${treatmentId}/mark-complete`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken }
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // Reload page to update status badges and hide buttons
+                        window.location.reload();
+                    } else {
+                        throw new Error(result.error || 'Failed to complete treatment');
+                    }
+                } catch (error) {
+                    this.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+                    this.style.color = '#ef4444';
+                    setTimeout(() => {
+                        this.innerHTML = originalIcon;
+                        this.disabled = false;
+                    }, 2000);
+                }
             });
         });
     });

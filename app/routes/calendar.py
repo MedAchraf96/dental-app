@@ -359,31 +359,22 @@ def complete_appointment(appointment_id):
         
         appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
-        
-        # Auto-mark linked treatments as completed AND update chart
+
+        # ✅ CHANGE: Mark linked treatments as IN_PROGRESS instead of COMPLETED
         for treatment in appointment.treatments.all():
-            treatment.status = TreatmentStatus.COMPLETED
-            
-            # 1. Set Clinical Date to match the Appointment Date
+            if treatment.status != TreatmentStatus.COMPLETED: # Don't downgrade already finished ones
+                treatment.status = TreatmentStatus.IN_PROGRESS
+                
+            # 1. Set Clinical Date
             treatment.completed_date = appointment.start_time.date()
-            
-            # 2. Set Audit Log to the exact moment of clicking
+            # 2. Set Audit Log
             treatment.admin_completed_at = datetime.utcnow()
-            
-            # 3. Call the helper if the treatment has a specific tooth number
+            # 3. Update chart
             if treatment.tooth_number:
                 update_tooth_chart_on_completion(treatment)
-            
+
         db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'appointment': {
-                'id': appointment.id,
-                'status': appointment.status,
-                'completed_at': appointment.completed_at.isoformat()
-            }
-        })
+        return jsonify({'success': True, 'appointment': {'id': appointment.id}})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 400

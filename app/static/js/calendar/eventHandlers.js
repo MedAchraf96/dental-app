@@ -503,9 +503,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ✅ NEW: Count already-linked treatments that are STILL checked
     const checkedLinkedBoxes = document.querySelectorAll('.linked-treatment-cb:checked');
     const remainingLinkedIds = Array.from(checkedLinkedBoxes).map(cb => parseInt(cb.value));
+    let continuedTreatmentId = null;
+    if (appointmentForm.dataset.continue_treatment_id) {
+      continuedTreatmentId = parseInt(appointmentForm.dataset.continue_treatment_id);
+    }
 
     // ✅ 2. Validate: Must have patient AND at least one treatment total
-    const totalTreatments = remainingLinkedIds.length + existingIds.length + newTreatments.length;
+    const totalTreatments = remainingLinkedIds.length + existingIds.length + newTreatments.length + (continuedTreatmentId ? 1 : 0);
 
     if (totalTreatments === 0) {
       alert('Please choose at least one treatment or add a new procedure.');
@@ -544,14 +548,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const startDate = new Date(`${date}T${startTime}:00`);
     const endDate = new Date(startDate.getTime() + duration * 60000);
 
+    // ✅ NEW: Include the continued treatment ID if it exists
+    let finalTreatmentIds = [...existingIds];
+    if (continuedTreatmentId) {
+      finalTreatmentIds.push(continuedTreatmentId);
+    }
+
     const appointmentData = {
       patient_id: parseInt(patientId, 10),
       start_time: startDate.toISOString(),
       end_time: endDate.toISOString(),
-      treatment_ids: existingIds,
+      treatment_ids: finalTreatmentIds,
       new_treatments: newTreatments,
-      treatments_to_unlink: treatmentsToUnlink // ✅ ADD THIS LINE
-
+      treatments_to_unlink: treatmentsToUnlink
     };
 
     // ✅ 5. UI Feedback: Disable button

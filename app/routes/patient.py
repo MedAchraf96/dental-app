@@ -511,7 +511,7 @@ def clinical_log(patient_id):
     # 2. Fetch Appointments
     appointments = Appointment.query.filter(
         Appointment.patient_id == patient_id,
-        Appointment.status.in_(['completed', 'scheduled'])
+        Appointment.status.in_(['completed', 'scheduled', 'in_progress']) # Added in_progress just in case
     ).order_by(Appointment.start_time.desc()).all()
 
     all_treatments = Treatment.query.filter_by(patient_id=patient_id).all()
@@ -521,22 +521,27 @@ def clinical_log(patient_id):
     # 3. Initialize Grand Totals
     grand_total_cost = 0.0
     grand_total_paid = 0.0
+    counted_treatment_ids = set()  # ✅ NEW: Track IDs to prevent double counting
 
     for appt in appointments:
         appt_treatments = appt.treatments.all()
         for t in appt_treatments:
             linked_treatment_ids.add(t.id)
             
+        # A. Calculate totals for this specific visit row (for the UI table)
+        visit_cost = sum(t.cost for t in appt_treatments)
         total_paid_appt = 0
         for t in appt_treatments:
             payments = PatientPayment.query.filter_by(treatment_id=t.id).all()
             total_paid_appt += sum(p.amount for p in payments)
             
-        visit_cost = sum(t.cost for t in appt_treatments)
-        
-        # Add to Grand Totals
-        grand_total_cost += visit_cost
-        grand_total_paid += total_paid_appt
+        # B. Calculate Grand Totals (Prevent Double Counting)
+        for t in appt_treatments:
+            if t.id not in counted_treatment_ids:
+                grand_total_cost += t.cost
+                payments = PatientPayment.query.filter_by(treatment_id=t.id).all()
+                grand_total_paid += sum(p.amount for p in payments)
+                counted_treatment_ids.add(t.id)
 
         visit_data.append({
             'type': 'appointment',
@@ -548,11 +553,18 @@ def clinical_log(patient_id):
             'total_paid': total_paid_appt
         })
 
-    # 4. Fetch Orphan Planned Treatments
-    orphan_treatments = [t for t in all_treatments if t.id not in linked_treatment_ids and t.status == 'planned']
+    # 4. Fetch Orphan Planned/In-Progress Treatments
+    # ✅ Updated to include 'in_progress' treatments that aren't linked to a future appointment yet
+    orphan_treatments = [t for t in all_treatments if t.id not in linked_treatment_ids and t.status in ['planned', 'in_progress']]
+    
     if orphan_treatments:
         orphan_cost = sum(t.cost for t in orphan_treatments)
-        grand_total_cost += orphan_cost # Add planned cost to grand total
+        
+        # Add to grand total safely
+        for t in orphan_treatments:
+            if t.id not in counted_treatment_ids:
+                grand_total_cost += t.cost
+                counted_treatment_ids.add(t.id)
 
         visit_data.append({
             'type': 'planned',
@@ -567,7 +579,7 @@ def clinical_log(patient_id):
     # Sort by date (Newest first)
     visit_data.sort(key=lambda x: x['date'], reverse=True)
 
-    # 5. Render Template with ALL variables explicitly passed
+    # 5. Render Template
     return render_template(
         'patient/clinical_log.html',
         patient=patient,
@@ -577,6 +589,7 @@ def clinical_log(patient_id):
         grand_total_paid=grand_total_paid,
         active_tab='documents'
     )
+
 @patient_bp.route('/<int:patient_id>/api/details')
 @login_required
 def patient_details_api(patient_id):
@@ -588,32 +601,57 @@ def patient_details_api(patient_id):
         'phone': patient.phone or ''
     })
     
-# New Route: Save Clinical Notes for a specific treatment inline
+# ==========================================
+# CLINICAL NOTES & TREATMENT STATUS
+# ==========================================
+
+# Updated Route: Append Clinical Notes for a specific treatment inline (Option A)
 @patient_bp.route('/treatments/<int:treatment_id>/update-notes', methods=['POST'])
 @login_required
 def update_treatment_notes(treatment_id):
     treatment = Treatment.query.get_or_404(treatment_id)
-    new_notes = request.form.get('clinical_notes', '')
+    new_notes = request.form.get('clinical_notes', '').strip()
     
+    if not new_notes:
+        return jsonify({'success': False, 'error': 'Note cannot be empty'}), 400
+
     try:
-        treatment.clinical_notes = new_notes
+        # ✅ OPTION A: Append with timestamp
+        timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
+        formatted_entry = f"\n\n[{timestamp}] {new_notes}"
+        
+        # If there are existing notes, append. If not, just start with the timestamp.
+        if treatment.clinical_notes:
+            treatment.clinical_notes = treatment.clinical_notes + formatted_entry
+        else:
+            treatment.clinical_notes = f"[{timestamp}] {new_notes}"
+            
+        db.session.commit()
+        return jsonify({'success': True, 'notes': treatment.clinical_notes})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ✅ NEW Route: Manually mark a treatment as fully completed
+@patient_bp.route('/treatments/<int:treatment_id>/mark-complete', methods=['POST'])
+@login_required
+def mark_treatment_complete(treatment_id):
+    treatment = Treatment.query.get_or_404(treatment_id)
+    try:
+        treatment.status = TreatmentStatus.COMPLETED
+        
+        # If clinical date isn't set, set it to today
+        if not treatment.completed_date:
+            treatment.completed_date = datetime.now().date()
+            
+        treatment.admin_completed_at = datetime.utcnow()
+        
+        # Update the visual chart if it's a specific tooth
+        if treatment.tooth_number:
+            update_tooth_chart_on_completion(treatment)
+            
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
-    patient = db.session.get(Patient, patient_id)
-    if not patient:
-        return jsonify({'success': False, 'error': 'Patient not found'}), 404
-        
-    try:
-        # Get the new notes from the request
-        new_notes = request.form.get('clinical_notes', '')
-        patient.notes = new_notes
-        db.session.commit()
-        
-        # Return a success JSON response
-        return jsonify({'success': True, 'message': 'Notes saved'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500   
