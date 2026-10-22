@@ -3,286 +3,749 @@
 {% block title %}Cahier Financier - {{ patient.full_name }}{% endblock %}
 
 {% block patient_content %}
-
 <style>
-    .ledger-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-
-    .ledger-header {
+    /* Payment History Item */
+    .history-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #1e3a8a;
+        padding: 12px 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        border-left: 4px solid #10b981;
     }
 
-    .ledger-header h2 {
-        margin: 0;
-        color: #1e3a8a;
-        font-size: 22px;
+    .history-date {
+        font-size: 0.85rem;
+        color: #64748b;
+        font-weight: 500;
+        min-width: 100px;
+    }
+
+    .history-method {
+        font-size: 0.85rem;
+        color: #475569;
+        background: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        flex: 1;
+        margin: 0 16px;
+        text-align: center;
+    }
+
+    .history-amount {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #10b981;
+        min-width: 80px;
+        text-align: right;
+    }
+
+    .empty-history {
+        text-align: center;
+        color: #94a3b8;
+        padding: 20px;
+        font-style: italic;
+    }
+
+    /* ==========================================
+       FINANCIAL PAGE STYLES (Matches Clinical Log)
+       ========================================== */
+    .financial-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+
+    /* Blue Gradient Header */
+    .financial-header {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        color: white;
+        padding: 32px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .financial-header h1 {
+        margin: 0 0 12px 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .header-info {
+        display: flex;
+        gap: 32px;
+        flex-wrap: wrap;
+        font-size: 0.95rem;
+    }
+
+    .header-info span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.95;
+    }
+
+    .text-danger {
+        color: #fca5a5 !important;
+        font-weight: 600;
+    }
+
+    .btn-back {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+
+    .btn-back:hover {
+        background: rgba(255, 255, 255, 0.3);
     }
 
     /* Summary Cards */
-    .summary-row {
+    .summary-cards {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 15px;
-        margin-bottom: 25px;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
     }
 
     .summary-card {
         background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        padding: 15px;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         text-align: center;
+        border-left: 4px solid #1e3a8a;
     }
 
-    .summary-card .label {
-        font-size: 11px;
-        color: #6c757d;
+    .summary-card.billed {
+        border-left-color: #1e3a8a;
+    }
+
+    .summary-card.tiers {
+        border-left-color: #f59e0b;
+    }
+
+    .summary-card.paid {
+        border-left-color: #10b981;
+    }
+
+    .summary-card.balance {
+        border-left-color: #ef4444;
+    }
+
+    .summary-label {
+        display: block;
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-bottom: 8px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 5px;
+        font-weight: 600;
     }
 
-    .summary-card .value {
-        font-size: 22px;
+    .summary-value {
+        font-size: 1.75rem;
         font-weight: 700;
+        color: #1e293b;
+    }
+
+    .summary-card.billed .summary-value {
         color: #1e3a8a;
     }
 
-    .summary-card.paid .value {
-        color: #28a745;
+    .summary-card.tiers .summary-value {
+        color: #f59e0b;
     }
 
-    .summary-card.balance .value {
-        color: #dc3545;
+    .summary-card.paid .summary-value {
+        color: #10b981;
     }
 
-    .form-row {
+    .summary-card.balance .summary-value {
+        color: #ef4444;
+    }
+
+    /* Table Styling */
+    .table-responsive {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow-x: auto;
+    }
+
+    .financial-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: 900px;
+    }
+
+    .financial-table thead th {
+        background: #f1f5f9;
+        color: #475569;
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .financial-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+
+    .financial-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .financial-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .col-date {
+        width: 110px;
+        white-space: nowrap;
+    }
+
+    .col-procedure {
+        width: 35%;
+    }
+
+    .col-money {
+        width: 100px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+
+    .col-action {
+        width: 80px;
+        text-align: center;
+    }
+
+    .procedure-name {
+        font-weight: 600;
+        color: #0f172a;
+        font-size: 0.95rem;
+        margin-bottom: 4px;
+    }
+
+    .tooth-badge {
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        color: #1e40af;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        display: inline-block;
+    }
+
+    .amount-positive {
+        color: #10b981;
+    }
+
+    .amount-negative {
+        color: #ef4444;
+    }
+
+    .amount-neutral {
+        color: #64748b;
+    }
+
+    /* Icon Button */
+    .icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        color: #10b981;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 1.1rem;
+    }
+
+    .icon-btn:hover {
+        background: #10b981;
+        color: white;
+        border-color: #10b981;
+        transform: translateY(-1px);
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-overlay.active {
         display: flex;
-        gap: 10px;
-        align-items: flex-end;
-        flex-wrap: wrap;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #64748b;
+        cursor: pointer;
+    }
+
+    .modal-close:hover {
+        color: #1e293b;
     }
 
     .form-group {
-        flex: 1;
-        min-width: 120px;
+        margin-bottom: 20px;
     }
 
-    .form-group label {
+    .form-label {
         display: block;
-        font-size: 11px;
+        font-size: 0.875rem;
         font-weight: 600;
-        color: #495057;
-        margin-bottom: 4px;
-        text-transform: uppercase;
+        color: #475569;
+        margin-bottom: 8px;
     }
 
-    .form-group input,
-    .form-group select {
+    .form-input,
+    .form-select {
         width: 100%;
-        padding: 6px 8px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 13px;
+        padding: 10px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        box-sizing: border-box;
     }
 
-    /* Ledger Table */
-    .ledger-table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-        border: 1px solid #dee2e6;
+    .form-input:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
-    .ledger-table thead {
-        background: #1e3a8a;
-        color: white;
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 24px;
     }
 
-    .ledger-table th {
-        padding: 10px 12px;
-        text-align: left;
-        font-size: 12px;
-        text-transform: uppercase;
-    }
-
-    .ledger-table td {
-        padding: 10px 12px;
-        border-bottom: 1px solid #e9ecef;
-        font-size: 13px;
-        vertical-align: top;
-    }
-
-    .ledger-table .prix-col {
-        text-align: right;
+    .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 0.95rem;
         font-weight: 600;
-        color: #28a745;
-    }
-
-    .ledger-table .balance-col {
-        text-align: right;
-        font-weight: 700;
-        color: #dc3545;
-    }
-
-    /* Payment Form Row (Hidden by default) */
-    .payment-form-row {
-        display: none;
-        background: #e8f5e9;
-    }
-
-    .payment-form-row.active {
-        display: table-row;
-    }
-
-    .btn-pay {
-        background: #28a745;
-        color: white;
+        cursor: pointer;
         border: none;
-        padding: 4px 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
+        transition: all 0.2s;
     }
 
-    .btn-toggle {
-        background: none;
-        border: 1px solid #28a745;
-        color: #28a745;
-        padding: 4px 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .btn-secondary:hover {
+        background: #e2e8f0;
+    }
+
+    .btn-primary {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+
+    .balance-info {
+        background: #f8fafc;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .balance-label {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .balance-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #ef4444;
     }
 </style>
 
-<div class="ledger-container">
-    <div class="ledger-header">
+<div class="financial-container">
+    <!-- Blue Gradient Header -->
+    <div class="financial-header">
         <div>
-            <h2>📒 Cahier Financier</h2>
-            <div style="color: #6c757d;">{{ patient.full_name }} — {{ patient.phone }}</div>
+            <h1>
+                <i class="bi bi-cash-stack" style="margin-right: 12px;"></i>
+                Cahier Financier
+            </h1>
+            <div class="header-info">
+                <span><i class="bi bi-person-fill"></i> {{ patient.full_name }}</span>
+                <span><i class="bi bi-telephone-fill"></i> {{ patient.phone or 'N/A' }}</span>
+            </div>
         </div>
-        <a href="{{ url_for('patient.profile', patient_id=patient.id) }}" class="btn"
-            style="background: #6c757d; color: white; padding: 6px 14px; border-radius: 6px; text-decoration: none;">←
-            Back</a>
+        <a href="{{ url_for('patient.profile', patient_id=patient.id) }}" class="btn-back">
+            <i class="bi bi-arrow-left"></i> Back to Profile
+        </a>
     </div>
 
-    <!-- Summary Row -->
-    <div class="summary-row">
-        <div class="summary-card">
-            <div class="label">Total Billed</div>
-            <div class="value">{{ "%.2f"|format(total_billed) }} DT</div>
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card billed">
+            <span class="summary-label">Total Facturé</span>
+            <span class="summary-value">{{ "%.2f"|format(total_billed) }} DT</span>
         </div>
-        <div class="summary-card">
-            <div class="label">Du Tiers</div>
-            <div class="value" style="color: #ffc107;">{{ "%.2f"|format(total_insurance) }} DT</div>
+        <div class="summary-card tiers">
+            <span class="summary-label">Du Tiers</span>
+            <span class="summary-value">{{ "%.2f"|format(total_insurance) }} DT</span>
         </div>
         <div class="summary-card paid">
-            <div class="label">Total Paid</div>
-            <div class="value">{{ "%.2f"|format(total_paid) }} DT</div>
+            <span class="summary-label">Total Payé</span>
+            <span class="summary-value">{{ "%.2f"|format(total_paid) }} DT</span>
         </div>
         <div class="summary-card balance">
-            <div class="label">Remaining Balance</div>
-            <div class="value">{{ "%.2f"|format(total_balance) }} DT</div>
+            <span class="summary-label">Reste à Payer</span>
+            <span class="summary-value">{{ "%.2f"|format(total_balance) }} DT</span>
         </div>
     </div>
 
-    <!-- Ledger Table -->
-    <table class="ledger-table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Acte</th>
-                <th style="text-align: right;">Prix</th>
-                <th style="text-align: right;">Tiers</th>
-                <th style="text-align: right;">Paid</th>
-                <th style="text-align: right;">Balance</th>
-                <th style="text-align: center;">Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in ledger_entries %}
-            {% set entry_paid = entry.payments|sum(attribute='amount') %}
-            {% set entry_balance = (entry.cost - (entry.insurance_amount or 0)) - entry_paid %}
+    <!-- Financial Table -->
+    <div class="table-responsive">
+        <table class="financial-table">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-procedure">Acte</th>
+                    <th class="col-money">Prix</th>
+                    <th class="col-money">Tiers</th>
+                    <th class="col-money">Payé</th>
+                    <th class="col-money">Solde</th>
+                    <th class="col-action">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in ledger_entries %}
+                {# ✅ SAFE CALCULATION (Matches your old file) #}
+                {% set entry_paid = entry.payments|sum(attribute='amount') if entry.payments else 0 %}
+                {% set entry_balance = (entry.cost - (entry.insurance_amount or 0)) - entry_paid %}
 
-            <tr>
-                <td>{{ entry.completed_date.strftime('%d/%m/%Y') if entry.completed_date else '-' }}</td>
-                <td>
-                    <div style="font-weight: 600;">
-                        {% if entry.tooth_number %}<span
-                            style="background: #e9ecef; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-right: 5px;">🦷
-                            {{ entry.tooth_number }}</span>{% endif %}
-                        {{ entry.procedure_name }}
-                    </div>
-                    {% if entry.clinical_notes %}<div style="font-size: 11px; color: #6c757d; font-style: italic;">{{
-                        entry.clinical_notes }}</div>{% endif %}
-                </td>
-                <td class="prix-col">{{ "%.2f"|format(entry.cost) }}</td>
-                <td class="prix-col" style="color: #ffc107;">{{ "%.2f"|format(entry.insurance_amount or 0) }}</td>
-                <td class="prix-col" style="color: #28a745;">{{ "%.2f"|format(entry_paid) }}</td>
-                <td class="balance-col">{{ "%.2f"|format(entry_balance) }}</td>
-                <td style="text-align: center;">
-                    {% if entry_balance > 0.01 %}
-                    <button type="button" class="btn-toggle" onclick="togglePayment('pay-form-{{ entry.id }}')">Record
-                        Payment</button>
-                    {% else %}
-                    <span style="color: #28a745; font-weight: bold;">✓ Paid</span>
-                    {% endif %}
-                </td>
-            </tr>
+                <tr>
+                    <td class="col-date">{{ entry.completed_date.strftime('%d/%m/%Y') if entry.completed_date else '-'
+                        }}</td>
+                    <td class="col-procedure">
+                        <div class="procedure-name">{{ entry.procedure_name }}</div>
+                        {% if entry.tooth_number %}
+                        <span class="tooth-badge">🦷 {{ entry.tooth_number }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-money amount-positive" style="cursor: pointer; position: relative;"
+                        onclick="openPaymentHistory(this)"
+                        data-payments='[ {% for p in entry.payments %} {"date": "{{ p.date.strftime(' %d/%m/%Y') if
+                        p.date else '-' }}", "method" : "{{ p.method }}" , "amount" : {{ p.amount }} }{% if not
+                        loop.last %},{% endif %}{% endfor %} ]' data-procedure="{{ entry.procedure_name }}">
 
-            <!-- Hidden Payment Form Row -->
-            <tr id="pay-form-{{ entry.id }}" class="payment-form-row">
-                <td colspan="7" style="padding: 15px;">
-                    <form method="POST" action="{{ url_for('patient.add_payment', patient_id=patient.id) }}"
-                        style="display: flex; gap: 10px; align-items: flex-end;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="treatment_id" value="{{ entry.id }}">
-
-                        <div class="form-group" style="flex: 0 0 120px;">
-                            <label>Date</label>
-                            <input type="date" name="payment_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
-                        </div>
-                        <div class="form-group" style="flex: 0 0 100px;">
-                            <label>Amount (DT)</label>
-                            <input type="number" name="amount" step="0.01" max="{{ entry_balance }}" placeholder="0.00"
-                                required>
-                        </div>
-                        <div class="form-group" style="flex: 0 0 120px;">
-                            <label>Method</label>
-                            <select name="method">
-                                <option value="Cash">Cash</option>
-                                <option value="Card">Card</option>
-                                <option value="Check">Check</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn-pay">Save Payment</button>
-                        <button type="button" class="btn-toggle" style="border-color: #dc3545; color: #dc3545;"
-                            onclick="togglePayment('pay-form-{{ entry.id }}')">Cancel</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                        {{ "%.2f"|format(entry_paid) }} DT
+                        {% if entry_paid > 0 %}
+                        <i class="bi bi-list-ul" style="margin-left: 6px; font-size: 0.8em; opacity: 0.6;"></i>
+                        {% endif %}
+                    </td>
+                    <td class="col-money amount-neutral">{{ "%.2f"|format(entry.insurance_amount or 0) }} DT</td>
+                    <td class="col-money amount-positive">{{ "%.2f"|format(entry_paid) }} DT</td>
+                    <td class="col-money amount-negative">{{ "%.2f"|format(entry_balance) }} DT</td>
+                    <td class="col-action">
+                        {% if entry_balance > 0.01 %}
+                        <button class="icon-btn record-payment-btn" data-treatment-id="{{ entry.id }}"
+                            data-balance="{{ entry_balance }}" data-procedure="{{ entry.procedure_name }}"
+                            title="Enregistrer un paiement">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+                        {% else %}
+                        <i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 1.2rem;"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<!-- Vanilla JS to toggle the payment form -->
-<script>
-    function togglePayment(formId) {
-        const formRow = document.getElementById(formId);
-        if (formRow) {
-            formRow.classList.toggle('active');
-        }
-    }
-</script>
+<!-- Payment Modal -->
+<div class="modal-overlay" id="paymentModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="bi bi-cash-stack" style="color: #10b981; margin-right: 8px;"></i>
+                Enregistrer un Paiement
+            </h2>
+            <button class="modal-close" onclick="closePaymentModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
 
+        <div class="balance-info">
+            <span class="balance-label">Solde restant:</span>
+            <span class="balance-amount" id="modalBalance">0 DT</span>
+        </div>
+
+        <form id="paymentForm">
+            <div class="form-group">
+                <label class="form-label">Traitement</label>
+                <input type="text" class="form-input" id="modalProcedure" readonly style="background: #f8fafc;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Montant (DT) *</label>
+                <input type="number" class="form-input" id="paymentAmount" step="0.01" min="0" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Méthode de Paiement</label>
+                <select class="form-select" id="paymentMethod">
+                    <option value="Cash">Espèces</option>
+                    <option value="Card">Carte Bancaire</option>
+                    <option value="Check">Chèque</option>
+                    <option value="Transfer">Virement</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Date de Paiement</label>
+                <input type="date" class="form-input" id="paymentDate" required>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">Annuler</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> Enregistrer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Payment History Modal -->
+<div class="modal-overlay" id="historyModal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="bi bi-clock-history" style="color: #3b82f6; margin-right: 8px;"></i>
+                Historique des Paiements
+            </h2>
+            <button class="modal-close" onclick="closeHistoryModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div style="margin-bottom: 20px; font-size: 0.9rem; color: #64748b;">
+            Traitement: <strong id="historyProcedureName" style="color: #1e293b;">-</strong>
+        </div>
+
+        <div id="historyList" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Payments will be injected here by JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const csrfToken = "{{ csrf_token() }}";
+        const modal = document.getElementById('paymentModal');
+        const paymentForm = document.getElementById('paymentForm');
+        let currentTreatmentId = null;
+
+        // Open Payment Modal
+        document.querySelectorAll('.record-payment-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                currentTreatmentId = this.getAttribute('data-treatment-id');
+                const balance = this.getAttribute('data-balance');
+                const procedure = this.getAttribute('data-procedure');
+
+                document.getElementById('modalBalance').textContent = balance + ' DT';
+                document.getElementById('modalProcedure').value = procedure;
+                document.getElementById('paymentAmount').value = balance;
+                document.getElementById('paymentAmount').max = balance;
+                document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+
+                modal.classList.add('active');
+            });
+        });
+
+        // Close Modal
+        window.closePaymentModal = function () {
+            modal.classList.remove('active');
+            paymentForm.reset();
+            currentTreatmentId = null;
+        };
+
+        // Close on overlay click
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closePaymentModal();
+        });
+
+        // Handle Form Submission
+        paymentForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const amount = document.getElementById('paymentAmount').value;
+            const method = document.getElementById('paymentMethod').value;
+            const date = document.getElementById('paymentDate').value;
+
+            if (!amount || amount <= 0) {
+                alert('Veuillez entrer un montant valide');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/patients/{{ patient.id }}/financial/add-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: `treatment_id=${currentTreatmentId}&amount=${amount}&method=${method}&payment_date=${date}&csrf_token=${csrfToken}`
+                });
+
+                if (response.ok) {
+                    closePaymentModal();
+                    window.location.reload();
+                } else {
+                    throw new Error('Erreur lors de l\'enregistrement');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Erreur: ' + error.message);
+            }
+        });
+
+        // Escape key to close modal
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('active')) {
+                closePaymentModal();
+            }
+        });
+    });
+    // ==========================================
+    // PAYMENT HISTORY MODAL LOGIC
+    // ==========================================
+    const historyModal = document.getElementById('historyModal');
+    const historyList = document.getElementById('historyList');
+    const historyProcedureName = document.getElementById('historyProcedureName');
+
+    window.openPaymentHistory = function (element) {
+        const paymentsJson = element.getAttribute('data-payments');
+        const procedure = element.getAttribute('data-procedure');
+
+        historyProcedureName.textContent = procedure;
+        historyList.innerHTML = ''; // Clear previous
+
+        try {
+            const payments = JSON.parse(paymentsJson);
+
+            if (payments.length === 0) {
+                historyList.innerHTML = '<div class="empty-history">Aucun paiement enregistré</div>';
+            } else {
+                payments.forEach(p => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    item.innerHTML = `
+                        <span class="history-date"><i class="bi bi-calendar3" style="margin-right: 4px;"></i> ${p.date}</span>
+                        <span class="history-method">${p.method}</span>
+                        <span class="history-amount">${parseFloat(p.amount).toFixed(2)} DT</span>
+                    `;
+                    historyList.appendChild(item);
+                });
+            }
+        } catch (e) {
+            historyList.innerHTML = '<div class="empty-history">Erreur de chargement</div>';
+        }
+
+        historyModal.classList.add('active');
+    };
+
+    window.closeHistoryModal = function () {
+        historyModal.classList.remove('active');
+    };
+
+    // Close history modal on overlay click
+    historyModal.addEventListener('click', function (e) {
+        if (e.target === historyModal) closeHistoryModal();
+    });
+</script>
 {% endblock %}

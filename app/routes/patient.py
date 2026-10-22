@@ -511,31 +511,33 @@ def clinical_log(patient_id):
     # 2. Fetch Appointments
     appointments = Appointment.query.filter(
         Appointment.patient_id == patient_id,
-        Appointment.status.in_(['completed', 'scheduled', 'in_progress']) # Added in_progress just in case
+        Appointment.status.in_(['completed', 'scheduled', 'in_progress'])
     ).order_by(Appointment.start_time.desc()).all()
 
     all_treatments = Treatment.query.filter_by(patient_id=patient_id).all()
     linked_treatment_ids = set()
-    visit_data = []
     
-    # 3. Initialize Grand Totals
+    # ✅ NEW: Create two separate lists instead of one mixed list
+    appointments_data = []
+    planned_data = []
+    
+    # 3. Initialize Grand Totals (Kept just in case you need them later)
     grand_total_cost = 0.0
     grand_total_paid = 0.0
-    counted_treatment_ids = set()  # ✅ NEW: Track IDs to prevent double counting
+    counted_treatment_ids = set()
 
+    # --- SECTION A: Process Appointments (Scheduled & Completed) ---
     for appt in appointments:
         appt_treatments = appt.treatments.all()
         for t in appt_treatments:
             linked_treatment_ids.add(t.id)
             
-        # A. Calculate totals for this specific visit row (for the UI table)
         visit_cost = sum(t.cost for t in appt_treatments)
         total_paid_appt = 0
         for t in appt_treatments:
             payments = PatientPayment.query.filter_by(treatment_id=t.id).all()
             total_paid_appt += sum(p.amount for p in payments)
             
-        # B. Calculate Grand Totals (Prevent Double Counting)
         for t in appt_treatments:
             if t.id not in counted_treatment_ids:
                 grand_total_cost += t.cost
@@ -543,9 +545,10 @@ def clinical_log(patient_id):
                 grand_total_paid += sum(p.amount for p in payments)
                 counted_treatment_ids.add(t.id)
 
-        visit_data.append({
+        # ✅ Append to the appointments list
+        appointments_data.append({
             'type': 'appointment',
-            'id': appt.id, # Ensure this is here
+            'id': appt.id,
             'date': appt.start_time,
             'status': appt.status,
             'treatments': appt_treatments,
@@ -553,20 +556,19 @@ def clinical_log(patient_id):
             'total_paid': total_paid_appt
         })
 
-    # 4. Fetch Orphan Planned/In-Progress Treatments
-    # ✅ Updated to include 'in_progress' treatments that aren't linked to a future appointment yet
+    # --- SECTION B: Process Orphan Planned/In-Progress Treatments ---
     orphan_treatments = [t for t in all_treatments if t.id not in linked_treatment_ids and t.status in ['planned', 'in_progress']]
     
     if orphan_treatments:
         orphan_cost = sum(t.cost for t in orphan_treatments)
         
-        # Add to grand total safely
         for t in orphan_treatments:
             if t.id not in counted_treatment_ids:
                 grand_total_cost += t.cost
                 counted_treatment_ids.add(t.id)
 
-        visit_data.append({
+        # ✅ Append to the planned list
+        planned_data.append({
             'type': 'planned',
             'id': None,
             'date': datetime.now(), 
@@ -576,15 +578,16 @@ def clinical_log(patient_id):
             'total_paid': 0,
         })
 
-    # Sort by date (Newest first)
-    visit_data.sort(key=lambda x: x['date'], reverse=True)
+    # 4. Sort Appointments Chronologically (Newest first)
+    appointments_data.sort(key=lambda x: x['date'], reverse=True)
 
-    # 5. Render Template
+    # 5. Render Template with SEPARATED lists
     return render_template(
         'patient/clinical_log.html',
         patient=patient,
         patient_age=age,
-        visit_data=visit_data,
+        appointments=appointments_data,      # ✅ Pass the separated list
+        planned_treatments=planned_data,      # ✅ Pass the separated list
         grand_total_cost=grand_total_cost,
         grand_total_paid=grand_total_paid,
         active_tab='documents'

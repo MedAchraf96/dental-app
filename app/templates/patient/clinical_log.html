@@ -5,6 +5,13 @@
     /* ==========================================
        GLOBAL & LAYOUT
        ========================================== */
+    .planned-section-header td {
+        background: #fffbeb !important;
+        /* Light yellow background */
+        border-top: 2px solid #f59e0b;
+        padding: 12px 20px;
+    }
+
     .medical-file-container {
         max-width: 1400px;
         margin: 0 auto;
@@ -457,37 +464,26 @@
                 </tr>
             </thead>
             <tbody>
-                {% for visit in visit_data %}
-                <!-- 1. Group Header Row -->
-                <tr class="group-header {% if visit.type == 'appointment' %}clickable-header{% endif %}" {% if
-                    visit.type=='appointment'
-                    %}onclick="window.location.href='{{ url_for('calendar_api.dashboard') }}?appt={{ visit.id }}'" {%
-                    endif %}>
+                <!-- ==========================================
+         SECTION 1: APPOINTMENTS (Scheduled & Completed)
+         ========================================== -->
+                {% for visit in appointments %}
+                <!-- Group Header Row -->
+                <tr class="group-header clickable-header"
+                    data-url="{{ url_for('calendar_api.dashboard', appt=visit.id) }}">
                     <td colspan="5">
                         <div class="group-title">
-                            {% if visit.type == 'appointment' %}
                             <i class="bi bi-calendar-check-fill"></i> Visite du {{ visit.date.strftime('%d/%m/%Y') }}
                             <span class="badge status-{{ visit.status }}">{{ visit.status | upper }}</span>
                             <i class="bi bi-arrow-right-circle link-arrow"
                                 style="margin-left: 8px; opacity: 0.4; font-size: 1.1em;"></i>
-                            {% elif visit.type == 'planned' %}
-                            <i class="bi bi-clock-history"></i> Traitements Planifiés
-                            <span class="badge" style="background: #dbeafe; color: #1e40af; margin-left: 8px;">
-                                {{ visit.treatments | length }} traitement{{ 's' if visit.treatments | length > 1 else
-                                '' }}
-                            </span>
-                            {% endif %}
                         </div>
                     </td>
                 </tr>
 
-                <!-- 2. Treatment Rows -->
+                <!-- Treatment Rows -->
                 {% for t in visit.treatments %}
-                <tr class="treatment-row {% if visit.type == 'planned' %}clickable-treatment-row{% endif %}" {% if
-                    visit.type=='planned'
-                    %}onclick="window.location.href='{{ url_for('calendar_api.dashboard') }}?patient={{ patient.id }}&treatment={{ t.id }}'"
-                    {% endif %}>
-
+                <tr class="treatment-row">
                     <td class="col-date">
                         <span class="date-display">{{ t.completed_date.strftime('%d/%m/%Y') if t.completed_date else '-'
                             }}</span>
@@ -503,15 +499,14 @@
                     <td class="col-status"><span class="badge status-{{ t.status }}">{{ t.status | upper }}</span></td>
 
                     <td class="col-notes">
-                        <div class="notes-wrapper">
-                            <!-- Compact Notes Stack -->
+                        <div class="notes-wrapper" onclick="event.stopPropagation()">
                             <div class="notes-stack" id="notes-stack-{{ t.id }}">
                                 {% for note in t.note_entries.all() %}
                                 {% if note.appointment_id == visit.id %}
                                 <div class="mini-sticky-note">
                                     <div class="mini-note-header">
                                         <span class="mini-date">{{ note.created_at.strftime('%d/%m %H:%M') }}</span>
-                                        <a href="{{ url_for('calendar_api.dashboard') }}?appt={{ note.appointment_id }}"
+                                        <a href="{{ url_for('calendar_api.dashboard', appt=note.appointment_id) }}"
                                             class="mini-note-appt-link" title="View Appointment">
                                             <i class="bi bi-calendar-event"></i>
                                         </a>
@@ -521,8 +516,6 @@
                                 {% endif %}
                                 {% endfor %}
                             </div>
-
-                            <!-- Input Row (Always Visible) -->
                             <div class="note-input-row">
                                 <textarea class="mini-textarea" id="input-{{ t.id }}" placeholder="Add clinical note..."
                                     rows="2"></textarea>
@@ -531,11 +524,9 @@
                                     <i class="bi bi-send-fill"></i>
                                 </button>
                             </div>
-
-                            <!-- Action Buttons (Only for In Progress) -->
                             {% if t.status == 'in_progress' %}
                             <div class="action-buttons-row">
-                                <a href="{{ url_for('calendar_api.dashboard') }}?patient={{ patient.id }}&continue_treatment={{ t.id }}"
+                                <a href="{{ url_for('calendar_api.dashboard', patient=patient.id, continue_treatment=t.id) }}"
                                     class="mini-action-btn continue" title="Continuer le traitement">
                                     <i class="bi bi-arrow-right-circle"></i>
                                 </a>
@@ -550,6 +541,56 @@
                 </tr>
                 {% endfor %}
                 {% endfor %}
+
+                <!-- ==========================================
+         SECTION 2: PLANNED TREATMENTS (The "To-Do" List)
+         ========================================== -->
+                {% if planned_treatments %}
+                <!-- Distinct Header for Planned Section -->
+                <tr class="planned-section-header">
+                    <td colspan="5">
+                        <div class="group-title" style="color: #92400e;">
+                            <i class="bi bi-clock-history"></i> Traitements à Planifier ({{
+                            planned_treatments[0].treatments | length }})
+                        </div>
+                    </td>
+                </tr>
+
+                {% for visit in planned_treatments %}
+                {% for t in visit.treatments %}
+                <tr class="treatment-row clickable-treatment-row"
+                    data-url="{{ url_for('calendar_api.dashboard', patient=patient.id, treatment=t.id) }}">
+
+                    <td class="col-date">
+                        <span class="date-display">-</span>
+                    </td>
+                    <td class="col-proc">
+                        <div class="proc-name">{{ t.procedure_name }}</div>
+                        {% if t.procedure_code %}<div class="proc-code">Code: {{ t.procedure_code }}</div>{% endif %}
+                    </td>
+                    <td class="col-tooth">
+                        {% if t.tooth_number %}<span class="tooth-badge">{{ t.tooth_number }}</span>{% else %}<span
+                            class="text-muted">-</span>{% endif %}
+                    </td>
+                    <td class="col-status"><span class="badge status-{{ t.status }}">{{ t.status | upper }}</span></td>
+
+                    <td class="col-notes">
+                        <div class="notes-wrapper" onclick="event.stopPropagation()">
+                            <div class="notes-stack" id="notes-stack-{{ t.id }}"></div>
+                            <div class="note-input-row">
+                                <textarea class="mini-textarea" id="input-{{ t.id }}" placeholder="Add clinical note..."
+                                    rows="2"></textarea>
+                                <button class="mini-save-btn" data-treatment-id="{{ t.id }}" data-appointment-id=""
+                                    type="button" title="Save Note">
+                                    <i class="bi bi-send-fill"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+                {% endif %}
             </tbody>
         </table>
     </div>
@@ -560,11 +601,42 @@
         const csrfToken = "{{ csrf_token() }}";
 
         // ==========================================
-        // 1. SAVE NOTE LOGIC
+        // 1. ROW CLICK NAVIGATION (Headers & Planned Rows)
+        // ==========================================
+        // Handle Appointment Header Clicks
+        document.querySelectorAll('.clickable-header').forEach(row => {
+            row.style.cursor = 'pointer'; // Ensure it looks clickable
+            row.addEventListener('click', function (e) {
+                // Prevent navigation if they clicked a link inside the header
+                if (e.target.tagName === 'A' || e.target.closest('a')) return;
+
+                const url = this.getAttribute('data-url');
+                if (url) window.location.href = url;
+            });
+        });
+
+        // Handle Planned Treatment Row Clicks
+        document.querySelectorAll('.clickable-treatment-row').forEach(row => {
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', function (e) {
+                // Prevent navigation if they clicked inside the notes area or a button
+                if (e.target.closest('.notes-wrapper') || e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.tagName === 'A' || e.target.closest('a')) {
+                    return;
+                }
+
+                const url = this.getAttribute('data-url');
+                if (url) window.location.href = url;
+            });
+        });
+
+        // ==========================================
+        // 2. SAVE NOTE LOGIC
         // ==========================================
         const saveButtons = document.querySelectorAll('.mini-save-btn');
         saveButtons.forEach(btn => {
-            btn.addEventListener('click', async function () {
+            btn.addEventListener('click', async function (e) {
+                e.stopPropagation(); // Prevent row click when saving note
+
                 const treatmentId = this.getAttribute('data-treatment-id');
                 const appointmentId = this.getAttribute('data-appointment-id');
                 const input = document.getElementById(`input-${treatmentId}`);
@@ -599,7 +671,7 @@
                             <div class="mini-sticky-note">
                                 <div class="mini-note-header">
                                     <span class="mini-date">${result.created_at}</span>
-                                    <a href="/api/calendar?appt=${appointmentId}" class="mini-note-appt-link" title="View Appointment">
+                                    <a href="/api/calendar?appt=${appointmentId}" class="mini-note-appt-link" title="View Appointment" onclick="event.stopPropagation()">
                                         <i class="bi bi-calendar-event"></i>
                                     </a>
                                 </div>
@@ -632,12 +704,15 @@
                 }, 2000);
             });
         });
+
         // ==========================================
-        // 2. MARK TREATMENT COMPLETE LOGIC
+        // 3. MARK TREATMENT COMPLETE LOGIC
         // ==========================================
         const completeBtns = document.querySelectorAll('.mini-action-btn.complete');
         completeBtns.forEach(btn => {
-            btn.addEventListener('click', async function () {
+            btn.addEventListener('click', async function (e) {
+                e.stopPropagation(); // Prevent row click when clicking complete
+
                 if (!confirm('Are you sure you want to mark this treatment as fully completed?')) return;
 
                 const treatmentId = this.getAttribute('data-treatment-id');
