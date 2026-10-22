@@ -352,29 +352,47 @@ def cancel_appointment(appointment_id):
 @login_required
 def complete_appointment(appointment_id):
     try:
+        # 1. Get the granular data from the frontend
+        data = request.get_json()
+        # Expecting a list like: [{"id": 1, "status": "completed"}, {"id": 2, "status": "in_progress"}]
+        treatment_updates = data.get('treatment_statuses', [])
+        
         appointment = Appointment.query.filter_by(
             id=appointment_id,
             dentist_id=current_user.id
         ).first_or_404()
         
+        # 2. Mark the Appointment itself as Completed
         appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
 
-        # ✅ CHANGE: Mark linked treatments as IN_PROGRESS instead of COMPLETED
-        for treatment in appointment.treatments.all():
-            if treatment.status != TreatmentStatus.COMPLETED: # Don't downgrade already finished ones
-                treatment.status = TreatmentStatus.IN_PROGRESS
+        # 3. Update each Treatment individually based on user selection
+        for update in treatment_updates:
+            t_id = update.get('id')
+            new_status_str = update.get('status')
+            
+            treatment = Treatment.query.get(t_id)
+            
+            # Security check: ensure this treatment actually belongs to this appointment
+            if treatment and treatment in appointment.treatments.all():
+                new_status = TreatmentStatus(new_status_str)
+                treatment.status = new_status
                 
-            # 1. Set Clinical Date
-            treatment.completed_date = appointment.start_time.date()
-            # 2. Set Audit Log
-            treatment.admin_completed_at = datetime.utcnow()
-            # 3. Update chart
-            if treatment.tooth_number:
-                update_tooth_chart_on_completion(treatment)
+                # If the dentist marked it as Completed, finalize the clinical data
+                if new_status == TreatmentStatus.COMPLETED:
+                    treatment.completed_date = appointment.start_time.date()
+                    treatment.admin_completed_at = datetime.utcnow()
+                    
+                    # Only update the visual tooth chart if it's fully done
+                    if treatment.tooth_number:
+                        update_tooth_chart_on_completion(treatment)
+                        
+                # If marked as IN_PROGRESS, we intentionally leave completed_date blank 
+                # so the system knows it still needs more visits.
 
         db.session.commit()
         return jsonify({'success': True, 'appointment': {'id': appointment.id}})
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 400

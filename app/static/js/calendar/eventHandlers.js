@@ -238,10 +238,12 @@ function initAppointmentForm(context, data = null) {
       if (completeBtn) {
         if (data.status !== 'completed') {
           completeBtn.style.display = 'inline-block';
-          completeBtn.onclick = async () => {
+          completeBtn.onclick = async (e) => {
+            e.preventDefault(); // Prevent default form behavior
             const appointmentId = form.dataset.appointmentId;
-            if (await handleCompleteAppointment(appointmentId)) {
-              modal.style.display = 'none';
+            if (appointmentId) {
+              // Open the new granular modal instead of completing instantly
+              await openGranularModal(appointmentId);
             }
           };
         } else {
@@ -420,26 +422,120 @@ function initAppointmentForm(context, data = null) {
   modal.style.display = 'flex';
 }
 
+// ==========================================
+// GRANULAR COMPLETION MODAL LOGIC
+// ==========================================
+async function openGranularModal(appointmentId) {
+  const granularModal = document.getElementById('granularCompleteModal');
+  const listContainer = document.getElementById('granularTreatmentsList');
+
+  if (!granularModal || !listContainer) return;
+
+  granularModal.style.display = 'flex'; // Use 'block' if your CSS requires it
+  listContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #64748b;"><i class="bi bi-hourglass-split"></i> Loading treatments...</div>';
+
+  try {
+    const response = await fetch(`/api/appointments/${appointmentId}`);
+    const appt = await response.json();
+
+    listContainer.innerHTML = '';
+
+    if (appt.treatments && appt.treatments.length > 0) {
+      appt.treatments.forEach(t => {
+        const item = document.createElement('div');
+        item.className = 'granular-item';
+        item.innerHTML = `
+                    <div class="granular-info">
+                        <div class="granular-name">
+                            ${t.name} 
+                            ${t.tooth ? `<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+                        </div>
+                        <div class="granular-status">Current: ${t.status.toUpperCase()}</div>
+                    </div>
+                    <select class="granular-select" data-id="${t.id}">
+                        <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>⏳ In Progress</option>
+                        <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>✅ Completed</option>
+                    </select>
+                `;
+        listContainer.appendChild(item);
+      });
+    } else {
+      listContainer.innerHTML = '<div style="text-align:center; padding: 20px;">No treatments linked to this appointment.</div>';
+    }
+  } catch (error) {
+    listContainer.innerHTML = '<div style="color: #ef4444; text-align:center;">Error loading treatments.</div>';
+    console.error(error);
+  }
+}
+
 function handleTimeSlotClick(e) {
   if (!e.currentTarget.classList.contains('available') || e.currentTarget.classList.contains('disabled')) return;
   const slotDate = new Date(e.currentTarget.dataset.date);
   initAppointmentForm('timeslot', slotDate);
 }
+
 async function handleCompleteAppointment(appointmentId) {
   if (!appointmentId) return false;
+
+  // 1. Gather the statuses from the granular modal dropdowns
+  const selects = document.querySelectorAll('.granular-select');
+  const treatmentStatuses = Array.from(selects).map(select => ({
+    id: parseInt(select.getAttribute('data-id')),
+    status: select.value
+  }));
+
+  // 2. Get CSRF token
+  const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+
+  // 3. Show loading state on the modal button
+  const submitBtn = document.getElementById('submitGranularBtn');
+  const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Finalize & Save';
+  if (submitBtn) {
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+    submitBtn.disabled = true;
+  }
+
   try {
-    const result = await completeAppointment(appointmentId);
-    if (result) {
+    // 4. Send the granular payload to the backend
+    const response = await fetch(`/api/appointments/${appointmentId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ treatment_statuses: treatmentStatuses })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // 5. Close the modals
+      const granularModal = document.getElementById('granularCompleteModal');
+      if (granularModal) granularModal.style.display = 'none';
+
+      const appointmentModal = document.getElementById('appointmentModal');
+      if (appointmentModal) appointmentModal.style.display = 'none';
+
+      // 6. Refresh the calendar using your existing function
       if (typeof window.initCalendar === 'function') {
         await window.initCalendar();
       }
       return true;
+    } else {
+      alert('Error: ' + (result.error || 'Failed to complete appointment'));
+      return false;
     }
   } catch (error) {
     console.error('Error completing appointment:', error);
     alert('Failed to complete appointment');
+    return false;
+  } finally {
+    // 7. Reset button state
+    if (submitBtn) {
+      submitBtn.innerHTML = originalBtnText;
+      submitBtn.disabled = false;
+    }
   }
-  return false;
 }
 
 async function handleCancelAppointment(appointmentId) {
@@ -604,10 +700,31 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// 1. Connect the "Finalize & Save" button in the Granular Modal
+const submitGranularBtn = document.getElementById('submitGranularBtn');
+if (submitGranularBtn) {
+  submitGranularBtn.addEventListener('click', async function () {
+    const form = document.getElementById('appointmentForm');
+    const appointmentId = form ? form.dataset.appointmentId : null;
+    if (appointmentId) {
+      await handleCompleteAppointment(appointmentId);
+    }
+  });
+}
+
+// 2. Close granular modal on outside click
+window.addEventListener('click', function (e) {
+  const granularModal = document.getElementById('granularCompleteModal');
+  if (e.target === granularModal) {
+    granularModal.style.display = 'none';
+  }
+});
+
 export {
   handleTimeSlotClick,
   handleCompleteAppointment,
   handleCancelAppointment,
   handleEditAppointment,
-  initAppointmentForm
+  initAppointmentForm,
+  openGranularModal
 }
