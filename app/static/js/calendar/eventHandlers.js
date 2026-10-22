@@ -422,120 +422,253 @@ function initAppointmentForm(context, data = null) {
   modal.style.display = 'flex';
 }
 
-// ==========================================
-// GRANULAR COMPLETION MODAL LOGIC
-// ==========================================
 async function openGranularModal(appointmentId) {
-  const granularModal = document.getElementById('granularCompleteModal');
-  const listContainer = document.getElementById('granularTreatmentsList');
+  const modal = document.getElementById('granularCompleteModal');
+  const listContainer = document.getElementById('gp-treatments-list');
 
-  if (!granularModal || !listContainer) return;
+  if (!modal || !listContainer) return;
 
-  granularModal.style.display = 'flex'; // Use 'block' if your CSS requires it
-  listContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #64748b;"><i class="bi bi-hourglass-split"></i> Loading treatments...</div>';
+  modal.style.display = 'flex';
+  listContainer.innerHTML = '<div style="text-align:center; padding: 20px;"><i class="bi bi-hourglass-split"></i> Loading...</div>';
+
+  // Set today's date
+  document.getElementById('gp-payment-date').value = new Date().toISOString().split('T')[0];
 
   try {
-    const response = await fetch(`/api/appointments/${appointmentId}`);
+    // Fetch appointment with patient and treatment details
+    const response = await fetch(`/api/appointments/${appointmentId}?include_patient=true&include_payments=true`);
     const appt = await response.json();
 
+    // Populate patient info
+    document.getElementById('gp-patient-name').textContent = `${appt.patient_first_name} ${appt.patient_last_name}`;
+    document.getElementById('gp-patient-dob').textContent = appt.patient_dob || 'N/A';
+    document.getElementById('gp-patient-age').textContent = appt.patient_age || '-';
+
+    // Calculate balances
+    let visitBalance = 0;
+    let totalPatientBalance = appt.patient_total_balance || 0;
+
+    // Build treatment rows
     listContainer.innerHTML = '';
 
     if (appt.treatments && appt.treatments.length > 0) {
-      appt.treatments.forEach(t => {
-        const item = document.createElement('div');
-        item.className = 'granular-item';
-        item.innerHTML = `
-                    <div class="granular-info">
-                        <div class="granular-name">
-                            ${t.name} 
-                            ${t.tooth ? `<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+      for (const t of appt.treatments) {
+        const paid = t.payments ? t.payments.reduce((sum, p) => sum + p.amount, 0) : 0;
+        const balance = Math.max(0, (t.cost - (t.insurance_amount || 0)) - paid);
+        visitBalance += balance;
+
+        const row = document.createElement('div');
+        row.className = 'gp-treatment-row';
+        row.style.cssText = 'background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px;';
+        row.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #1e293b; font-size: 0.95rem; margin-bottom: 4px;">
+                                ${t.name}
+                                ${t.tooth ? `<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+                            </div>
+                            <div style="font-size: 0.8rem; color: #64748b;">Current: ${t.status.toUpperCase()}</div>
                         </div>
-                        <div class="granular-status">Current: ${t.status.toUpperCase()}</div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.85rem; color: #64748b;">Balance:</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #ef4444;">${balance.toFixed(2)} DT</div>
+                        </div>
                     </div>
-                    <select class="granular-select" data-id="${t.id}">
-                        <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>⏳ In Progress</option>
-                        <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>✅ Completed</option>
-                    </select>
+                    
+                    <div style="display: flex; gap: 16px; margin-bottom: 12px; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="radio" name="status-${t.id}" value="in_progress" 
+                                   ${t.status === 'in_progress' || t.status === 'scheduled' ? 'checked' : ''} 
+                                   onchange="toggleTreatmentPayment(${t.id}, false)">
+                            <span style="font-size: 0.9rem;"> In Progress</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="radio" name="status-${t.id}" value="completed" 
+                                   ${t.status === 'completed' ? 'checked' : ''}
+                                   onchange="toggleTreatmentPayment(${t.id}, true)">
+                            <span style="font-size: 0.9rem;">✅ Completed</span>
+                        </label>
+                    </div>
+                    
+                    <div id="payment-row-${t.id}" style="display: none; padding: 12px; background: #f0fdf4; border-radius: 6px; border: 1px solid #86efac;">
+                        <label style="font-size: 0.8rem; font-weight: 600; color: #166534; display: block; margin-bottom: 4px;">
+                            Payment for this treatment (leave blank for auto-split):
+                        </label>
+                        <input type="number" class="gp-treatment-payment" data-treatment-id="${t.id}" 
+                               data-balance="${balance}" step="0.01" min="0" max="${balance}"
+                               placeholder="0.00" 
+                               style="width: 100%; padding: 8px; border: 1px solid #86efac; border-radius: 6px;"
+                               oninput="updateAllocationPreview()">
+                    </div>
                 `;
-        listContainer.appendChild(item);
+        listContainer.appendChild(row);
+      }
+    }
+
+    // Update balances
+    document.getElementById('gp-total-balance').textContent = totalPatientBalance.toFixed(2) + ' DT';
+    document.getElementById('gp-visit-balance').textContent = visitBalance.toFixed(2) + ' DT';
+    document.getElementById('gp-total-payment').value = visitBalance > 0 ? visitBalance.toFixed(2) : '0';
+
+    // Add event listeners
+    document.getElementById('gp-total-payment').addEventListener('input', updateAllocationPreview);
+    document.querySelectorAll('input[name="allocation-mode"]').forEach(radio => {
+      radio.addEventListener('change', updateAllocationPreview);
+    });
+
+  } catch (error) {
+    listContainer.innerHTML = '<div style="color: #ef4444;">Error loading appointment data</div>';
+  }
+}
+
+function toggleTreatmentPayment(treatmentId, isCompleted) {
+  const paymentRow = document.getElementById(`payment-row-${treatmentId}`);
+  if (paymentRow) {
+    paymentRow.style.display = isCompleted ? 'block' : 'none';
+  }
+  updateAllocationPreview();
+}
+
+function updateAllocationPreview() {
+  const totalPayment = parseFloat(document.getElementById('gp-total-payment').value) || 0;
+  const mode = document.querySelector('input[name="allocation-mode"]:checked').value;
+  const summaryDiv = document.getElementById('gp-allocation-summary');
+  const summaryItems = document.getElementById('gp-summary-items');
+
+  // Calculate allocations based on mode and user inputs
+  const allocations = [];
+  let remaining = totalPayment;
+
+  if (mode === 'waterfall') {
+    // Waterfall: prioritize completed treatments in this appointment
+    const paymentInputs = document.querySelectorAll('.gp-treatment-payment');
+    paymentInputs.forEach(input => {
+      const tId = parseInt(input.getAttribute('data-treatment-id'));
+      const balance = parseFloat(input.getAttribute('data-balance'));
+      const userAmount = parseFloat(input.value) || 0;
+
+      if (userAmount > 0) {
+        allocations.push({ treatment_id: tId, amount: Math.min(userAmount, balance) });
+        remaining -= Math.min(userAmount, balance);
+      }
+    });
+
+    // Auto-split remaining among completed treatments without manual payment
+    const completedWithoutPayment = Array.from(paymentInputs).filter(input => {
+      const tId = parseInt(input.getAttribute('data-treatment-id'));
+      const balance = parseFloat(input.getAttribute('data-balance'));
+      const userAmount = parseFloat(input.value) || 0;
+      return userAmount === 0 && balance > 0;
+    });
+
+    if (completedWithoutPayment.length > 0 && remaining > 0) {
+      const splitAmount = remaining / completedWithoutPayment.length;
+      completedWithoutPayment.forEach(input => {
+        const tId = parseInt(input.getAttribute('data-treatment-id'));
+        const balance = parseFloat(input.getAttribute('data-balance'));
+        allocations.push({ treatment_id: tId, amount: Math.min(splitAmount, balance) });
       });
+    }
+  } else {
+    // FIFO: allocate to oldest treatments first (would need patient's full treatment list)
+    // Simplified for now - allocate to treatments in this appointment by ID order
+    const treatments = Array.from(document.querySelectorAll('.gp-treatment-row'))
+      .map(row => ({
+        id: parseInt(row.querySelector('.gp-treatment-payment')?.getAttribute('data-treatment-id') || 0),
+        balance: parseFloat(row.querySelector('.gp-treatment-payment')?.getAttribute('data-balance') || 0)
+      }))
+      .sort((a, b) => a.id - b.id);
+
+    for (const t of treatments) {
+      if (remaining <= 0) break;
+      const amount = Math.min(remaining, t.balance);
+      allocations.push({ treatment_id: t.id, amount });
+      remaining -= amount;
+    }
+  }
+
+  // Display summary
+  if (allocations.length > 0) {
+    summaryDiv.style.display = 'block';
+    summaryItems.innerHTML = allocations.map(a =>
+      `<div>• Treatment #${a.treatment_id}: ${a.amount.toFixed(2)} DT</div>`
+    ).join('') + (remaining > 0 ? `<div style="color: #f59e0b; margin-top: 8px;">⚠️ ${remaining.toFixed(2)} DT will be added to patient credit</div>` : '');
+  } else {
+    summaryDiv.style.display = 'none';
+  }
+}
+
+async function handleCompleteAppointment(appointmentId) {
+  const treatmentStatuses = [];
+  const treatmentPayments = [];
+
+  document.querySelectorAll('.gp-treatment-row').forEach(row => {
+    const treatmentId = parseInt(row.querySelector('input[type="radio"]').name.split('-')[1]);
+    const status = row.querySelector(`input[name="status-${treatmentId}"]:checked`).value;
+    const paymentInput = row.querySelector('.gp-treatment-payment');
+    const paymentAmount = paymentInput ? parseFloat(paymentInput.value) || 0 : 0;
+
+    treatmentStatuses.push({ id: treatmentId, status });
+    if (paymentAmount > 0) {
+      treatmentPayments.push({ treatment_id: treatmentId, amount: paymentAmount });
+    }
+  });
+
+  const totalPayment = parseFloat(document.getElementById('gp-total-payment').value) || 0;
+  const paymentMethod = document.getElementById('gp-payment-method').value;
+  const paymentDate = document.getElementById('gp-payment-date').value;
+  const allocationMode = document.querySelector('input[name="allocation-mode"]:checked').value;
+
+  const submitBtn = document.getElementById('submitGranularBtn');
+  const originalText = submitBtn.innerHTML;
+  submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+  submitBtn.disabled = true;
+
+  try {
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+
+    const response = await fetch(`/api/appointments/${appointmentId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({
+        treatment_statuses: treatmentStatuses,
+        treatment_payments: treatmentPayments,
+        total_payment: totalPayment,
+        payment_method: paymentMethod,
+        payment_date: paymentDate,
+        allocation_mode: allocationMode
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      closeGranularModal();
+      document.getElementById('appointmentModal').style.display = 'none';
+      if (typeof window.initCalendar === 'function') await window.initCalendar();
+      return true;
     } else {
-      listContainer.innerHTML = '<div style="text-align:center; padding: 20px;">No treatments linked to this appointment.</div>';
+      alert('Error: ' + result.error);
+      return false;
     }
   } catch (error) {
-    listContainer.innerHTML = '<div style="color: #ef4444; text-align:center;">Error loading treatments.</div>';
-    console.error(error);
+    console.error('Error:', error);
+    alert('Failed to complete appointment');
+    return false;
+  } finally {
+    submitBtn.innerHTML = originalText;
+    submitBtn.disabled = false;
   }
+}
+
+function closeGranularModal() {
+  document.getElementById('granularCompleteModal').style.display = 'none';
 }
 
 function handleTimeSlotClick(e) {
   if (!e.currentTarget.classList.contains('available') || e.currentTarget.classList.contains('disabled')) return;
   const slotDate = new Date(e.currentTarget.dataset.date);
   initAppointmentForm('timeslot', slotDate);
-}
-
-async function handleCompleteAppointment(appointmentId) {
-  if (!appointmentId) return false;
-
-  // 1. Gather the statuses from the granular modal dropdowns
-  const selects = document.querySelectorAll('.granular-select');
-  const treatmentStatuses = Array.from(selects).map(select => ({
-    id: parseInt(select.getAttribute('data-id')),
-    status: select.value
-  }));
-
-  // 2. Get CSRF token
-  const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
-
-  // 3. Show loading state on the modal button
-  const submitBtn = document.getElementById('submitGranularBtn');
-  const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Finalize & Save';
-  if (submitBtn) {
-    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
-    submitBtn.disabled = true;
-  }
-
-  try {
-    // 4. Send the granular payload to the backend
-    const response = await fetch(`/api/appointments/${appointmentId}/complete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken
-      },
-      body: JSON.stringify({ treatment_statuses: treatmentStatuses })
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      // 5. Close the modals
-      const granularModal = document.getElementById('granularCompleteModal');
-      if (granularModal) granularModal.style.display = 'none';
-
-      const appointmentModal = document.getElementById('appointmentModal');
-      if (appointmentModal) appointmentModal.style.display = 'none';
-
-      // 6. Refresh the calendar using your existing function
-      if (typeof window.initCalendar === 'function') {
-        await window.initCalendar();
-      }
-      return true;
-    } else {
-      alert('Error: ' + (result.error || 'Failed to complete appointment'));
-      return false;
-    }
-  } catch (error) {
-    console.error('Error completing appointment:', error);
-    alert('Failed to complete appointment');
-    return false;
-  } finally {
-    // 7. Reset button state
-    if (submitBtn) {
-      submitBtn.innerHTML = originalBtnText;
-      submitBtn.disabled = false;
-    }
-  }
 }
 
 async function handleCancelAppointment(appointmentId) {

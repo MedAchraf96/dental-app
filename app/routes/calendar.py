@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request, abort
 from flask_login import login_required, current_user
-from app.models import Appointment, Patient, Treatment, TreatmentCatalog
+from app.models import Appointment, Patient, Treatment, TreatmentCatalog, PatientPayment
 from app.enums import AppointmentStatus, TreatmentStatus, UserRole
 from datetime import datetime
 from app.extensions import db
@@ -352,44 +352,109 @@ def cancel_appointment(appointment_id):
 @login_required
 def complete_appointment(appointment_id):
     try:
-        # 1. Get the granular data from the frontend
         data = request.get_json()
-        # Expecting a list like: [{"id": 1, "status": "completed"}, {"id": 2, "status": "in_progress"}]
         treatment_updates = data.get('treatment_statuses', [])
+        treatment_payments = data.get('treatment_payments', [])
+        total_payment = float(data.get('total_payment', 0))
+        payment_method = data.get('payment_method', 'Cash')
+        payment_date_str = data.get('payment_date')
+        allocation_mode = data.get('allocation_mode', 'waterfall')
         
         appointment = Appointment.query.filter_by(
             id=appointment_id,
             dentist_id=current_user.id
         ).first_or_404()
         
-        # 2. Mark the Appointment itself as Completed
         appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
-
-        # 3. Update each Treatment individually based on user selection
+        
+        # 1. Update treatment statuses
         for update in treatment_updates:
             t_id = update.get('id')
             new_status_str = update.get('status')
-            
             treatment = Treatment.query.get(t_id)
             
-            # Security check: ensure this treatment actually belongs to this appointment
             if treatment and treatment in appointment.treatments.all():
                 new_status = TreatmentStatus(new_status_str)
                 treatment.status = new_status
                 
-                # If the dentist marked it as Completed, finalize the clinical data
                 if new_status == TreatmentStatus.COMPLETED:
                     treatment.completed_date = appointment.start_time.date()
                     treatment.admin_completed_at = datetime.utcnow()
-                    
-                    # Only update the visual tooth chart if it's fully done
                     if treatment.tooth_number:
                         update_tooth_chart_on_completion(treatment)
-                        
-                # If marked as IN_PROGRESS, we intentionally leave completed_date blank 
-                # so the system knows it still needs more visits.
-
+        
+        # 2. Process payments
+        if total_payment > 0:
+            payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date() if payment_date_str else datetime.now().date()
+            remaining = total_payment
+            
+            if allocation_mode == 'waterfall':
+                # First, apply manual payments specified by user
+                for payment in treatment_payments:
+                    if remaining <= 0:
+                        break
+                    t_id = payment.get('treatment_id')
+                    amount = payment.get('amount')
+                    treatment = Treatment.query.get(t_id)
+                    
+                    if treatment:
+                        new_payment = PatientPayment(
+                            treatment_id=t_id,
+                            amount=amount,
+                            method=payment_method,
+                            date=payment_date
+                        )
+                        db.session.add(new_payment)
+                        remaining -= amount
+                
+                # Then auto-split remaining among completed treatments without manual payment
+                completed_treatments = [t for t in appointment.treatments.all() 
+                                       if t.status == TreatmentStatus.COMPLETED]
+                if completed_treatments and remaining > 0:
+                    split_amount = remaining / len(completed_treatments)
+                    for t in completed_treatments:
+                        already_paid = sum(p.amount for p in t.payments)
+                        balance = (t.cost - (t.insurance_amount or 0)) - already_paid
+                        if balance > 0:
+                            apply_amount = min(split_amount, balance)
+                            new_payment = PatientPayment(
+                                treatment_id=t.id,
+                                amount=apply_amount,
+                                method=payment_method,
+                                date=payment_date
+                            )
+                            db.session.add(new_payment)
+                            remaining -= apply_amount
+            
+            else:  # FIFO mode
+                # Get all patient treatments ordered by creation date
+                all_treatments = Treatment.query.filter_by(
+                    patient_id=appointment.patient_id
+                ).order_by(Treatment.created_at.asc()).all()
+                
+                for t in all_treatments:
+                    if remaining <= 0:
+                        break
+                    already_paid = sum(p.amount for p in t.payments)
+                    balance = (t.cost - (t.insurance_amount or 0)) - already_paid
+                    
+                    if balance > 0:
+                        apply_amount = min(remaining, balance)
+                        new_payment = PatientPayment(
+                            treatment_id=t.id,
+                            amount=apply_amount,
+                            method=payment_method,
+                            date=payment_date
+                        )
+                        db.session.add(new_payment)
+                        remaining -= apply_amount
+            
+            # 3. Handle overflow (add to patient credit)
+            if remaining > 0.01:
+                patient = Patient.query.get(appointment.patient_id)
+                patient.credit_balance = (patient.credit_balance or 0) + remaining
+        
         db.session.commit()
         return jsonify({'success': True, 'appointment': {'id': appointment.id}})
         
