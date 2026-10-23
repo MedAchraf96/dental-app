@@ -453,7 +453,9 @@ def complete_appointment(appointment_id):
             # 3. Handle overflow (add to patient credit)
             if remaining > 0.01:
                 patient = Patient.query.get(appointment.patient_id)
-                patient.credit_balance = (patient.credit_balance or 0) + remaining
+                # Add the leftover money to their credit balance
+                patient.credit_balance = (patient.credit_balance or 0.0) + remaining
+                print(f"💰 Added {remaining} DT to Patient Credit Balance")
         
         db.session.commit()
         return jsonify({'success': True, 'appointment': {'id': appointment.id}})
@@ -501,7 +503,9 @@ def get_appointment(appointment_id):
         'patient_id': appointment.patient_id,
         'patient_first_name': appointment.patient.first_name,
         'patient_last_name': appointment.patient.last_name,
-        'patient_phone': appointment.patient.phone
+        'patient_phone': appointment.patient.phone,
+        'patient_dob': appointment.patient.date_of_birth.strftime('%Y-%m-%d') if appointment.patient.date_of_birth else None,
+
     })
 
 @calendar_bp.route('/patients/search')

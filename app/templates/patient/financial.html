@@ -481,7 +481,7 @@
             <span class="summary-value">{{ "%.2f"|format(total_paid) }} DT</span>
         </div>
         <div class="summary-card balance">
-            <span class="summary-label">Reste à Payer</span>
+            <span class="summary-label">Solde Patient</span>
             <span class="summary-value">{{ "%.2f"|format(total_balance) }} DT</span>
         </div>
     </div>
@@ -600,6 +600,7 @@
         </form>
     </div>
 </div>
+
 <!-- Payment History Modal -->
 <div class="modal-overlay" id="historyModal">
     <div class="modal-content" style="max-width: 600px;">
@@ -630,7 +631,9 @@
         const paymentForm = document.getElementById('paymentForm');
         let currentTreatmentId = null;
 
-        // Open Payment Modal
+        // ==========================================
+        // 1. PAYMENT MODAL LOGIC
+        // ==========================================
         document.querySelectorAll('.record-payment-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 currentTreatmentId = this.getAttribute('data-treatment-id');
@@ -647,19 +650,16 @@
             });
         });
 
-        // Close Modal
         window.closePaymentModal = function () {
             modal.classList.remove('active');
             paymentForm.reset();
             currentTreatmentId = null;
         };
 
-        // Close on overlay click
         modal.addEventListener('click', function (e) {
             if (e.target === modal) closePaymentModal();
         });
 
-        // Handle Form Submission
         paymentForm.addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -694,58 +694,80 @@
             }
         });
 
-        // Escape key to close modal
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && modal.classList.contains('active')) {
                 closePaymentModal();
             }
         });
-    });
-    // ==========================================
-    // PAYMENT HISTORY MODAL LOGIC
-    // ==========================================
-    const historyModal = document.getElementById('historyModal');
-    const historyList = document.getElementById('historyList');
-    const historyProcedureName = document.getElementById('historyProcedureName');
 
-    window.openPaymentHistory = function (element) {
-        const paymentsJson = element.getAttribute('data-payments');
-        const procedure = element.getAttribute('data-procedure');
+        // ==========================================
+        // 2. PAYMENT HISTORY MODAL LOGIC
+        // ==========================================
+        const historyModal = document.getElementById('historyModal');
+        const historyList = document.getElementById('historyList');
+        const historyProcedureName = document.getElementById('historyProcedureName');
 
-        historyProcedureName.textContent = procedure;
-        historyList.innerHTML = ''; // Clear previous
+        window.openPaymentHistory = function (element) {
+            const paymentsJson = element.getAttribute('data-payments');
+            const procedure = element.getAttribute('data-procedure');
 
-        try {
-            const payments = JSON.parse(paymentsJson);
+            historyProcedureName.textContent = procedure;
+            historyList.innerHTML = '';
 
-            if (payments.length === 0) {
-                historyList.innerHTML = '<div class="empty-history">Aucun paiement enregistré</div>';
-            } else {
-                payments.forEach(p => {
-                    const item = document.createElement('div');
-                    item.className = 'history-item';
-                    item.innerHTML = `
-                        <span class="history-date"><i class="bi bi-calendar3" style="margin-right: 4px;"></i> ${p.date}</span>
-                        <span class="history-method">${p.method}</span>
-                        <span class="history-amount">${parseFloat(p.amount).toFixed(2)} DT</span>
-                    `;
-                    historyList.appendChild(item);
-                });
+            try {
+                const payments = JSON.parse(paymentsJson);
+
+                if (payments.length === 0) {
+                    historyList.innerHTML = '<div class="empty-history">Aucun paiement enregistré</div>';
+                } else {
+                    payments.forEach(p => {
+                        const item = document.createElement('div');
+                        item.className = 'history-item';
+                        item.innerHTML = `
+                            <span class="history-date"><i class="bi bi-calendar3" style="margin-right: 4px;"></i> ${p.date}</span>
+                            <span class="history-method">${p.method}</span>
+                            <span class="history-amount">${parseFloat(p.amount).toFixed(2)} DT</span>
+                        `;
+                        historyList.appendChild(item);
+                    });
+                }
+            } catch (e) {
+                historyList.innerHTML = '<div class="empty-history">Erreur de chargement</div>';
             }
-        } catch (e) {
-            historyList.innerHTML = '<div class="empty-history">Erreur de chargement</div>';
+
+            historyModal.classList.add('active');
+        };
+
+        window.closeHistoryModal = function () {
+            historyModal.classList.remove('active');
+        };
+
+        historyModal.addEventListener('click', function (e) {
+            if (e.target === historyModal) closeHistoryModal();
+        });
+
+        // ==========================================
+        // 3. BALANCE COLORING LOGIC (Bank Account Style)
+        // ==========================================
+        const soldeEl = document.querySelector('.summary-card.balance .summary-value');
+        if (soldeEl) {
+            const text = soldeEl.textContent.trim().replace(' DT', '');
+            const val = parseFloat(text);
+
+            if (val > 0) {
+                // Positive = Patient has EXCESS money (Credit) → GREEN
+                soldeEl.style.color = '#10b981';
+                soldeEl.textContent = '+' + val.toFixed(2) + ' DT (Crédit)';
+            } else if (val < 0) {
+                // Negative = Patient OWES money (Debt) → RED
+                soldeEl.style.color = '#ef4444';
+                soldeEl.textContent = val.toFixed(2) + ' DT';
+            } else {
+                // Zero = Neutral gray
+                soldeEl.style.color = '#64748b';
+                soldeEl.textContent = '0.00 DT';
+            }
         }
-
-        historyModal.classList.add('active');
-    };
-
-    window.closeHistoryModal = function () {
-        historyModal.classList.remove('active');
-    };
-
-    // Close history modal on overlay click
-    historyModal.addEventListener('click', function (e) {
-        if (e.target === historyModal) closeHistoryModal();
     });
 </script>
 {% endblock %}

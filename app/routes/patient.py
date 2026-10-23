@@ -348,7 +348,7 @@ def financial(patient_id):
     total_billed = sum(t.cost for t in ledger_entries)
     total_insurance = sum(t.insurance_amount or 0.0 for t in ledger_entries)
     total_paid = sum(p.amount for p in all_payments)
-    total_balance = (total_billed - total_insurance) - total_paid
+    total_balance = total_paid - (total_billed - total_insurance)
 
     return render_template(
         'patient/financial.html',
@@ -391,6 +391,34 @@ def add_payment(patient_id):
     flash(f'Payment of {amount} DT recorded successfully', 'success')
     return redirect(url_for('patient.financial', patient_id=patient_id))
 
+@patient_bp.route('/<int:patient_id>/financial-summary')
+@login_required
+def financial_summary(patient_id):
+    patient = Patient.query.get_or_404(patient_id)
+    
+    # ✅ FIX: Only count COMPLETED treatments for the balance
+    treatments = Treatment.query.filter_by(
+        patient_id=patient_id, 
+        status='completed' # This prevents future planned treatments from inflating the debt
+    ).all()
+    
+    total_billed = sum(t.cost for t in treatments if t.cost)
+    total_insurance = sum(t.insurance_amount or 0.0 for t in treatments)
+    
+    all_payments = PatientPayment.query.join(Treatment).filter(
+        Treatment.patient_id == patient_id
+    ).all()
+    total_paid = sum(p.amount for p in all_payments)
+    
+    # Bank account style: Positive = Credit, Negative = Debt
+    total_balance = total_paid - (total_billed - total_insurance)
+    
+    return jsonify({
+        'total_billed': total_billed,
+        'total_paid': total_paid,
+        'total_insurance': total_insurance,
+        'total_balance': total_balance
+    })
 # ==========================================
 # CHART & API
 # ==========================================

@@ -30,6 +30,7 @@ class Patient(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    credit_balance = db.Column(db.Float, default=0.0) 
 
     # Relationship with appointments
     appointments = db.relationship('Appointment', backref='patient', lazy=True)
@@ -37,6 +38,7 @@ class Patient(db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+    
     @property
     def age(self):
         if self.date_of_birth:
@@ -44,6 +46,19 @@ class Patient(db.Model):
             return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
         return None
     
+    @property
+    def net_balance(self):
+        """
+        Positive number = Patient OWES money (Debt).
+        Negative number = Patient has EXCESS money (Credit).
+        """
+        # Get all treatments for this patient
+        all_treatments = Treatment.query.filter_by(patient_id=self.id).all()
+        
+        total_billed = sum(t.cost for t in all_treatments if t.cost)
+        total_paid = sum(p.amount for t in all_treatments for p in t.payments)
+        
+        return total_billed - total_paid
     def __repr__(self):
         return f'<Patient {self.id} - {self.full_name}>'
 

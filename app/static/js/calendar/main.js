@@ -12,7 +12,8 @@ import { renderCalendar, renderDayColumn, renderDayLabels } from "./CalRender.js
 import {
   handleCompleteAppointment,
   handleCancelAppointment,
-  initAppointmentForm
+  initAppointmentForm,
+  initGranularModalListeners
 } from "./eventHandlers.js";
 import { PIXELS_PER_MINUTE } from "./state.js";
 import {
@@ -463,7 +464,12 @@ function finalizeView(targetApptId) {
     history.replaceState(null, '', window.location.pathname);
   }
 }
-
+window.closeGranularModal = function () {
+  const modal = document.getElementById('granularCompleteModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+};
 (async () => {
   try {
     await waitForElementsWithRAF(['calendar', 'day-labels', 'prev-week', 'next-week']);
@@ -474,6 +480,9 @@ function finalizeView(targetApptId) {
       setupModal();
     }
 
+    if (typeof initGranularModalListeners === 'function') {
+      initGranularModalListeners();
+    }
     // Cache navigation buttons
     const prevWeekBtn = document.getElementById('prev-week');
     const nextWeekBtn = document.getElementById('next-week');
