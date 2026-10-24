@@ -368,7 +368,7 @@ def complete_appointment(appointment_id):
         appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
         
-        # 1. Update treatment statuses
+        # 1. Update treatment statuses & VALIDATE
         for update in treatment_updates:
             t_id = update.get('id')
             new_status_str = update.get('status')
@@ -376,6 +376,24 @@ def complete_appointment(appointment_id):
             
             if treatment and treatment in appointment.treatments.all():
                 new_status = TreatmentStatus(new_status_str)
+                
+                # ✅ CRITICAL FIX: Prevent early completion
+                if new_status == TreatmentStatus.COMPLETED:
+                    # Check if this treatment is linked to any FUTURE appointment for this patient
+                    future_appt = Appointment.query.join(Appointment.treatments).filter(
+                        Appointment.patient_id == appointment.patient_id,
+                        Treatment.id == t_id,
+                        Appointment.start_time > appointment.start_time,
+                        Appointment.id != appointment.id
+                    ).first()
+                    
+                    if future_appt:
+                        # Rollback status changes made in this loop so far
+                        db.session.rollback() 
+                        return jsonify({
+                            'error': f"Cannot complete '{treatment.procedure_name}'. It is scheduled for a future visit on {future_appt.start_time.strftime('%d/%m/%Y')}."
+                        }), 400
+
                 treatment.status = new_status
                 
                 if new_status == TreatmentStatus.COMPLETED:
@@ -390,7 +408,7 @@ def complete_appointment(appointment_id):
             remaining = total_payment
             
             if allocation_mode == 'waterfall':
-                # First, apply manual payments specified by user
+                # A. Apply manual payments specified by user
                 for payment in treatment_payments:
                     if remaining <= 0:
                         break
@@ -399,16 +417,22 @@ def complete_appointment(appointment_id):
                     treatment = Treatment.query.get(t_id)
                     
                     if treatment:
-                        new_payment = PatientPayment(
-                            treatment_id=t_id,
-                            amount=amount,
-                            method=payment_method,
-                            date=payment_date
-                        )
-                        db.session.add(new_payment)
-                        remaining -= amount
+                        # Prevent overpaying a specific treatment manually beyond its balance
+                        already_paid = sum(p.amount for p in treatment.payments)
+                        balance = (treatment.cost - (treatment.insurance_amount or 0)) - already_paid
+                        apply_amount = min(amount, balance)
+                        
+                        if apply_amount > 0:
+                            new_payment = PatientPayment(
+                                treatment_id=t_id,
+                                amount=apply_amount,
+                                method=payment_method,
+                                date=payment_date
+                            )
+                            db.session.add(new_payment)
+                            remaining -= apply_amount
                 
-                # Then auto-split remaining among completed treatments without manual payment
+                # B. Auto-split remaining among COMPLETED treatments
                 completed_treatments = [t for t in appointment.treatments.all() 
                                        if t.status == TreatmentStatus.COMPLETED]
                 if completed_treatments and remaining > 0:
@@ -426,9 +450,28 @@ def complete_appointment(appointment_id):
                             )
                             db.session.add(new_payment)
                             remaining -= apply_amount
+
+                # ✅ C. NEW: Apply remaining to IN_PROGRESS treatments (Partial Payment)
+                # This prevents creating "Credit" when the user just wants to pay part of an ongoing treatment
+                in_progress_treatments = [t for t in appointment.treatments.all() 
+                                          if t.status == TreatmentStatus.IN_PROGRESS]
+                if in_progress_treatments and remaining > 0:
+                    split_amount = remaining / len(in_progress_treatments)
+                    for t in in_progress_treatments:
+                        already_paid = sum(p.amount for p in t.payments)
+                        balance = (t.cost - (t.insurance_amount or 0)) - already_paid
+                        if balance > 0:
+                            apply_amount = min(split_amount, balance)
+                            new_payment = PatientPayment(
+                                treatment_id=t.id,
+                                amount=apply_amount,
+                                method=payment_method,
+                                date=payment_date
+                            )
+                            db.session.add(new_payment)
+                            remaining -= apply_amount
             
             else:  # FIFO mode
-                # Get all patient treatments ordered by creation date
                 all_treatments = Treatment.query.filter_by(
                     patient_id=appointment.patient_id
                 ).order_by(Treatment.created_at.asc()).all()
@@ -450,12 +493,11 @@ def complete_appointment(appointment_id):
                         db.session.add(new_payment)
                         remaining -= apply_amount
             
-            # 3. Handle overflow (add to patient credit)
+            # 3. Handle TRUE overflow (Only if payment exceeds TOTAL cost of all treatments in visit)
             if remaining > 0.01:
                 patient = Patient.query.get(appointment.patient_id)
-                # Add the leftover money to their credit balance
                 patient.credit_balance = (patient.credit_balance or 0.0) + remaining
-                print(f"💰 Added {remaining} DT to Patient Credit Balance")
+                print(f" Added {remaining} DT to Patient Credit Balance")
         
         db.session.commit()
         return jsonify({'success': True, 'appointment': {'id': appointment.id}})
@@ -484,13 +526,32 @@ def get_appointment(appointment_id):
         print(f"🔧 Self-healed {appointment_id}: Changed stuck PLANNED treatments to SCHEDULED")
 
     # ... [Keep your existing treatments_data serialization here] ...
-    treatments_data = [{
-        'id': t.id,
-        'name': t.procedure_name,
-        'tooth': t.tooth_number,
-        'status': t.status,
-        'cost': t.cost
-    } for t in appointment.treatments.all()]
+    treatments_data = []
+    for t in appointment.treatments.all():
+        # Calculate total paid for this specific treatment
+        paid_amount = sum(p.amount for p in t.payments)
+        # Calculate remaining balance (never negative)
+        balance = max(0, (t.cost - (t.insurance_amount or 0)) - paid_amount)
+        
+        # Format payments for the frontend
+        payments_list = [{
+            'id': p.id,
+            'amount': p.amount,
+            'method': p.method,
+            'date': p.date.strftime('%Y-%m-%d') if p.date else None
+        } for p in t.payments]
+
+        treatments_data.append({
+            'id': t.id,
+            'name': t.procedure_name,
+            'tooth': t.tooth_number,
+            'status': t.status,
+            'cost': t.cost,
+            'insurance_amount': t.insurance_amount or 0,
+            'paid_amount': paid_amount,
+            'balance': balance, # ✅ Frontend can use this directly!
+            'payments': payments_list
+        })
 
     return jsonify({
         'id': appointment.id,

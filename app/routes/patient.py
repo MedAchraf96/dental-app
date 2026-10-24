@@ -327,44 +327,48 @@ def financial(patient_id):
         flash('Patient not found!', 'error')
         return redirect(url_for('patient.home'))
 
-    # 1. Get all COMPLETED treatments for the Ledger
-    ledger_entries = Treatment.query.filter_by(
-        patient_id=patient_id, 
-        status='completed'
-    ).order_by(Treatment.completed_date.desc()).all()
+    # ✅ UPDATED: Get COMPLETED and IN_PROGRESS treatments
+    ledger_entries = Treatment.query.filter(
+        Treatment.patient_id == patient_id,
+        Treatment.status.in_(['completed', 'in_progress'])
+    ).order_by(Treatment.completed_date.desc().nullslast()).all()
 
-    # 2. Get all PAYMENTS for this patient (for the Payment History table)
+    # 2. Get all PAYMENTS for this patient
     all_payments = PatientPayment.query.join(Treatment).filter(
         Treatment.patient_id == patient_id
     ).order_by(PatientPayment.date.desc()).all()
 
-    # 3. Get COMPLETED APPOINTMENTS (for the Appointment History table)
+    # 3. Get COMPLETED APPOINTMENTS
     completed_appointments = Appointment.query.filter_by(
         patient_id=patient_id,
         status=AppointmentStatus.COMPLETED
     ).order_by(Appointment.completed_at.desc()).all()
 
-    # Calculate totals
-    total_billed = sum(t.cost for t in ledger_entries)
-    total_insurance = sum(t.insurance_amount or 0.0 for t in ledger_entries)
+    # ✅ UPDATED: Calculate totals (NO INSURANCE)
+    total_billed = sum(t.cost for t in ledger_entries if t.cost)
     total_paid = sum(p.amount for p in all_payments)
-    total_balance = total_paid - (total_billed - total_insurance)
+    
+    # Reste Dû = What's still owed on treatments (never negative)
+    reste_du = max(0, total_billed - total_paid)
+    
+    # Solde Patient (Bank Style) = Credit Balance + (Paid - Billed)
+    credit_balance = patient.credit_balance or 0.0
+    solde_patient = patient.credit_balance or 0.0 
 
     return render_template(
         'patient/financial.html',
         patient=patient,
         ledger_entries=ledger_entries,
-        all_payments=all_payments,       # NEW: For Payment History table
-        completed_appointments=completed_appointments, # NEW: For Appt History table
+        all_payments=all_payments,
+        completed_appointments=completed_appointments,
         total_billed=total_billed,
-        total_insurance=total_insurance,
         total_paid=total_paid,
-        total_balance=total_balance,
+        reste_du=reste_du,
+        solde_patient=solde_patient,
         active_tab='financial',
         now=datetime.now()
     )
 
-# Add this route right below the financial route to handle the form submission
 @patient_bp.route('/<int:patient_id>/financial/add-payment', methods=['POST'])
 @login_required
 def add_payment(patient_id):
@@ -372,23 +376,43 @@ def add_payment(patient_id):
     amount = request.form.get('amount', 0, type=float)
     method = request.form.get('method', 'Cash')
     date_str = request.form.get('payment_date')
-    
+
     if not treatment_id or amount <= 0:
         flash('Invalid payment data', 'error')
         return redirect(url_for('patient.financial', patient_id=patient_id))
+
+    patient = Patient.query.get_or_404(patient_id)
+    record_method = method
+
+    # ✅ BULLETPROOF CREDIT DEDUCTION
+    if method == 'credit_balance':
+        # Force float to prevent SQLAlchemy Decimal type issues
+        current_credit = float(patient.credit_balance or 0.0)
+        
+        if current_credit < amount:
+            flash(f'Crédit insuffisant. Disponible: {current_credit:.2f} DT', 'error')
+            return redirect(url_for('patient.financial', patient_id=patient_id))
+        
+        # Explicitly subtract and update
+        patient.credit_balance = current_credit - amount
+        record_method = 'Crédit Appliqué'
+        
+        # ✅ Visual proof that the deduction worked
+        flash(f'✅ {amount} DT déduit du crédit. Nouveau solde crédit: {patient.credit_balance:.2f} DT', 'success')
 
     payment_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else datetime.now().date()
 
     payment = PatientPayment(
         treatment_id=treatment_id,
         amount=amount,
-        method=method,
+        method=record_method,
         date=payment_date
     )
     
     db.session.add(payment)
-    db.session.commit()
-    flash(f'Payment of {amount} DT recorded successfully', 'success')
+    db.session.commit() # Commits BOTH the payment and the credit_balance update
+    
+    flash(f'Paiement de {amount} DT enregistré avec succès', 'success')
     return redirect(url_for('patient.financial', patient_id=patient_id))
 
 @patient_bp.route('/<int:patient_id>/financial-summary')
@@ -396,29 +420,71 @@ def add_payment(patient_id):
 def financial_summary(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     
-    # ✅ FIX: Only count COMPLETED treatments for the balance
-    treatments = Treatment.query.filter_by(
-        patient_id=patient_id, 
-        status='completed' # This prevents future planned treatments from inflating the debt
+    # 1. Completed + In Progress (for the financial page ledger)
+    treatments = Treatment.query.filter(
+        Treatment.patient_id == patient_id,
+        Treatment.status.in_(['completed', 'in_progress'])
     ).all()
     
     total_billed = sum(t.cost for t in treatments if t.cost)
-    total_insurance = sum(t.insurance_amount or 0.0 for t in treatments)
     
     all_payments = PatientPayment.query.join(Treatment).filter(
         Treatment.patient_id == patient_id
     ).all()
     total_paid = sum(p.amount for p in all_payments)
     
-    # Bank account style: Positive = Credit, Negative = Debt
-    total_balance = total_paid - (total_billed - total_insurance)
+    # 2. ✅ NEW: Sum of Planned + Scheduled (Future work not yet started)
+    future_treatments = Treatment.query.filter(
+        Treatment.patient_id == patient_id,
+        Treatment.status.in_(['planned', 'scheduled'])
+    ).all()
+    future_plan_sum = sum(t.cost for t in future_treatments if t.cost)
+    
+    # 3. Raw credit balance (decoupled from ledger)
+    total_balance = patient.credit_balance or 0.0
     
     return jsonify({
         'total_billed': total_billed,
         'total_paid': total_paid,
-        'total_insurance': total_insurance,
-        'total_balance': total_balance
+        'total_balance': total_balance,
+        'future_plan_sum': future_plan_sum  # ✅ For the modal header
     })
+
+@patient_bp.route('/<int:patient_id>/outstanding-treatments')
+@login_required
+def get_outstanding_treatments(patient_id):
+    exclude_appt_id = request.args.get('exclude_appointment_id', type=int)
+    
+    # ✅ FILTER: Only show Completed or In Progress (Real debts)
+    # This hides 'planned' and 'scheduled' future work from the list
+    treatments = Treatment.query.filter(
+        Treatment.patient_id == patient_id,
+        Treatment.status.in_(['completed', 'in_progress'])
+    ).all()
+    
+    result = []
+    for t in treatments:
+        if exclude_appt_id and t.id in [tr.id for tr in Appointment.query.get(exclude_appt_id).treatments.all()]:
+            continue
+            
+        paid = sum(p.amount for p in t.payments)
+        balance = (t.cost - (t.insurance_amount or 0)) - paid
+        
+        if balance > 0.01:
+            date_obj = t.completed_date if t.completed_date else t.created_at
+            date_str = date_obj.strftime('%d/%m/%Y') if date_obj else '-'
+            
+            result.append({
+                'id': t.id,
+                'name': t.procedure_name,
+                'tooth': t.tooth_number,
+                'date': date_str,
+                'balance': balance
+            })
+            
+    result.sort(key=lambda x: x['id'])
+    return jsonify(result)
+
 # ==========================================
 # CHART & API
 # ==========================================

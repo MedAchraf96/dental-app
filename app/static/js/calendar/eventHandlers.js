@@ -1,5 +1,5 @@
 import { formatDateForInput, formatTimeForInput } from "./helper.js";
-import { completeAppointment, cancelAppointment, createAppointment, updateAppointment } from "./API.js";
+import { cancelAppointment, createAppointment, updateAppointment } from "./API.js";
 
 window.newTreatmentsList = [];
 let searchTimeout;
@@ -434,7 +434,7 @@ async function openGranularModal(appointmentId) {
     const response = await fetch(`/api/appointments/${appointmentId}?include_patient=true&include_payments=true`);
     const appt = await response.json();
 
-    // ✅ Fetch patient details to get the actual balance
+    // ✅ 1. Fetch patient details to get the actual balance
     let patientBalance = 0;
     if (appt.patient_id) {
       try {
@@ -442,13 +442,33 @@ async function openGranularModal(appointmentId) {
         if (patientRes.ok) {
           const patientData = await patientRes.json();
           patientBalance = patientData.total_balance || 0;
+
+          // ✅ Populate Future Plan in header
+          const futureEl = document.getElementById('gp-card-future');
+          if (futureEl) {
+            const futureSum = patientData.future_plan_sum || 0;
+            futureEl.textContent = `${futureSum.toFixed(2)} DT`;
+            futureEl.style.color = futureSum > 0 ? '#fbbf24' : 'white';
+          }
         }
       } catch (e) {
         console.error('Could not fetch patient balance:', e);
       }
     }
 
-    // ✅ ROBUST AGE CALCULATION (Fixes the "- years" bug)
+    let allOutstandingTreatments = [];
+    try {
+      const outRes = await fetch(`/patients/${appt.patient_id}/outstanding-treatments?exclude_appointment_id=${appointmentId}`); if (outRes.ok) {
+        allOutstandingTreatments = await outRes.json();
+      }
+    } catch (e) {
+      console.error('Could not fetch outstanding treatments', e);
+    }
+
+    // Store it on the window so updateAllocationPreview can see it
+    window.currentOutstandingTreatments = allOutstandingTreatments;
+    window.currentApptTreatments = appt.treatments; // Keep track of c
+    // ✅ 2. Robust Age Calculation
     let ageDisplay = '-';
     if (appt.patient_dob) {
       try {
@@ -467,105 +487,125 @@ async function openGranularModal(appointmentId) {
       }
     }
 
-    document.getElementById('gp-patient-name').textContent = `${appt.patient_first_name || ''} ${appt.patient_last_name || ''}`.trim() || 'Unknown Patient';
-    document.getElementById('gp-patient-dob').textContent = appt.patient_dob ? new Date(appt.patient_dob).toLocaleDateString('en-GB') : 'N/A';
-    document.getElementById('gp-patient-age').textContent = ageDisplay; // ✅ Uses the calculated age
+    // ✅ 3. Calculate Visit Balance
+    let visitBalance = 0;
+    if (appt.treatments && appt.treatments.length > 0) {
+      for (const t of appt.treatments) {
+        const paid = t.payments ? t.payments.reduce((sum, p) => sum + p.amount, 0) : 0;
+        const balance = Math.round((Math.max(0, (t.cost - (t.insurance_amount || 0)) - paid)) * 100) / 100;
+        visitBalance += balance;
+      }
+    }
 
-    // ✅ Display balance with correct Bank Account sign
-    const balanceEl = document.getElementById('gp-total-balance');
+    // ✅ 4. Simple Data Binding (Update static HTML elements)
+    document.getElementById('gp-card-name').querySelector('span').textContent =
+      `${appt.patient_first_name || ''} ${appt.patient_last_name || ''}`.trim() || 'Unknown Patient';
+
+    document.getElementById('gp-card-dob').querySelector('span').textContent =
+      `${appt.patient_dob ? new Date(appt.patient_dob).toLocaleDateString('en-GB') : 'N/A'} (${ageDisplay} yrs)`;
+
+    const balanceEl = document.getElementById('gp-card-balance');
     if (patientBalance > 0) {
-      balanceEl.textContent = '+' + patientBalance.toFixed(2) + ' DT (Crédit)';
+      balanceEl.textContent = `+${patientBalance.toFixed(2)} DT (Crédit)`;
       balanceEl.style.color = '#86efac';
     } else if (patientBalance < 0) {
-      balanceEl.textContent = patientBalance.toFixed(2) + ' DT'; // Naturally includes the minus sign
+      balanceEl.textContent = `${patientBalance.toFixed(2)} DT`;
       balanceEl.style.color = '#fca5a5';
     } else {
       balanceEl.textContent = '0.00 DT';
       balanceEl.style.color = 'white';
     }
 
-    let visitBalance = 0;
-    listContainer.innerHTML = '';
+    document.getElementById('gp-card-visit').textContent = `${visitBalance.toFixed(2)} DT`;
 
+    // ✅ 5. Render Treatments
+    listContainer.innerHTML = '';
     if (appt.treatments && appt.treatments.length > 0) {
       for (const t of appt.treatments) {
         const paid = t.payments ? t.payments.reduce((sum, p) => sum + p.amount, 0) : 0;
         const balance = Math.round((Math.max(0, (t.cost - (t.insurance_amount || 0)) - paid)) * 100) / 100;
-        visitBalance += balance;
 
         const row = document.createElement('div');
         row.className = 'gp-treatment-row';
         row.dataset.treatmentId = t.id;
         row.dataset.balance = balance;
+
+        // ✅ NEW: Store details for the preview
+        row.dataset.name = t.name;
+        row.dataset.tooth = t.tooth || '-';
+        // Use the appointment date for the treatment date
+        row.dataset.date = appt.start_time ? new Date(appt.start_time).toLocaleDateString('en-GB') : '-';
         row.style.cssText = 'background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px;';
         row.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <div style="flex: 1;">
-              <div style="font-weight: 600; color: #1e293b; font-size: 0.95rem; margin-bottom: 4px;">
+              <div style="font-weight: 600; color: #1e293b; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 ${t.name}
-                ${t.tooth ? `<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+                ${t.tooth ? `<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">Tooth ${t.tooth}</span>` : ''}
+                <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 400;">Current: ${t.status.toUpperCase()}</span>
               </div>
-              <div style="font-size: 0.8rem; color: #64748b;">Current: ${t.status.toUpperCase()}</div>
             </div>
-            <div style="text-align: right;">
-              <div style="font-size: 0.85rem; color: #64748b;">Balance:</div>
-              <div style="font-size: 1.1rem; font-weight: 700; color: #ef4444;">${balance.toFixed(2)} DT</div>
+            <div style="text-align: right; min-width: 100px;">
+              <div style="font-size: 0.7rem; color: #64748b;">Balance:</div>
+              <div style="font-size: 1rem; font-weight: 700; color: #ef4444;">${balance.toFixed(2)} DT</div>
             </div>
           </div>
           
-          <div style="display: flex; gap: 16px; margin-bottom: 12px; align-items: center;">
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-              <input type="radio" name="status-${t.id}" value="in_progress" 
-                     ${t.status === 'in_progress' || t.status === 'scheduled' ? 'checked' : ''} 
-                     onchange="window.toggleTreatmentPayment(${t.id}, false)">
-              <span style="font-size: 0.9rem;"> In Progress</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-              <input type="radio" name="status-${t.id}" value="completed" 
-                     ${t.status === 'completed' ? 'checked' : ''}
-                     onchange="window.toggleTreatmentPayment(${t.id}, true)">
-              <span style="font-size: 0.9rem;">✅ Completed</span>
-            </label>
-          </div>
-          
-          <div id="payment-row-${t.id}" style="display: none; padding: 12px; background: #f0fdf4; border-radius: 6px; border: 1px solid #86efac;">
-            <label style="font-size: 0.8rem; font-weight: 600; color: #166534; display: block; margin-bottom: 4px;">
-              Payment for this treatment (leave blank for auto-split):
-            </label>
-            <input type="number" class="gp-treatment-payment" data-treatment-id="${t.id}" 
-                   data-balance="${balance}" step="0.01" min="0" max="${balance}"
-                   placeholder="0.00" 
-                   style="width: 100%; padding: 8px; border: 1px solid #86efac; border-radius: 6px;"
-                   oninput="window.updateAllocationPreview()">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.8rem;">
+                <input type="radio" name="status-${t.id}" value="in_progress" 
+                       ${t.status === 'in_progress' || t.status === 'scheduled' ? 'checked' : ''} 
+                       onchange="window.updateAllocationPreview()">
+                <span>In Progress</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.8rem;">
+                <input type="radio" name="status-${t.id}" value="completed" 
+                       ${t.status === 'completed' ? 'checked' : ''}
+                       onchange="window.updateAllocationPreview()">
+                <span>✅ Completed</span>
+              </label>
+            </div>
+            
+            <div style="flex: 1; min-width: 150px; position: relative;">
+              <input type="number" class="gp-treatment-payment" data-treatment-id="${t.id}" 
+                     data-balance="${balance}" step="0.01" min="0" max="${balance}"
+                     placeholder="Manual payment (auto-split if blank)" 
+                     style="width: 100%; padding: 6px 40px 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; box-sizing: border-box;"
+                     oninput="window.updateAllocationPreview()">
+              <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem; font-weight: 600;">DT</span>
+            </div>
           </div>
         `;
         listContainer.appendChild(row);
       }
+    } else {
+      listContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #64748b;">No treatments linked to this appointment.</div>';
     }
 
-    document.getElementById('gp-visit-balance').textContent = visitBalance.toFixed(2) + ' DT';
-    document.getElementById('gp-total-payment').value = visitBalance > 0 ? visitBalance.toFixed(2) : '0';
+    // ✅ 6. Set initial payment value and attach listeners safely
+    const totalPaymentInput = document.getElementById('gp-total-payment');
+    if (totalPaymentInput) {
+      totalPaymentInput.value = visitBalance > 0 ? visitBalance.toFixed(2) : '0';
 
-    document.getElementById('gp-total-payment').addEventListener('input', window.updateAllocationPreview);
+      // Remove old listeners to prevent duplicates
+      totalPaymentInput.removeEventListener('input', window.updateAllocationPreview);
+      totalPaymentInput.addEventListener('input', window.updateAllocationPreview);
+    }
+
     document.querySelectorAll('input[name="allocation-mode"]').forEach(radio => {
+      radio.removeEventListener('change', window.updateAllocationPreview);
       radio.addEventListener('change', window.updateAllocationPreview);
     });
 
+    // Trigger initial preview
     window.updateAllocationPreview();
 
   } catch (error) {
     console.error("Error in openGranularModal:", error);
-    listContainer.innerHTML = '<div style="color: #ef4444;">Error loading appointment data</div>';
+    listContainer.innerHTML = '<div style="color: #ef4444; text-align:center; padding: 20px;">Error loading appointment data</div>';
   }
 }
-
-window.toggleTreatmentPayment = function (treatmentId, isCompleted) {
-  const paymentRow = document.getElementById(`payment-row-${treatmentId}`);
-  if (paymentRow) {
-    paymentRow.style.display = isCompleted ? 'block' : 'none';
-  }
-  window.updateAllocationPreview();
-};
 
 window.updateAllocationPreview = function () {
   const totalPayment = parseFloat(document.getElementById('gp-total-payment')?.value) || 0;
@@ -575,71 +615,124 @@ window.updateAllocationPreview = function () {
 
   if (!summaryDiv || !summaryItems) return;
 
-  const allocations = [];
+  const treatmentRows = document.querySelectorAll('.gp-treatment-row');
   let remaining = totalPayment;
+  let displayList = [];
 
-  if (mode === 'waterfall') {
-    const treatmentRows = document.querySelectorAll('.gp-treatment-row');
+  // Helper to parse date
+  const parseDate = (dateStr) => {
+    if (!dateStr || dateStr === '-') return new Date(0);
+    const parts = dateStr.split('/');
+    if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]);
+    return new Date(0);
+  };
 
-    // First pass: Manual payments for completed treatments
-    treatmentRows.forEach(row => {
-      const treatmentId = parseInt(row.dataset.treatmentId);
-      const balance = parseFloat(row.dataset.balance);
-      const statusRadio = row.querySelector(`input[name="status-${treatmentId}"]:checked`);
-      const isCompleted = statusRadio && statusRadio.value === 'completed';
-      const paymentInput = row.querySelector('.gp-treatment-payment');
-      const userAmount = paymentInput ? parseFloat(paymentInput.value) || 0 : 0;
+  // 1. Build a unified list of all items (Current + History)
+  let allItems = [];
 
-      if (isCompleted && userAmount > 0) {
-        allocations.push({ treatment_id: treatmentId, amount: Math.min(userAmount, balance) });
-        remaining -= Math.min(userAmount, balance);
-      }
+  // Add Current Visit Items
+  treatmentRows.forEach(row => {
+    const treatmentId = parseInt(row.dataset.treatmentId);
+    const balance = parseFloat(row.dataset.balance);
+    const paymentInput = row.querySelector('.gp-treatment-payment');
+    const userAmount = paymentInput ? parseFloat(paymentInput.value) || 0 : 0;
+
+    allItems.push({
+      id: treatmentId,
+      name: row.dataset.name,
+      tooth: row.dataset.tooth,
+      date: row.dataset.date,
+      balance: balance,
+      manualPay: userAmount,
+      source: 'current'
     });
+  });
 
-    // Second pass: Auto-split among completed treatments without manual payment
-    const completedWithoutPayment = [];
-    treatmentRows.forEach(row => {
-      const treatmentId = parseInt(row.dataset.treatmentId);
-      const balance = parseFloat(row.dataset.balance);
-      const statusRadio = row.querySelector(`input[name="status-${treatmentId}"]:checked`);
-      const isCompleted = statusRadio && statusRadio.value === 'completed';
-      const paymentInput = row.querySelector('.gp-treatment-payment');
-      const userAmount = paymentInput ? parseFloat(paymentInput.value) || 0 : 0;
-
-      if (isCompleted && userAmount === 0 && balance > 0) {
-        completedWithoutPayment.push({ treatment_id: treatmentId, balance });
-      }
-    });
-
-    if (completedWithoutPayment.length > 0 && remaining > 0) {
-      const splitAmount = Math.round((remaining / completedWithoutPayment.length) * 100) / 100;
-      completedWithoutPayment.forEach(item => {
-        allocations.push({ treatment_id: item.treatment_id, amount: Math.min(splitAmount, item.balance) });
-        remaining -= Math.min(splitAmount, item.balance);
+  // Add History Items
+  if (window.currentOutstandingTreatments) {
+    window.currentOutstandingTreatments.forEach(t => {
+      allItems.push({
+        id: t.id,
+        name: t.name,
+        tooth: t.tooth || '-',
+        date: t.date,
+        balance: t.balance,
+        manualPay: 0,
+        source: 'history'
       });
-    }
-  } else {
-    // FIFO Logic
-    const treatments = Array.from(document.querySelectorAll('.gp-treatment-row'))
-      .map(row => ({
-        id: parseInt(row.dataset.treatmentId),
-        balance: parseFloat(row.dataset.balance)
-      }))
-      .sort((a, b) => a.id - b.id);
-
-    for (const t of treatments) {
-      if (remaining <= 0) break;
-      const amount = Math.round(Math.min(remaining, t.balance) * 100) / 100;
-      allocations.push({ treatment_id: t.id, amount });
-      remaining = Math.round((remaining - amount) * 100) / 100;
-    }
+    });
   }
 
-  if (allocations.length > 0) {
+  // 2. Sort the list based on Mode
+  if (mode === 'fifo') {
+    // FIFO: Oldest debts first (History + Current mixed by date)
+    allItems.sort((a, b) => parseDate(a.date) - parseDate(b.date));
+  } else {
+    // Waterfall: Current Visit first, then History (Oldest first)
+    let currentItems = allItems.filter(i => i.source === 'current');
+    let historyItems = allItems.filter(i => i.source === 'history').sort((a, b) => parseDate(a.date) - parseDate(b.date));
+    allItems = [...currentItems, ...historyItems];
+  }
+
+  // 3. Allocate Money (Do NOT stop when remaining is 0)
+  for (const item of allItems) {
+    let payAmount = 0;
+
+    if (item.manualPay > 0) {
+      // Respect manual input
+      payAmount = Math.min(item.manualPay, item.balance);
+      remaining -= payAmount;
+    } else {
+      // Auto-allocate from remaining pool
+      if (remaining > 0) {
+        payAmount = Math.min(remaining, item.balance);
+        remaining -= payAmount;
+      }
+    }
+
+    displayList.push({
+      ...item,
+      paidNow: payAmount
+    });
+  }
+
+  // 4. Render the List
+  if (displayList.length > 0) {
     summaryDiv.style.display = 'block';
-    summaryItems.innerHTML = allocations.map(a =>
-      `<div>• Treatment #${a.treatment_id}: ${a.amount.toFixed(2)} DT</div>`
-    ).join('') + (remaining > 0.01 ? `<div style="color: #10b981; margin-top: 8px; font-weight: 600;">✅ +${remaining.toFixed(2)} DT will be added to Patient Credit (Bank Account)</div>` : '');
+
+    const listHtml = displayList.map(a => {
+      // Determine style based on whether it's being paid
+      const isPaid = a.paidNow > 0;
+      const amountColor = isPaid ? '#10b981' : '#94a3b8'; // Green if paid, Gray if unpaid
+      const amountText = isPaid ? `${a.paidNow.toFixed(2)} DT` : `Unpaid (${a.balance.toFixed(2)} DT)`;
+
+      // Add a subtle background for unpaid items to make them distinct
+      const rowBg = isPaid ? 'transparent' : '#f8fafc';
+
+      return `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; background: ${rowBg}; border-radius: 4px;">
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: ${isPaid ? '#1e293b' : '#64748b'}; font-size: 0.85rem;">
+            ${a.name} ${!isPaid ? '<span style="font-size:0.7em; color:#ef4444; margin-left:5px;">(OUTSTANDING)</span>' : ''}
+          </div>
+          <div style="font-size: 0.75rem; color: #64748b;">
+            <i class="bi bi-calendar3"></i> ${a.date} &nbsp;|&nbsp; <i class="bi bi-droplet-fill"></i> Tooth ${a.tooth}
+          </div>
+        </div>
+        <div style="font-weight: 700; font-size: 0.95rem; color: ${amountColor}; text-align: right;">
+          ${amountText}
+        </div>
+      </div>
+    `}).join('');
+
+    // Credit Overflow Message
+    const creditHtml = remaining > 0.01
+      ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 2px dashed #e2e8f0; color: #10b981; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
+           <i class="bi bi-check-circle-fill"></i> +${remaining.toFixed(2)} DT to Patient Credit
+         </div>`
+      : '';
+
+    summaryItems.innerHTML = listHtml + creditHtml;
   } else {
     summaryDiv.style.display = 'none';
   }

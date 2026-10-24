@@ -470,19 +470,19 @@
     <div class="summary-cards">
         <div class="summary-card billed">
             <span class="summary-label">Total Facturé</span>
-            <span class="summary-value">{{ "%.2f"|format(total_billed) }} DT</span>
-        </div>
-        <div class="summary-card tiers">
-            <span class="summary-label">Du Tiers</span>
-            <span class="summary-value">{{ "%.2f"|format(total_insurance) }} DT</span>
+            <span class="summary-value" id="total-facture">{{ "%.2f"|format(total_billed) }} DT</span>
         </div>
         <div class="summary-card paid">
-            <span class="summary-label">Total Payé</span>
-            <span class="summary-value">{{ "%.2f"|format(total_paid) }} DT</span>
+            <span class="summary-label">Encaissé</span>
+            <span class="summary-value" id="total-paye">{{ "%.2f"|format(total_paid) }} DT</span>
+        </div>
+        <div class="summary-card balance-due">
+            <span class="summary-label">Reste Dû</span>
+            <span class="summary-value" id="reste-du">{{ "%.2f"|format(reste_du) }} DT</span>
         </div>
         <div class="summary-card balance">
             <span class="summary-label">Solde Patient</span>
-            <span class="summary-value">{{ "%.2f"|format(total_balance) }} DT</span>
+            <span class="summary-value" id="solde-patient">{{ "%.2f"|format(solde_patient) }} DT</span>
         </div>
     </div>
 
@@ -494,7 +494,6 @@
                     <th class="col-date">Date</th>
                     <th class="col-procedure">Acte</th>
                     <th class="col-money">Prix</th>
-                    <th class="col-money">Tiers</th>
                     <th class="col-money">Payé</th>
                     <th class="col-money">Solde</th>
                     <th class="col-action">Action</th>
@@ -502,33 +501,39 @@
             </thead>
             <tbody>
                 {% for entry in ledger_entries %}
-                {# ✅ SAFE CALCULATION (Matches your old file) #}
                 {% set entry_paid = entry.payments|sum(attribute='amount') if entry.payments else 0 %}
-                {% set entry_balance = (entry.cost - (entry.insurance_amount or 0)) - entry_paid %}
+                {% set entry_balance = entry.cost - entry_paid %}
 
                 <tr>
-                    <td class="col-date">{{ entry.completed_date.strftime('%d/%m/%Y') if entry.completed_date else '-'
-                        }}</td>
+                    <td class="col-date">
+                        {% if entry.completed_date %}
+                        {{ entry.completed_date.strftime('%d/%m/%Y') }}
+                        {% else %}
+                        <span style="color: #f59e0b; font-weight: 600;">En cours</span>
+                        {% endif %}
+                    </td>
                     <td class="col-procedure">
                         <div class="procedure-name">{{ entry.procedure_name }}</div>
                         {% if entry.tooth_number %}
                         <span class="tooth-badge">🦷 {{ entry.tooth_number }}</span>
                         {% endif %}
                     </td>
+                    <td class="col-money amount-positive">
+                        {{ "%.2f"|format(entry.cost or 0) }} DT
+                    </td>
                     <td class="col-money amount-positive" style="cursor: pointer; position: relative;"
                         onclick="openPaymentHistory(this)"
                         data-payments='[ {% for p in entry.payments %} {"date": "{{ p.date.strftime(' %d/%m/%Y') if
                         p.date else '-' }}", "method" : "{{ p.method }}" , "amount" : {{ p.amount }} }{% if not
                         loop.last %},{% endif %}{% endfor %} ]' data-procedure="{{ entry.procedure_name }}">
-
                         {{ "%.2f"|format(entry_paid) }} DT
                         {% if entry_paid > 0 %}
                         <i class="bi bi-list-ul" style="margin-left: 6px; font-size: 0.8em; opacity: 0.6;"></i>
                         {% endif %}
                     </td>
-                    <td class="col-money amount-neutral">{{ "%.2f"|format(entry.insurance_amount or 0) }} DT</td>
-                    <td class="col-money amount-positive">{{ "%.2f"|format(entry_paid) }} DT</td>
-                    <td class="col-money amount-negative">{{ "%.2f"|format(entry_balance) }} DT</td>
+                    <td class="col-money {% if entry_balance > 0 %}amount-negative{% else %}amount-positive{% endif %}">
+                        {{ "%.2f"|format(entry_balance) }} DT
+                    </td>
                     <td class="col-action">
                         {% if entry_balance > 0.01 %}
                         <button class="icon-btn record-payment-btn" data-treatment-id="{{ entry.id }}"
@@ -583,6 +588,9 @@
                     <option value="Card">Carte Bancaire</option>
                     <option value="Check">Chèque</option>
                     <option value="Transfer">Virement</option>
+                    <option value="credit_balance" style="background: #ecfdf5; font-weight: 600;">
+                        💳 Utiliser le Crédit Patient
+                    </option>
                 </select>
             </div>
 
@@ -645,6 +653,32 @@
                 document.getElementById('paymentAmount').value = balance;
                 document.getElementById('paymentAmount').max = balance;
                 document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+
+                // ✅ Fetch credit balance to update the dropdown option dynamically
+                fetch(`/patients/{{ patient.id }}/financial-summary`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const creditBalance = data.total_balance > 0 ? data.total_balance : 0;
+                        const paymentMethodSelect = document.getElementById('paymentMethod');
+                        let creditOption = paymentMethodSelect.querySelector('option[value="credit_balance"]');
+
+                        if (creditOption) {
+                            if (creditBalance > 0) {
+                                // ✅ HAS CREDIT: Enable, update text, and SELECT BY DEFAULT
+                                creditOption.disabled = false;
+                                creditOption.textContent = `💳 Utiliser le Crédit (${creditBalance.toFixed(2)} DT)`;
+                                creditOption.style.color = '#10b981';
+                                paymentMethodSelect.value = 'credit_balance'; // <-- This makes it the default
+                            } else {
+                                // ✅ NO CREDIT: Disable and fallback to Cash
+                                creditOption.disabled = true;
+                                creditOption.textContent = '💳 Crédit Insuffisant';
+                                creditOption.style.color = '#94a3b8';
+                                paymentMethodSelect.value = 'Cash';
+                            }
+                        }
+                    })
+                    .catch(err => console.error('Error fetching credit balance:', err));
 
                 modal.classList.add('active');
             });
@@ -747,23 +781,35 @@
         });
 
         // ==========================================
-        // 3. BALANCE COLORING LOGIC (Bank Account Style)
+        // 3. BALANCE COLORING LOGIC (Decoupled)
         // ==========================================
-        const soldeEl = document.querySelector('.summary-card.balance .summary-value');
-        if (soldeEl) {
-            const text = soldeEl.textContent.trim().replace(' DT', '');
+
+        // Reste Dû Coloring (Red if > 0, Gray if 0)
+        const resteEl = document.getElementById('reste-du');
+        if (resteEl) {
+            const text = resteEl.textContent.trim().replace(' DT', '');
             const val = parseFloat(text);
 
             if (val > 0) {
-                // Positive = Patient has EXCESS money (Credit) → GREEN
+                resteEl.style.color = '#ef4444';
+            } else {
+                resteEl.style.color = '#64748b';
+            }
+        }
+
+        // ✅ Solde Patient Coloring (Now just raw credit balance)
+        const soldeEl = document.getElementById('solde-patient');
+        if (soldeEl) {
+            // Remove ' DT' and '+' signs for clean parsing
+            const text = soldeEl.textContent.trim().replace(' DT', '').replace('+', '');
+            const val = parseFloat(text);
+
+            if (val > 0) {
+                // Has Credit → GREEN
                 soldeEl.style.color = '#10b981';
                 soldeEl.textContent = '+' + val.toFixed(2) + ' DT (Crédit)';
-            } else if (val < 0) {
-                // Negative = Patient OWES money (Debt) → RED
-                soldeEl.style.color = '#ef4444';
-                soldeEl.textContent = val.toFixed(2) + ' DT';
             } else {
-                // Zero = Neutral gray
+                // No Credit → GRAY
                 soldeEl.style.color = '#64748b';
                 soldeEl.textContent = '0.00 DT';
             }
