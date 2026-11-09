@@ -35,3 +35,23 @@
 - Prefer external JavaScript files located in `app/static/js/` for all application logic.
 - Inline `<script>` blocks are **only permitted** for passing server-side data from Jinja to JavaScript (e.g., using `window.APP_DATA = {{ data | tojson }};`).
 - Inline event handlers (e.g., `onclick="..."`) are **not allowed**. Use `addEventListener()` in your external JS files instead.
+
+## Frontend Data Passing (Flask to JavaScript)
+
+- **Never use inline `<script>` tags to pass Jinja variables to JavaScript.** (e.g., do not use `window.APP_DATA = { ... }`).
+- **Always use HTML `data-*` attributes** on a hidden element to pass server-side data.
+- **In JavaScript, read these values using the `dataset` property.**
+
+### Correct Pattern Example:
+
+**In the HTML template:**
+
+<div id="page-data" 
+     data-patient-id="{{ patient.id }}" 
+     data-csrf-token="{{ csrf_token() }}" 
+     style="display: none;"></div>
+
+**In the external JavaScript file:**
+const dataDiv = document.getElementById('page-data');
+const patientId = dataDiv ? dataDiv.dataset.patientId : '';
+const csrfToken = dataDiv ? dataDiv.dataset.csrfToken : '';
