@@ -23,3 +23,15 @@
 - **Smallest change:** Prefer the smallest appropriate change. Do not rewrite entire files unnecessarily.
 - **Beginner-friendly:** Explain code changes in beginner-friendly language.
 - **Patches:** When asked for a patch, return a minimal unified diff for the smallest possible set of files.
+
+## CSS Guidelines
+
+- Prefer external stylesheets located in `app/static/css/` for all static styling.
+- Inline `<style>` tags are **not allowed** in HTML templates.
+- The `style` attribute is **only permitted** for dynamic styling driven by Jinja variables (e.g., changing a color based on a status).
+
+## JavaScript Guidelines
+
+- Prefer external JavaScript files located in `app/static/js/` for all application logic.
+- Inline `<script>` blocks are **only permitted** for passing server-side data from Jinja to JavaScript (e.g., using `window.APP_DATA = {{ data | tojson }};`).
+- Inline event handlers (e.g., `onclick="..."`) are **not allowed**. Use `addEventListener()` in your external JS files instead.
