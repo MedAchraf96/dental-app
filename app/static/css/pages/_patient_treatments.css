@@ -1,0 +1,249 @@
+/* =========================================================
+   TREATMENTS PAGE STYLES
+   app/static/css/pages/_patient_treatments.css
+   ========================================================= */
+
+/* Container */
+.treatments-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+.treatments-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.treatments-title {
+    margin: 0;
+    color: #1e3a8a;
+}
+
+.treatments-subtitle {
+    margin: 5px 0 0 0;
+    color: #6c757d;
+}
+
+.treatments-back-btn {
+    background: #6c757d;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+}
+
+/* Cards */
+.treatments-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+}
+
+.treatments-form-card {
+    margin-bottom: 30px;
+}
+
+.treatments-section-title {
+    margin-top: 0;
+    color: #1e3a8a;
+}
+
+.treatments-form-title {
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 10px;
+}
+
+/* Add Treatment Form */
+.treatments-form-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.treatment-field-procedure {
+    flex: 2;
+    min-width: 200px;
+}
+
+.treatment-field-tooth {
+    flex: 1;
+    min-width: 100px;
+    display: none;
+}
+
+.treatment-field {
+    flex: 1;
+    min-width: 100px;
+}
+
+.treatment-field-status {
+    flex: 1;
+    min-width: 120px;
+}
+
+.treatment-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.treatment-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+}
+
+.treatment-tooth-input {
+    transition: border-color 0.2s;
+}
+
+.treatment-tooth-error {
+    font-size: 11px;
+    color: #ef4444;
+    margin-top: 4px;
+    display: none;
+}
+
+.treatment-add-btn {
+    background: #10b981;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    height: 38px;
+}
+
+/* Table */
+.treatments-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.treatments-table thead tr {
+    background: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.treatments-table th {
+    padding: 12px;
+    text-align: left;
+}
+
+.treatments-table tbody tr {
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.treatments-table td {
+    padding: 12px;
+}
+
+.treatments-table .text-center {
+    text-align: center;
+}
+
+.treatments-table .text-right {
+    text-align: right;
+}
+
+.treatment-procedure-name {
+    font-weight: 600;
+    color: #212529;
+}
+
+.treatment-tooth-cell {
+    text-align: center;
+    color: #6c757d;
+}
+
+.treatment-cost-cell {
+    text-align: right;
+    font-weight: 600;
+}
+
+.treatment-status-cell {
+    text-align: center;
+}
+
+.treatment-actions-cell {
+    text-align: center;
+}
+
+.treatment-inline-form {
+    display: inline-block;
+}
+
+.treatment-delete-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+/* Status Selects */
+.status-select {
+    transition: all 0.2s ease;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+}
+
+.status-planned {
+    border: 1px solid #ced4da;
+    color: #475569;
+    background-color: #f8fafc;
+}
+
+.status-scheduled {
+    border: 1px solid #3b82f6;
+    color: #1e40af;
+    background-color: #eff6ff;
+}
+
+.status-in_progress {
+    border: 1px solid #f59e0b;
+    color: #92400e;
+    background-color: #fffbeb;
+}
+
+.status-completed {
+    border: 1px solid #10b981;
+    color: #065f46;
+    background-color: #ecfdf5;
+}
+
+.status-cancelled {
+    border: 1px solid #ef4444;
+    color: #991b1b;
+    background-color: #fef2f2;
+}
+
+/* Empty State */
+.treatments-empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+}
+
+.treatments-empty-title {
+    font-size: 16px;
+}
+
+.treatments-empty-description {
+    font-size: 13px;
+}

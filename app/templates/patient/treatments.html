@@ -4,353 +4,287 @@
 
 {% block patient_content %}
 
-<style>
-    /* Base style for all status dropdowns */
-    .status-select {
-        transition: all 0.2s ease;
-    }
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/_treatments.css') }}">
 
-    /* Planned (Grey) */
-    .status-planned {
-        border: 1px solid #ced4da;
-        color: #475569;
-        background-color: #f8fafc;
-    }
+<script src="{{ url_for('static', filename='js/patient/treatments.js') }}" defer></script>
 
-    /* Scheduled (Blue) */
-    .status-scheduled {
-        border: 1px solid #3b82f6;
-        color: #1e40af;
-        background-color: #eff6ff;
-    }
-
-    /* In Progress (Yellow/Orange) */
-    .status-in_progress {
-        border: 1px solid #f59e0b;
-        color: #92400e;
-        background-color: #fffbeb;
-    }
-
-    /* Completed (Green) */
-    .status-completed {
-        border: 1px solid #10b981;
-        color: #065f46;
-        background-color: #ecfdf5;
-    }
-
-    /* Cancelled (Red) */
-    .status-cancelled {
-        border: 1px solid #ef4444;
-        color: #991b1b;
-        background-color: #fef2f2;
-    }
-</style>
-
-<div class="container" style="max-width: 1000px; margin: 0 auto; padding: 20px;">
-
-    <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-        <div>
-            <h2 style="margin: 0; color: #1e3a8a;">Treatment Plan: {{ patient.full_name }}</h2>
-            <p style="margin: 5px 0 0 0; color: #6c757d;">Manage planned, in-progress, and completed procedures.</p>
-        </div>
-        <a href="{{ url_for('patient.profile', patient_id=patient.id) }}" class="btn"
-            style="background: #6c757d; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none;">
-            ← Back to Profile
-        </a>
-    </div>
-
-    <!-- Add New Treatment Form -->
-    <div class="card"
-        style="background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 30px;">
-        <h4 style="margin-top: 0; color: #1e3a8a; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Add New
-            Treatment</h4>
-        <form method="POST" action="{{ url_for('patient.add_treatment', patient_id=patient.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
-
-                <!-- ✅ 1. Smart Procedure Dropdown -->
-                <div style="flex: 2; min-width: 200px;">
-                    <label
-                        style="font-size: 13px; font-weight: 600; color: #495057; display: block; margin-bottom: 5px;">Procedure*</label>
-                    <select name="procedure_id" id="procedure-select" required
-                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px;">
-                        <option value="" disabled selected>-- Select a procedure --</option>
-                        {% for proc in catalog %}
-                        <option value="{{ proc.id }}" data-price="{{ proc.default_price }}"
-                            data-target="{{ proc.target_type }}">
-                            {{ proc.name }} ({{ proc.category }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- ✅ 2. Dynamic Tooth Number (Hidden by default) -->
-                <div style="flex: 1; min-width: 100px; display: none;" id="tooth-group">
-                    <label
-                        style="font-size: 13px; font-weight: 600; color: #495057; display: block; margin-bottom: 5px;">Tooth
-                        #</label>
-                    <input type="text" id="tooth_input" name="tooth_number" placeholder="e.g., 14"
-                        oninput="validateToothInput(this)"
-                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px; transition: border-color 0.2s;">
-                    <div id="tooth_error" style="font-size: 11px; color: #ef4444; margin-top: 4px; display: none;">
-                        Invalid format</div>
-                </div>
-
-                <!-- 3. Auto-filled Cost -->
-                <div style="flex: 1; min-width: 100px;">
-                    <label
-                        style="font-size: 13px; font-weight: 600; color: #495057; display: block; margin-bottom: 5px;">Estimated
-                        Cost (DT)</label>
-                    <input type="number" name="cost" step="0.01" min="0" value="0.00"
-                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px;">
-                </div>
-
-                <!-- 4. Initial Status -->
-                <div style="flex: 1; min-width: 120px;">
-                    <label
-                        style="font-size: 13px; font-weight: 600; color: #495057; display: block; margin-bottom: 5px;">Initial
-                        Status</label>
-                    <select name="status"
-                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px;">
-                        {% for s in [enums.TreatmentStatus.PLANNED, enums.TreatmentStatus.IN_PROGRESS,
-                        enums.TreatmentStatus.COMPLETED] %}
-                        <option value="{{ s.value }}">{{ s.value.replace('_', ' ')|title }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <button type="submit" class="btn"
-                    style="background: #10b981; color: white; padding: 8px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; height: 38px;">
-                    + Add
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Treatments List -->
-    <div class="card"
-        style="background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 20px;">
-        <h4 style="margin-top: 0; color: #1e3a8a;">Current Treatment Plan</h4>
-
-        {% if treatments %}
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-            <thead>
-                <tr style="background: #f8f9fa; border-bottom: 2px solid #e9ecef;">
-                    <th style="padding: 12px; text-align: left;">Procedure</th>
-                    <th style="padding: 12px; text-align: center;">Tooth</th>
-                    <th style="padding: 12px; text-align: right;">Cost</th>
-                    <th style="padding: 12px; text-align: center;">Status</th>
-                    <th style="padding: 12px; text-align: center;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in treatments %}
-                <tr style="border-bottom: 1px solid #f1f3f5;">
-                    <td style="padding: 12px; font-weight: 600; color: #212529;">{{ t.procedure_name }}</td>
-                    <td style="padding: 12px; text-align: center; color: #6c757d;">
-                        {{ t.tooth_number if t.tooth_number else 'General' }}
-                    </td>
-                    <td style="padding: 12px; text-align: right; font-weight: 600;">{{ "%.2f"|format(t.cost) }} DT</td>
-                    <td style="padding: 12px; text-align: center;">
-                        <form method="POST" action="{{ url_for('patient.update_treatment_status', treatment_id=t.id) }}"
-                            style="display: inline-block;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                            <!-- ✅ Clean Select: Relies on CSS classes for colors -->
-                            <select name="status" onchange="this.form.submit()"
-                                class="status-select status-{{ t.status.value if t.status.value else t.status }}"
-                                style="padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; outline: none;">
-
-                                <option value="planned" {% if t.status.value=='planned' or t.status=='planned'
-                                    %}selected{% endif %}>Planned</option>
-                                <option value="scheduled" {% if t.status.value=='scheduled' or t.status=='scheduled'
-                                    %}selected{% endif %}>Scheduled</option>
-                                <option value="in_progress" {% if t.status.value=='in_progress' or
-                                    t.status=='in_progress' %}selected{% endif %}>In Progress</option>
-                                <option value="completed" {% if t.status.value=='completed' or t.status=='completed'
-                                    %}selected{% endif %}>Completed</option>
-                                <option value="cancelled" {% if t.status.value=='cancelled' or t.status=='cancelled'
-                                    %}selected{% endif %}>Cancelled</option>
-                            </select>
-                        </form>
-                    </td>
-                    <td style="padding: 12px; text-align: center;">
-                        <form method="POST" action="{{ url_for('patient.delete_treatment', treatment_id=t.id) }}"
-                            style="display: inline-block;"
-                            onsubmit="return confirm('Remove this treatment from the plan?');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit"
-                                style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 18px;"
-                                title="Delete">🗑️</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div style="text-align: center; padding: 40px; color: #6c757d;">
-            <p style="font-size: 16px;">No treatments planned yet.</p>
-            <p style="font-size: 13px;">Use the form above to add a procedure to this patient's plan.</p>
-        </div>
-        {% endif %}
-    </div>
+<!-- Page Data -->
+<div id="page-data" data-page="treatments" hidden>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const select = document.getElementById('procedure-select');
-        const costInput = document.querySelector('input[name="cost"]');
-        const toothGroup = document.getElementById('tooth-group');
-        const toothInput = document.getElementById('tooth_input');
-        const errorDiv = document.getElementById('tooth_error');
+<div class="container treatments-container">
 
-        // ✅ 1. Check on page load if a tooth was pre-filled from the URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const toothFromUrl = urlParams.get('tooth');
+    <!-- Header -->
+    <div class="treatments-header">
 
-        if (toothFromUrl) {
-            toothInput.value = toothFromUrl;
-            toothGroup.style.display = 'block';
-            toothInput.style.borderColor = '#10b981';
-            filterProceduresForTooth();
-        }
+        <div>
+            <h2 class="treatments-title">
+                Treatment Plan: {{ patient.full_name }}
+            </h2>
 
-        // ✅ 2. Handle Procedure Selection Change
-        select.addEventListener('change', function () {
-            const selectedOption = this.options[this.selectedIndex];
+            <p class="treatments-subtitle">
+                Manage planned, in-progress, and completed procedures.
+            </p>
+        </div>
 
-            if (selectedOption.value) {
-                // Auto-fill cost
-                costInput.value = selectedOption.dataset.price || '0.00';
+        <a href="{{ url_for('patient.profile', patient_id=patient.id) }}" class="btn treatments-back-btn">
+            ← Back to Profile
+        </a>
 
-                // Smart Tooth Number Logic
-                const targetType = selectedOption.dataset.target;
-                if (targetType === 'single_tooth') {
-                    toothGroup.style.display = 'block';
-                    toothInput.setAttribute('required', 'required');
-                } else {
-                    toothGroup.style.display = 'none';
-                    toothInput.removeAttribute('required');
-                    toothInput.value = ''; // Clear it
-                    toothInput.style.borderColor = '#ced4da'; // Reset border
-                    if (errorDiv) errorDiv.style.display = 'none';
-                }
-            } else {
-                costInput.value = '0.00';
-            }
-        });
+    </div>
 
-        // ✅ 3. Handle Manual Clearing of Tooth Input
-        // If the user deletes the tooth number, reset everything to "General" mode
-        if (toothInput) {
-            toothInput.addEventListener('input', function () {
-                if (this.value.trim() === '') {
-                    showAllProcedures();
-                    this.style.borderColor = '#ced4da';
-                    if (errorDiv) errorDiv.style.display = 'none';
 
-                    // Optional: Reset the dropdown and cost when tooth is cleared
-                    select.value = '';
-                    costInput.value = '0.00';
-                } else {
-                    // Re-validate and filter if they start typing again
-                    validateToothInput(this);
-                    filterProceduresForTooth();
-                }
-            });
-        }
+    <!-- Add New Treatment Form -->
+    <div class="card treatments-card treatments-form-card">
 
-        // ✅ 4. Function to filter procedures for tooth-specific treatments
-        function filterProceduresForTooth() {
-            const options = select.querySelectorAll('option');
-            let hasVisibleOptions = false;
+        <h4 class="treatments-section-title treatments-form-title">
+            Add New Treatment
+        </h4>
 
-            options.forEach(option => {
-                if (option.disabled && option.value === '') {
-                    return; // Keep the "Select a procedure" placeholder
-                }
+        <form method="POST" action="{{ url_for('patient.add_treatment', patient_id=patient.id) }}">
 
-                const targetType = option.dataset.target;
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                if (targetType === 'single_tooth') {
-                    option.style.display = 'block';
-                    hasVisibleOptions = true;
-                } else {
-                    option.style.display = 'none';
-                }
-            });
+            <div class="treatments-form-row">
 
-            // Auto-select the first visible option if none is selected
-            if (hasVisibleOptions && !select.value) {
-                const firstToothProc = Array.from(options).find(opt => opt.style.display !== 'none' && opt.value);
-                if (firstToothProc) {
-                    select.value = firstToothProc.value;
-                    select.dispatchEvent(new Event('change')); // Trigger cost auto-fill
-                }
-            }
-        }
+                <!-- Procedure -->
+                <div class="treatment-field-procedure">
 
-        // ✅ 5. Function to show all procedures (when no tooth selected)
-        window.showAllProcedures = function () {
-            const options = select.querySelectorAll('option');
-            options.forEach(option => {
-                option.style.display = 'block';
-            });
-        }
-    });
+                    <label class="treatment-label">
+                        Procedure*
+                    </label>
 
-    // ✅ 6. Existing Validation Logic (Untouched, it's perfect)
-    function validateToothInput(input) {
-        const val = input.value.trim().toUpperCase();
-        const errorDiv = document.getElementById('tooth_error');
+                    <select name="procedure_id" id="procedure-select" class="treatment-control" required>
 
-        if (val === '') {
-            input.style.borderColor = '#ced4da';
-            if (errorDiv) errorDiv.style.display = 'none';
-            return;
-        }
+                        <option value="" disabled selected>
+                            -- Select a procedure --
+                        </option>
 
-        const validKeywords = ['FULL UPPER', 'FULL LOWER', 'FULL MOUTH'];
-        if (validKeywords.includes(val)) {
-            input.style.borderColor = '#10b981';
-            if (errorDiv) errorDiv.style.display = 'none';
-            return;
-        }
+                        {% for proc in catalog %}
 
-        const singleToothRegex = /^[1-4][1-8]$/;
-        if (singleToothRegex.test(val)) {
-            input.style.borderColor = '#10b981';
-            if (errorDiv) errorDiv.style.display = 'none';
-            return;
-        }
+                        <option value="{{ proc.id }}" data-price="{{ proc.default_price }}"
+                            data-target="{{ proc.target_type }}">
 
-        const rangeRegex = /^([1-4][1-8])-([1-4][1-8])$/;
-        const match = val.match(rangeRegex);
+                            {{ proc.name }} ({{ proc.category }})
 
-        if (match) {
-            const startTooth = match[1];
-            const endTooth = match[2];
-            const startQ = parseInt(startTooth[0]);
-            const endQ = parseInt(endTooth[0]);
+                        </option>
 
-            const isUpper = (startQ === 1 || startQ === 2) && (endQ === 1 || endQ === 2);
-            const isLower = (startQ === 3 || startQ === 4) && (endQ === 3 || endQ === 4);
+                        {% endfor %}
 
-            if ((isUpper || isLower) && startTooth !== endTooth) {
-                input.style.borderColor = '#10b981';
-                if (errorDiv) errorDiv.style.display = 'none';
-                return;
-            }
-        }
+                    </select>
 
-        input.style.borderColor = '#ef4444';
-        if (errorDiv) {
-            errorDiv.style.display = 'block';
-            errorDiv.innerText = "Invalid. Use 11-48, same-arch range (e.g., 13-23), or FULL UPPER/LOWER/MOUTH.";
-        }
-    }
-</script>
+                </div>
+
+
+                <!-- Tooth Number -->
+                <div class="treatment-field-tooth" id="tooth-group">
+
+                    <label class="treatment-label">
+                        Tooth #
+                    </label>
+
+                    <input type="text" id="tooth_input" name="tooth_number"
+                        class="treatment-control treatment-tooth-input" placeholder="e.g., 14">
+
+                    <div id="tooth_error" class="treatment-tooth-error">
+
+                        Invalid format
+
+                    </div>
+
+                </div>
+
+
+                <!-- Estimated Cost -->
+                <div class="treatment-field">
+
+                    <label class="treatment-label">
+                        Estimated Cost (DT)
+                    </label>
+
+                    <input type="number" name="cost" class="treatment-control" step="0.01" min="0" value="0.00">
+
+                </div>
+
+
+                <!-- Initial Status -->
+                <div class="treatment-field-status">
+
+                    <label class="treatment-label">
+                        Initial Status
+                    </label>
+
+                    <select name="status" class="treatment-control">
+
+                        {% for s in [
+                        enums.TreatmentStatus.PLANNED,
+                        enums.TreatmentStatus.IN_PROGRESS,
+                        enums.TreatmentStatus.COMPLETED
+                        ] %}
+
+                        <option value="{{ s.value }}">
+                            {{ s.value.replace('_', ' ')|title }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <!-- Submit -->
+                <button type="submit" class="btn treatment-add-btn">
+
+                    + Add
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+
+    <!-- Current Treatment Plan -->
+    <div class="card treatments-card">
+
+        <h4 class="treatments-section-title">
+            Current Treatment Plan
+        </h4>
+
+        {% if treatments %}
+
+        <table class="treatments-table">
+
+            <thead>
+
+                <tr>
+                    <th>Procedure</th>
+                    <th class="text-center">Tooth</th>
+                    <th class="text-right">Cost</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                {% for t in treatments %}
+
+                <tr>
+
+                    <!-- Procedure -->
+                    <td class="treatment-procedure-name">
+                        {{ t.procedure_name }}
+                    </td>
+
+
+                    <!-- Tooth -->
+                    <td class="treatment-tooth-cell">
+                        {{ t.tooth_number if t.tooth_number else 'General' }}
+                    </td>
+
+
+                    <!-- Cost -->
+                    <td class="treatment-cost-cell">
+                        {{ "%.2f"|format(t.cost) }} DT
+                    </td>
+
+
+                    <!-- Status -->
+                    <td class="treatment-status-cell">
+
+                        <form method="POST" action="{{ url_for('patient.update_treatment_status', treatment_id=t.id) }}"
+                            class="treatment-inline-form">
+
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <select name="status"
+                                class="status-select status-{{ t.status.value if t.status.value else t.status }}">
+
+                                <option value="planned" {% if t.status.value=='planned' or t.status=='planned'
+                                    %}selected{% endif %}>
+                                    Planned
+                                </option>
+
+                                <option value="scheduled" {% if t.status.value=='scheduled' or t.status=='scheduled'
+                                    %}selected{% endif %}>
+                                    Scheduled
+                                </option>
+
+                                <option value="in_progress" {% if t.status.value=='in_progress' or
+                                    t.status=='in_progress' %}selected{% endif %}>
+                                    In Progress
+                                </option>
+
+                                <option value="completed" {% if t.status.value=='completed' or t.status=='completed'
+                                    %}selected{% endif %}>
+                                    Completed
+                                </option>
+
+                                <option value="cancelled" {% if t.status.value=='cancelled' or t.status=='cancelled'
+                                    %}selected{% endif %}>
+                                    Cancelled
+                                </option>
+
+                            </select>
+
+                        </form>
+
+                    </td>
+
+
+                    <!-- Actions -->
+                    <td class="treatment-actions-cell">
+
+                        <form method="POST" action="{{ url_for('patient.delete_treatment', treatment_id=t.id) }}"
+                            class="treatment-inline-form treatment-delete-form">
+
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <button type="submit" class="treatment-delete-btn" title="Delete"
+                                aria-label="Delete treatment">
+
+                                🗑️
+
+                            </button>
+
+                        </form>
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+
+        {% else %}
+
+        <!-- Empty State -->
+        <div class="treatments-empty-state">
+
+            <p class="treatments-empty-title">
+                No treatments planned yet.
+            </p>
+
+            <p class="treatments-empty-description">
+                Use the form above to add a procedure to this patient's plan.
+            </p>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
 {% endblock %}
