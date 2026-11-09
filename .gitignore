@@ -32,3 +32,7 @@ import_income_history.py
 .DS_Store
 Thumbs.db
 structure.txt 
+
+debug/
+scripts/
+INSTALL_README.md

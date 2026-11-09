@@ -380,7 +380,12 @@ def add_payment(patient_id):
     if not treatment_id or amount <= 0:
         flash('Invalid payment data', 'error')
         return redirect(url_for('patient.financial', patient_id=patient_id))
-
+        
+    treatment = Treatment.query.get_or_404(treatment_id)
+    if treatment.patient_id != patient_id:
+        flash('Erreur: Ce traitement n\'appartient pas à ce patient.', 'error')
+        return redirect(url_for('patient.financial', patient_id=patient_id))
+ 
     patient = Patient.query.get_or_404(patient_id)
     record_method = method
 
