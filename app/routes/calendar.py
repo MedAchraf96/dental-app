@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, request, abort
+from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from app.models import Appointment, Patient, Treatment, TreatmentCatalog, PatientPayment
 from app.enums import AppointmentStatus, TreatmentStatus, UserRole

@@ -5,7 +5,6 @@ from sqlalchemy import select, delete, func, or_
 from app.models import db, Patient, Appointment, User, ToothRecord, Prosthetic, Treatment,PatientPayment,TreatmentCatalog,ClinicalNote
 from app.enums import AppointmentStatus, TreatmentStatus, ToothState, ProstheticType
 from app.utils.tooth_helpers import update_tooth_chart_on_completion
-from collections import defaultdict 
 patient_bp = Blueprint('patient', __name__, url_prefix='/patients')
 
 @patient_bp.route("/")

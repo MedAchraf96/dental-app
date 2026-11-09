@@ -3,7 +3,7 @@ from datetime import datetime
 from .extensions import db
 from .enums import (
     UserRole, AppointmentStatus, TreatmentStatus,
-    ToothState, ProstheticType, PaymentStatus, IncomeDayType
+    ToothState, PaymentStatus, IncomeDayType
 )
 
 class User(db.Model, UserMixin):
