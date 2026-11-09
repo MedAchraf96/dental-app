@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const appData = window.APP_DATA || {};
-    const csrfToken = appData.csrfToken || '';
-    const patientId = appData.patientId || '';
+    // Read data safely from the hidden HTML div
+    const dataDiv = document.getElementById('financial-data');
+    const csrfToken = dataDiv ? dataDiv.dataset.csrfToken : '';
+    const patientId = dataDiv ? dataDiv.dataset.patientId : '';
 
     const modal = document.getElementById('paymentModal');
     const paymentForm = document.getElementById('paymentForm');

@@ -189,11 +189,8 @@
     </div>
 </div>
 
-<script>
-    window.APP_DATA = {
-        csrfToken: {{ csrf_token() | tojson }},
-    patientId: { { patient.id | tojson } }
-    };
-</script>
+<div id="financial-data" data-patient-id="{{ patient.id }}" data-csrf-token="{{ csrf_token() }}" style="display: none;">
+</div>
+
 <script src="{{ url_for('static', filename='js/patient/financial.js') }}" defer></script>
 {% endblock %}
