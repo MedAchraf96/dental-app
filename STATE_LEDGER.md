@@ -1,5 +1,3 @@
-
-
 # 🦷 Dental Practice Management System: State Ledger & Architecture Map
 
 This document serves as the master reference for data flow, state management, and architectural rules of the Dental Practice System.
@@ -100,5 +98,5 @@ This document serves as the master reference for data flow, state management, an
 - [X] **Teeth Chart:** Visual states, Prosthetics, Summary click-to-treat navigation.
 - [X] **Treatment Plan:** Add/Edit/Delete, Status management, Tooth input validation.
 - [X] **Calendar:** Multi-treatment booking, Hybrid (existing + new) procedures, Modal state reset, Multi-visit support.
-- [ ] **Financials UI:** Building the Invoice/Payment interface to match the schema.
+- [X] **Financials UI:** Building the Invoice/Payment interface to match the schema.
 - [ ] **Automated Billing:** Triggering Invoice creation when an Appointment is marked "Complete".
