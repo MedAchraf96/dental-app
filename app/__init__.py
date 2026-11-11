@@ -13,14 +13,6 @@ def create_app(config_class=DevelopmentConfig):
 )
     app.config.from_object(config_class)
     
-    # app.config['SECRET_KEY'] = 'your-very-secret-key-here'  # Change this!
-    # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(
-    #     os.path.abspath(os.path.dirname(__file__)), 
-    #     'instance', 
-    #     'patients.db'
-    # )    
-    # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
     csrf = CSRFProtect(app)
 
     # Configure instance folder
@@ -122,24 +114,22 @@ def initialize_database(app):
             from werkzeug.security import generate_password_hash
             
             # 3. Check for existing admin user more robustly
-            admin = User.query.filter_by(username='admin').first()
-            
+            admin = User.query.filter_by(username=app.config['ADMIN_USERNAME']).first() 
+
             if admin:
                 print(f"✓ Admin user exists (ID: {admin.id}, Role: {admin.role})")
             else:
                 try:
                     # 4. Create new admin with additional details
                     new_admin = User(
-                        username='admin',
-                        password=generate_password_hash('admin123'),
+                        username=app.config['ADMIN_USERNAME'],
+                        password=generate_password_hash(app.config['ADMIN_PASSWORD']),
                         role=UserRole.ADMIN,
                         name='System Administrator'
                     )
                     db.session.add(new_admin)
                     db.session.commit()
                     print("✓ Admin user created successfully")
-                    print(f"   Username: admin")
-                    print(f"   Password: admin123 (change this immediately)")
                 except Exception as create_error:
                     db.session.rollback()
                     print(f"⚠️ Failed to create admin user: {create_error}")

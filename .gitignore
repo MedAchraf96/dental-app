@@ -21,7 +21,7 @@ import_once.py
 expenses_history.csv    
 import_data.csv
 import_income_history.py
-
+.env
 
 # IDE
 .vscode/

@@ -11,8 +11,8 @@ def initialize_database(app):
         from .models import User
         if not User.query.first():
             admin = User(
-                username='admin',
-                password=generate_password_hash('admin123'),
+                username=app.config['ADMIN_USERNAME'],
+                password=generate_password_hash(app.config['ADMIN_PASSWORD']),
                 role='admin'
             )
             db.session.add(admin)
