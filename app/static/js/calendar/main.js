@@ -4,6 +4,7 @@ import {
   updateWeekDisplay,
   checkRunway,
   getTimeSlots,
+  escapeHtml
 } from "./helper.js";
 import {
   fetchAppointments,
@@ -72,9 +73,9 @@ function setupModal() {
       patients.forEach(patient => {
         const div = document.createElement('div');
         div.innerHTML = `
-          <strong>${patient.first_name} ${patient.last_name}</strong>
+          <strong>${escapeHtml(patient.first_name)} ${escapeHtml(patient.last_name)}</strong>
           <br>
-          <small>${patient.phone || 'No phone'} • ${patient.email || 'No email'}</small>
+          <small>${escapeHtml(patient.phone) || 'No phone'} • ${escapeHtml(patient.email) || 'No email'}</small>
         `;
         div.onclick = () => {
           patientSearch.value = `${patient.first_name} ${patient.last_name}`;
@@ -119,8 +120,8 @@ function setupModal() {
                style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer; accent-color: #3b82f6;">
         <div style="flex: 1;">
           <div style="font-weight: 600; font-size: 14px; color: #1e293b; margin-bottom: 2px;">
-            ${t.name}
-            ${t.tooth !== 'General' ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+            ${escapeHtml(t.name)}
+            ${t.tooth !== 'General' ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${escapeHtml(t.tooth)}</span>` : ''}
           </div>
           <div style="font-size: 13px; color: #64748b;">
             ${t.cost.toFixed(2)} DT
@@ -597,7 +598,7 @@ window.closeGranularModal = function () {
           continueDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: #fff7ed; border-left: 4px solid #ea580c; border-radius: 6px;';
           continueDiv.innerHTML = `
             <div style="font-weight: 600; color: #9a3412; font-size: 14px;">
-              <i class="bi bi-arrow-right-circle"></i> Continuing Treatment (ID: ${continueTreatmentId})
+              <i class="bi bi-arrow-right-circle"></i> Continuing Treatment (ID: ${escapeHtml(continueTreatmentId)})
             </div>
             <span class="badge" style="background: #fdba74; color: #7c2d12; padding: 4px 8px; border-radius: 4px; font-size: 11px;">IN PROGRESS</span>
           `;

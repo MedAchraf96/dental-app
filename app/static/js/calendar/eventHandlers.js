@@ -1,4 +1,4 @@
-import { formatDateForInput, formatTimeForInput } from "./helper.js";
+import { formatDateForInput, formatTimeForInput, escapeHtml } from "./helper.js";
 import { cancelAppointment, createAppointment, updateAppointment } from "./API.js";
 
 window.newTreatmentsList = [];
@@ -68,9 +68,9 @@ function renderSearchResults(results, inputElement, dropdownElement) {
     const div = document.createElement('div');
     div.style.cssText = 'padding: 10px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;';
     div.innerHTML = `
-      <div style="font-weight: 600; color: #1e293b; font-size: 14px;">${item.name}</div>
+      <div style="font-weight: 600; color: #1e293b; font-size: 14px;">${escapeHtml(item.name)}</div>
       <div style="font-size: 12px; color: #64748b;">
-        ${item.code ? item.code + ' • ' : ''}${item.default_cost.toFixed(2)} DT 
+        ${item.code ? escapeHtml(item.code) + ' • ' : ''}${item.default_cost.toFixed(2)} DT 
         ${item.requires_tooth ? '• Requires Tooth' : ''}
       </div>
     `;
@@ -110,9 +110,9 @@ window.renderNewTreatmentRows = function () {
     const row = document.createElement('div');
     row.className = 'quick-add-row';
     row.innerHTML = `
-      <div class="row-name">${t.name}</div>
+      <div class="row-name">${escapeHtml(t.name)}</div>
       <input type="text" class="row-tooth" placeholder="Tooth" 
-             value="${t.tooth || ''}" oninput="window.updateNewTreatment(${index}, 'tooth', this.value)">
+             value="${escapeHtml(t.tooth) || ''}" oninput="window.updateNewTreatment(${index}, 'tooth', this.value)">
       <input type="number" class="row-cost" placeholder="Cost" 
              value="${t.cost}" step="0.01" oninput="window.updateNewTreatment(${index}, 'cost', this.value)">
       <button type="button" class="row-delete" onclick="window.removeNewTreatmentRow(${index})">&times;</button>
@@ -359,8 +359,8 @@ function initAppointmentForm(context, data = null) {
               ${checkboxHtml}
               <div style="flex: 1;">
                 <div style="font-weight: 600; font-size: 14px; color: #1e293b; margin-bottom: 4px;">
-                  ${t.name}
-                  ${t.tooth ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${t.tooth}</span>` : ''}
+                  ${escapeHtml(t.name)}
+                  ${escapeHtml(t.tooth) ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Tooth ${escapeHtml(t.tooth)}</span>` : ''}
                 </div>
                 <div style="font-size: 12px; color: #64748b;">
                   ${t.cost.toFixed(2)} DT
@@ -540,8 +540,8 @@ async function openGranularModal(appointmentId) {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <div style="flex: 1;">
               <div style="font-weight: 600; color: #1e293b; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                ${t.name}
-                ${t.tooth ? `<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">Tooth ${t.tooth}</span>` : ''}
+                ${escapeHtml(t.name)}
+                ${t.tooth ? `<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">Tooth ${escapeHtml(t.tooth)}</span>` : ''}
                 <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 400;">Current: ${t.status.toUpperCase()}</span>
               </div>
             </div>
@@ -713,10 +713,10 @@ window.updateAllocationPreview = function () {
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; background: ${rowBg}; border-radius: 4px;">
         <div style="flex: 1;">
           <div style="font-weight: 600; color: ${isPaid ? '#1e293b' : '#64748b'}; font-size: 0.85rem;">
-            ${a.name} ${!isPaid ? '<span style="font-size:0.7em; color:#ef4444; margin-left:5px;">(OUTSTANDING)</span>' : ''}
+            ${escapeHtml(a.name)} ${!isPaid ? '<span style="font-size:0.7em; color:#ef4444; margin-left:5px;">(OUTSTANDING)</span>' : ''}
           </div>
           <div style="font-size: 0.75rem; color: #64748b;">
-            <i class="bi bi-calendar3"></i> ${a.date} &nbsp;|&nbsp; <i class="bi bi-droplet-fill"></i> Tooth ${a.tooth}
+            <i class="bi bi-calendar3"></i> ${a.date} &nbsp;|&nbsp; <i class="bi bi-droplet-fill"></i> Tooth ${escapeHtml(a.tooth)}
           </div>
         </div>
         <div style="font-weight: 700; font-size: 0.95rem; color: ${amountColor}; text-align: right;">

@@ -1,4 +1,4 @@
-import { formatDate, formatTime, createElement, isSlotAvailable, getStartOfWeek } from "./helper.js";
+import { formatDate, formatTime, createElement, isSlotAvailable, getStartOfWeek, escapeHtml } from "./helper.js";
 import { handleTimeSlotClick } from "./eventHandlers.js";
 
 function renderCalendar(
@@ -126,9 +126,9 @@ function createAppointmentElement(appt, slotDate, PIXELS_PER_MINUTE) {
       <span>${durationMinutes}</span>
     </div>
     <div class="appointment-content">
-      <strong>${appt.patient_first_name} ${appt.patient_last_name}</strong>
+      <strong>${escapeHtml(appt.patient_first_name)} ${escapeHtml(appt.patient_last_name)}</strong>
       <span class="treatment-sep">•</span>
-      <div class="treatment">${appt.treatment_type}</div>
+      <div class="treatment">${escapeHtml(appt.treatment_type)}</div>
       <div class="time">${formatTime(startTime)}-${formatTime(endTime)}</div>
     </div>
     ${appt.status === 'scheduled' ? '<div class="resize-handle"></div>' : ''}

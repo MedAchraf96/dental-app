@@ -235,6 +235,16 @@ function createElement(tag, className, html) {
   return el;
 }
 
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export {
   getStartOfWeek,
   formatDate,
@@ -248,4 +258,5 @@ export {
   getTimeSlots,
   createElement,
   updateWeekDisplay,
+  escapeHtml
 }
