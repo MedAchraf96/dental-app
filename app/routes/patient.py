@@ -328,7 +328,7 @@ def financial(patient_id):
     # ✅ UPDATED: Get COMPLETED and IN_PROGRESS treatments
     ledger_entries = Treatment.query.filter(
         Treatment.patient_id == patient_id,
-        Treatment.status.in_(['completed', 'in_progress'])
+        Treatment.status.in_([TreatmentStatus.COMPLETED, TreatmentStatus.IN_PROGRESS])
     ).order_by(Treatment.completed_date.desc().nullslast()).all()
 
     # 2. Get all PAYMENTS for this patient
@@ -426,7 +426,7 @@ def financial_summary(patient_id):
     # 1. Completed + In Progress (for the financial page ledger)
     treatments = Treatment.query.filter(
         Treatment.patient_id == patient_id,
-        Treatment.status.in_(['completed', 'in_progress'])
+        Treatment.status.in_([TreatmentStatus.COMPLETED, TreatmentStatus.IN_PROGRESS])
     ).all()
     
     total_billed = sum(t.cost for t in treatments if t.cost)
@@ -439,7 +439,7 @@ def financial_summary(patient_id):
     # 2. ✅ NEW: Sum of Planned + Scheduled (Future work not yet started)
     future_treatments = Treatment.query.filter(
         Treatment.patient_id == patient_id,
-        Treatment.status.in_(['planned', 'scheduled'])
+        Treatment.status.in_([TreatmentStatus.PLANNED, TreatmentStatus.SCHEDULED])
     ).all()
     future_plan_sum = sum(t.cost for t in future_treatments if t.cost)
     
@@ -462,7 +462,7 @@ def get_outstanding_treatments(patient_id):
     # This hides 'planned' and 'scheduled' future work from the list
     treatments = Treatment.query.filter(
         Treatment.patient_id == patient_id,
-        Treatment.status.in_(['completed', 'in_progress'])
+        Treatment.status.in_([TreatmentStatus.COMPLETED,TreatmentStatus.IN_PROGRESS])
     ).all()
     
     result = []
@@ -608,7 +608,7 @@ def clinical_log(patient_id):
     # 2. Fetch Appointments
     appointments = Appointment.query.filter(
         Appointment.patient_id == patient_id,
-        Appointment.status.in_(['completed', 'scheduled', 'in_progress'])
+        Appointment.status.in_([AppointmentStatus.COMPLETED, AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS])
     ).order_by(Appointment.start_time.desc()).all()
 
     all_treatments = Treatment.query.filter_by(patient_id=patient_id).all()
@@ -654,7 +654,7 @@ def clinical_log(patient_id):
         })
 
     # --- SECTION B: Process Orphan Planned/In-Progress Treatments ---
-    orphan_treatments = [t for t in all_treatments if t.id not in linked_treatment_ids and t.status in ['planned', 'in_progress']]
+    orphan_treatments = [t for t in all_treatments if t.id not in linked_treatment_ids and t.status in [TreatmentStatus.PLANNED, TreatmentStatus.IN_PROGRESS]]
     
     if orphan_treatments:
         orphan_cost = sum(t.cost for t in orphan_treatments)

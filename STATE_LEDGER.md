@@ -22,16 +22,26 @@ This document serves as the master reference for data flow, state management, an
 | **`Appointment`**            | `id`, `patient_id`, `dentist_id`, `start_time`, `end_time`, `status`, `notes` | Time slots. Status:`scheduled`, `completed`, `cancelled`, `deleted`.                                                         |
 | **`appointment_treatments`** | `appointment_id`, `treatment_id`                                                        | **Many-to-Many Join Table.** Allows multiple treatments per visit, and multiple visits per treatment.                          |
 
-### C. Financials (The Ledger)
+### C. Patient Financials (The Ledger)
 
-| Model                 | Key Fields                                                                              | Purpose & Relationships                                                                       |
-| :-------------------- | :-------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
-| **`Invoice`** | `id`, `patient_id`, `treatment_id`, `total_amount`, `paid_amount`, `status` | Generated when a Treatment is marked`completed`. Status: `unpaid`, `partial`, `paid`. |
-| **`Payment`** | `id`, `invoice_id`, `amount`, `payment_method`, `date_paid`                   | Tracks partial or full payments against a specific invoice.                                   |
+| Model                        | Key Fields                                         | Purpose & Relationships                                                                                   |
+| :--------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| **`Treatment`**      | `cost`, `status`, `insurance_amount`         | Acts as the invoice. The cost minus insurance amount is the total billed.                                 |
+| **`PatientPayment`** | `treatment_id`, `amount`, `date`, `method` | Tracks payments made by the patient against a specific treatment.                                         |
+| **`Patient`**        | `credit_balance`                                 | A float that tracks the patient's overall credit (overpayments) that can be applied to future treatments. |
 
----
+### D. Clinic Financials (Admin)
 
-## 2. State Transition Workflows (The "Happy Paths")
+| Model                     | Key Fields                                                        | Purpose & Relationships                                  |
+| :------------------------ | :---------------------------------------------------------------- | :------------------------------------------------------- |
+| **`Expense`**     | `category`, `total_amount`, `vat_amount`, `is_declarable` | Tracks clinic overheads (rent, supplies, etc.).          |
+| **`Payment`**     | `expense_id`, `amount`                                        | Payments made toward a specific clinic `Expense`.      |
+| **`DailyIncome`** | `date`, `amount`, `num_patients`                            | Tracks daily total revenue and patient counts.           |
+| **`CashBalance`** | `date`, `cash_on_hand`, `bank_account`                      | Tracks the physical cash and bank balance of the clinic. |
+| **`OwnerDraw`**   | `month`, `amount`                                             | Tracks money taken out of the business by the owner.     |
+| **`LabWork`**     | `record_id`, `lab_cost`, `actual_lab_paid`                  | Tracks external lab costs and billing.                   |
+
+### 2. State Transition Workflows (The "Happy Paths")
 
 ### 🔄 Workflow 1: The Clinical Loop (Chart ↔ Treatment)
 
@@ -53,8 +63,8 @@ This document serves as the master reference for data flow, state management, an
 1. **Dentist finishes work:** Clicks "Complete" on the Calendar appointment.
 2. **State Change (Appointment):** `status` becomes `completed`.
 3. **State Change (Treatment):** All linked treatments automatically update to `completed`.
-4. **State Change (Financial):** System generates an `Invoice` (Status: `unpaid`).
-5. **Action:** Front desk collects payment. `Payment` record created. Invoice updates to `paid` or `partial`.
+4. **State Change (Financial):** The completed treatments now appear in the Patient's Financial Ledger with their outstanding balances.
+5. **Action:** Front desk collects payment. A `PatientPayment` record is created. The patient's ledger balance is updated automatically.
 
 ---
 
@@ -98,5 +108,5 @@ This document serves as the master reference for data flow, state management, an
 - [X] **Teeth Chart:** Visual states, Prosthetics, Summary click-to-treat navigation.
 - [X] **Treatment Plan:** Add/Edit/Delete, Status management, Tooth input validation.
 - [X] **Calendar:** Multi-treatment booking, Hybrid (existing + new) procedures, Modal state reset, Multi-visit support.
-- [X] **Financials UI:** Building the Invoice/Payment interface to match the schema.
-- [ ] **Automated Billing:** Triggering Invoice creation when an Appointment is marked "Complete".
+- [X] **Patient Financials UI:** Building the Payment Ledger and credit tracking system.
+- [X] **Clinic Financials:** Admin dashboard for expenses, lab work, and cash balances.

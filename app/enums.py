@@ -21,7 +21,7 @@ class ProstheticType(StrEnum):
 class TreatmentStatus(StrEnum):
     PLANNED = "planned"
     IN_PROGRESS = "in_progress"
-    SCHEDULED = "scheduled" # Added based on calendar logic
+    SCHEDULED = "scheduled" 
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
@@ -41,6 +41,7 @@ class UserRole(StrEnum):
 
 class AppointmentStatus(StrEnum):
     SCHEDULED = "scheduled"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     DELETED = "deleted"

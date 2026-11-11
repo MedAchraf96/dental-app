@@ -37,3 +37,8 @@ debug/
 scripts/
 INSTALL_README.md
 Legacy/
+AGENTS.md
+ARCHITECTURE.md
+generate_structure.py
+STATE_LEDGER.md
+STRUCTURE.md
