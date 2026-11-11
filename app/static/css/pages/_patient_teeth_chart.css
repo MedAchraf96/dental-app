@@ -1,0 +1,299 @@
+/* Chart Styles */
+.spots polygon,
+.spots path {
+    transition: fill 0.15s ease;
+    cursor: pointer;
+}
+
+.spots polygon:hover,
+.spots path:hover {
+    opacity: 0.85;
+    stroke: #000;
+    stroke-width: 1.5;
+}
+
+.tooth-state-healthy {
+    fill: #ffffff !important;
+}
+
+.tooth-state-decayed {
+    fill: #ff4d4d !important;
+}
+
+.tooth-state-filled {
+    fill: #4d94ff !important;
+}
+
+.tooth-state-missing {
+    fill: #212529 !important;
+    stroke: #000;
+    stroke-width: 1;
+}
+
+.tooth-state-implant {
+    fill: #9c27b0 !important;
+    stroke: #4a148c;
+    stroke-width: 1;
+}
+
+.tooth-state-crown {
+    fill: #ffd700 !important;
+    /* Gold */
+    stroke: #b8860b;
+    stroke-width: 1.5;
+}
+
+#toothLabels text {
+    font-size: 14px !important;
+    font-weight: 600;
+    fill: #adb5bd;
+    transition: all 0.2s ease;
+    pointer-events: none;
+}
+
+#toothLabels text.active {
+    fill: #212529;
+    font-weight: 700;
+}
+
+#dmftLabels text {
+    font-size: 12px !important;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+/* Toolbar */
+.brush-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 12px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.tool-btn,
+.state-btn {
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 2px solid #dee2e6;
+    background: white;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.tool-btn.active,
+.state-btn.active {
+    border-width: 3px;
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.state-btn[data-state="healthy"].active {
+    border-color: #adb5bd;
+    background: #f8f9fa;
+}
+
+.state-btn[data-state="decayed"].active {
+    border-color: #ff4d4d;
+    background: #fff0f0;
+}
+
+.state-btn[data-state="filled"].active {
+    border-color: #4d94ff;
+    background: #f0f7ff;
+}
+
+.state-btn[data-state="missing"].active {
+    border-color: #212529;
+    background: #e9ecef;
+}
+
+.state-btn[data-state="implant"].active {
+    border-color: #9c27b0;
+    background: #f3e5f5;
+}
+
+.state-btn[data-state="crown"].active {
+    border-color: #ffd700;
+    background: #fffde7;
+}
+
+
+.btn-bridge.active {
+    border-color: #fbc02d;
+    background: #fffde7;
+}
+
+.btn-partial.active {
+    border-color: #00bcd4;
+    background: #e0f7fa;
+}
+
+.reset-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px 12px;
+    border-radius: 5px;
+    border: none;
+    background: #ef4444;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.reset-btn:hover {
+    background: #dc2626;
+}
+
+/* Status Bar */
+.status-bar {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 18px;
+}
+
+.status-bar span.highlight {
+    color: #1e3a8a;
+}
+
+/* Layout */
+.chart-layout {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+    height: calc(100vh - 200px);
+    max-height: 750px;
+}
+
+.chart-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.recap-side {
+    flex: 0 0 320px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-wrapper {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    text-align: center;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tooth-chart {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tooth-chart svg {
+    width: auto;
+    height: 100%;
+    max-height: 100%;
+    display: block;
+}
+
+/* Recap */
+.recap-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 15px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.recap-title {
+    margin: 0 0 10px 0;
+    color: #1e3a8a;
+    font-size: 16px;
+    font-weight: 700;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.tooth-list {
+    font-size: 14px;
+    color: #495057;
+    line-height: 1.6;
+    background: #f8f9fa;
+    padding: 8px 10px;
+    border-radius: 6px;
+    min-height: 18px;
+    margin-bottom: 10px;
+}
+
+.tooth-list .empty {
+    color: #adb5bd;
+    font-style: italic;
+    font-size: 12px;
+}
+
+.tooth-num {
+    font-weight: 700;
+    margin-right: 3px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.tooth-num:hover {
+    opacity: 0.6;
+    text-decoration: underline;
+}
+
+.tooth-num.decayed {
+    color: #ff4d4d;
+}
+
+.tooth-num.filled {
+    color: #4d94ff;
+}
+
+.tooth-num.missing {
+    color: #212529;
+}
+
+.tooth-num.implant {
+    color: #9c27b0;
+}
+
+.tooth-num.crown {
+    color: #ffd700;
+}
+
+.tooth-selected {
+    stroke: #ff9800 !important;
+    stroke-width: 3px !important;
+    filter: drop-shadow(0 0 5px rgba(255, 152, 0, 0.8));
+}
+
+.painting-cursor {
+    cursor: crosshair !important;
+}
