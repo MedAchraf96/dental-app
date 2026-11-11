@@ -2,8 +2,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy import select, delete, func, or_
+import app.enums as enums
 from app.models import db, Patient, Appointment, User, ToothRecord, Prosthetic, Treatment,PatientPayment,TreatmentCatalog,ClinicalNote
-from app.enums import AppointmentStatus, TreatmentStatus, ToothState, ProstheticType
+from app.enums import AppointmentStatus, TreatmentStatus, ToothState, ProstheticType, Gender
 from app.utils.tooth_helpers import update_tooth_chart_on_completion
 patient_bp = Blueprint('patient', __name__, url_prefix='/patients')
 
@@ -40,7 +41,7 @@ def patient_root(patient_id):
 @patient_bp.route("/add", methods=["GET"])
 @login_required
 def add_patient():
-    return render_template("patient/edit.html", patient=None)
+    return render_template("patient/edit.html", patient=None, enums=enums)
 
 @patient_bp.route("/add", methods=["POST"])
 @login_required
@@ -62,7 +63,7 @@ def add_patient_route():
             date_of_birth=dob_date,
             phone=request.form.get("phone", ""),
             email=request.form.get("email", ""),
-            gender=request.form.get("gender", ""),
+            gender=request.form.get("gender", Gender.OTHER),
             insurance_provider=request.form.get("insurance_provider", ""),
             allergies=request.form.get("allergies", ""),
             medical_history=request.form.get("medical_history", ""),
@@ -126,10 +127,7 @@ def edit_patient(id):
             flash('Patient not found!', 'error')
             return redirect(url_for('patient.home'))
         
-        return render_template(
-            'patient/edit.html',
-            patient=patient,
-            formatted_dob=patient.date_of_birth.strftime('%Y-%m-%d') if patient.date_of_birth else ''
+        return render_template('patient/edit.html', patient=patient, formatted_dob=patient.date_of_birth.strftime('%Y-%m-%d') if patient.date_of_birth else '', enums=enums
         )
     except Exception as e:
         current_app.logger.error(f"Error loading patient {id}: {str(e)}")
@@ -159,7 +157,7 @@ def update_patient(id):
             patient.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date() if dob else None
             patient.phone = request.form.get("phone", "")
             patient.email = request.form.get("email", "")
-            patient.gender = request.form.get("gender", "")
+            patient.gender = request.form.get("gender", Gender.OTHER)
             patient.insurance_provider = request.form.get("insurance_provider", "")
             patient.allergies = request.form.get("allergies", "")
             patient.medical_history = request.form.get("medical_history", "")
@@ -223,6 +221,7 @@ def treatments(patient_id):
         selected_tooth=selected_tooth,
         catalog=catalog,
         active_tab='treatments',
+        enums=enums
     )
 
 @patient_bp.route('/<int:patient_id>/treatments/add', methods=['POST'])
