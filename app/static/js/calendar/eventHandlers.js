@@ -111,12 +111,22 @@ window.renderNewTreatmentRows = function () {
     row.className = 'quick-add-row';
     row.innerHTML = `
       <div class="row-name">${escapeHtml(t.name)}</div>
-      <input type="text" class="row-tooth" placeholder="Tooth" 
-             value="${escapeHtml(t.tooth) || ''}" oninput="window.updateNewTreatment(${index}, 'tooth', this.value)">
-      <input type="number" class="row-cost" placeholder="Cost" 
-             value="${t.cost}" step="0.01" oninput="window.updateNewTreatment(${index}, 'cost', this.value)">
-      <button type="button" class="row-delete" onclick="window.removeNewTreatmentRow(${index})">&times;</button>
+      <input type="text" class="row-tooth" placeholder="Tooth" value="${escapeHtml(t.tooth || '')}">
+      <input type="number" class="row-cost" placeholder="Cost" value="${t.cost}" step="0.01">
+      <button type="button" class="row-delete">&times;</button>
     `;
+
+    // Add Event Listeners Here
+    row.querySelector('.row-tooth').addEventListener('input', (e) => {
+      window.updateNewTreatment(index, 'tooth', e.target.value);
+    });
+    row.querySelector('.row-cost').addEventListener('input', (e) => {
+      window.updateNewTreatment(index, 'cost', e.target.value);
+    });
+    row.querySelector('.row-delete').addEventListener('click', () => {
+      window.removeNewTreatmentRow(index);
+    });
+
     container.appendChild(row);
   });
 };
@@ -555,14 +565,12 @@ async function openGranularModal(appointmentId) {
             <div style="display: flex; gap: 12px; align-items: center;">
               <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.8rem;">
                 <input type="radio" name="status-${t.id}" value="in_progress" 
-                       ${t.status === 'in_progress' || t.status === 'scheduled' ? 'checked' : ''} 
-                       onchange="window.updateAllocationPreview()">
+                       ${t.status === 'in_progress' || t.status === 'scheduled' ? 'checked' : ''}>
                 <span>In Progress</span>
               </label>
               <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.8rem;">
                 <input type="radio" name="status-${t.id}" value="completed" 
-                       ${t.status === 'completed' ? 'checked' : ''}
-                       onchange="window.updateAllocationPreview()">
+                       ${t.status === 'completed' ? 'checked' : ''}>
                 <span>✅ Completed</span>
               </label>
             </div>
@@ -571,12 +579,19 @@ async function openGranularModal(appointmentId) {
               <input type="number" class="gp-treatment-payment" data-treatment-id="${t.id}" 
                      data-balance="${balance}" step="0.01" min="0" max="${balance}"
                      placeholder="Manual payment (auto-split if blank)" 
-                     style="width: 100%; padding: 6px 40px 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; box-sizing: border-box;"
-                     oninput="window.updateAllocationPreview()">
+                     style="width: 100%; padding: 6px 40px 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; box-sizing: border-box;">
               <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem; font-weight: 600;">DT</span>
             </div>
           </div>
         `;
+        // Add listeners for the newly created elements
+        row.querySelectorAll('input[name^="status-"]').forEach(radio => {
+          radio.addEventListener('change', window.updateAllocationPreview);
+        });
+        row.querySelector('.gp-treatment-payment').addEventListener(
+          'input',
+          window.updateAllocationPreview
+        );
         listContainer.appendChild(row);
       }
     } else {

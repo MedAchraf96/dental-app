@@ -77,16 +77,15 @@ function setupModal() {
           <br>
           <small>${escapeHtml(patient.phone) || 'No phone'} • ${escapeHtml(patient.email) || 'No email'}</small>
         `;
-        div.onclick = () => {
+        div.addEventListener('click', () => {
           patientSearch.value = `${patient.first_name} ${patient.last_name}`;
           patientIdInput.value = patient.id;
           patientFullName.textContent = `${patient.first_name} ${patient.last_name}`;
           patientPhone.textContent = patient.phone || 'Not provided';
           patientInfo.style.display = 'block';
           patientDropdown.style.display = 'none';
-          loadPatientTreatments(patient.id); //add this for loading ttt
-
-        };
+          loadPatientTreatments(patient.id);
+        });
         patientDropdown.appendChild(div);
       });
 
