@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy import select, delete, func, or_
 import app.enums as enums
+from app.auth.routes import role_required
 from app.models import db, Patient, Appointment, User, ToothRecord, Prosthetic, Treatment,PatientPayment,TreatmentCatalog,ClinicalNote
 from app.enums import AppointmentStatus, TreatmentStatus, ToothState, ProstheticType, Gender
 from app.utils.tooth_helpers import update_tooth_chart_on_completion
@@ -177,6 +178,7 @@ def update_patient(id):
 
 @patient_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@role_required('admin')
 def delete_patient(id):
     try:
         patient = db.session.get(Patient, id)

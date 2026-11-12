@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 from app.models import DailyIncome, Expense, CashBalance, Payment, db,OwnerDraw
 from app.enums import ExpenseCategory
+from app.auth.routes import role_required # <-- ADD THIS LINE
 from sqlalchemy import func
 from datetime import datetime
 import calendar
@@ -11,12 +12,14 @@ finance_bp = Blueprint('finance', __name__, template_folder='templates')
 # 1. THE PAGE ROUTE: Loads the empty HTML shell
 @finance_bp.route('/finance')
 @login_required
+@role_required('admin')
 def finance_page():
     return render_template('finance/dashboard.html')
 
 # 2. THE API ROUTE: Loads the JSON data
 @finance_bp.route('/api/finance/dashboard')
 @login_required
+@role_required('admin')
 def get_finance_dashboard():
     # 1. Cash & Bank
     cash_balance = CashBalance.query.first()
@@ -77,6 +80,7 @@ def get_finance_dashboard():
 # 3. THE API UPDATE ROUTE: Saves the balance from JavaScript
 @finance_bp.route('/api/finance/update-balance', methods=['POST'])
 @login_required
+@role_required('admin')
 def update_balance_api():
     data = request.get_json()
     new_cash = data.get('cash_on_hand', 0)
@@ -101,6 +105,7 @@ def update_balance_api():
 
 @finance_bp.route('/api/finance/cash-balance', methods=['POST'])
 @login_required
+@role_required('admin')
 def update_cash_balance():
     data = request.get_json()
     cash_on_hand = float(data.get('cash_on_hand', 0))
@@ -121,6 +126,7 @@ def update_cash_balance():
 # 1. GET all income records
 @finance_bp.route('/api/finance/income')
 @login_required
+@role_required('admin')
 def get_income():
     records = DailyIncome.query.order_by(DailyIncome.date.desc()).all()
     
@@ -138,6 +144,7 @@ def get_income():
 # 2. POST a new income record (or update if ID is provided)
 @finance_bp.route('/api/finance/income', methods=['POST'])
 @login_required
+@role_required('admin')
 def save_income():
     data = request.get_json()
     date_obj = datetime.strptime(data['date'], '%Y-%m-%d').date()
@@ -167,6 +174,7 @@ def save_income():
 # 3. DELETE an income record
 @finance_bp.route('/api/finance/income/<int:record_id>', methods=['DELETE'])
 @login_required
+@role_required('admin')
 def delete_income(record_id):
     record = DailyIncome.query.get_or_404(record_id)
     db.session.delete(record)
@@ -175,6 +183,7 @@ def delete_income(record_id):
 
 @finance_bp.route('/api/finance/expenses')
 @login_required
+@role_required('admin')
 def get_expenses():
     records = Expense.query.order_by(Expense.date.desc()).all()
     return jsonify([{
@@ -192,6 +201,7 @@ def get_expenses():
 
 @finance_bp.route('/api/finance/expenses', methods=['POST'])
 @login_required
+@role_required('admin')
 def save_expense():
     data = request.get_json()
     date_obj = datetime.strptime(data['date'], '%Y-%m-%d').date()
@@ -216,6 +226,7 @@ def save_expense():
 
 @finance_bp.route('/api/finance/expenses/<int:exp_id>', methods=['DELETE'])
 @login_required
+@role_required('admin')
 def delete_expense(exp_id):
     db.session.delete(Expense.query.get_or_404(exp_id))
     db.session.commit()
@@ -223,6 +234,7 @@ def delete_expense(exp_id):
 
 @finance_bp.route('/api/finance/expenses/<int:exp_id>/payment', methods=['POST'])
 @login_required
+@role_required('admin')
 def add_payment(exp_id):
     exp = Expense.query.get_or_404(exp_id)
     data = request.get_json()
@@ -233,6 +245,7 @@ def add_payment(exp_id):
 
 @finance_bp.route('/api/finance/expenses/<int:exp_id>/payment/<int:pay_id>', methods=['DELETE'])
 @login_required
+@role_required('admin')
 def delete_payment(exp_id, pay_id):
     db.session.delete(Payment.query.get_or_404(pay_id))
     db.session.commit()
@@ -240,6 +253,7 @@ def delete_payment(exp_id, pay_id):
 
 @finance_bp.route('/api/finance/monthly-summary')
 @login_required
+@role_required('admin')
 def get_monthly_summary():
     month_str = request.args.get('month', datetime.now().strftime('%Y-%m'))
 
@@ -314,6 +328,7 @@ def get_monthly_summary():
 
 @finance_bp.route('/api/finance/save-draw', methods=['POST'])
 @login_required
+@role_required('admin')
 def save_owner_draw():
     data = request.get_json()
     month_str = data.get('month')
