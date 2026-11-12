@@ -228,7 +228,17 @@ function getTimeSlots(date) {
   return slots;
 }
 
-function createElement(tag, className, html) {
+// Safe by default: content is set via textContent (no HTML parsing).
+function createElement(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text) el.textContent = text;
+  return el;
+}
+
+// Explicit HTML rendering. Callers MUST escape user data (via escapeHtml)
+// before passing it as `html`. Prefer createElement when content is text.
+function createElementWithHTML(tag, className, html) {
   const el = document.createElement(tag);
   if (className) el.className = className;
   if (html) el.innerHTML = html;
@@ -258,5 +268,6 @@ export {
   getTimeSlots,
   createElement,
   updateWeekDisplay,
-  escapeHtml
+  escapeHtml,
+  createElementWithHTML
 }

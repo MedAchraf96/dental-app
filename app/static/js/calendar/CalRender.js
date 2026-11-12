@@ -1,4 +1,4 @@
-import { formatDate, formatTime, createElement, isSlotAvailable, getStartOfWeek, escapeHtml } from "./helper.js";
+import { formatDate, formatTime, createElement, isSlotAvailable, getStartOfWeek, escapeHtml, createElementWithHTML } from "./helper.js";
 import { handleTimeSlotClick } from "./eventHandlers.js";
 
 function renderCalendar(
@@ -121,7 +121,7 @@ function createAppointmentElement(appt, slotDate, PIXELS_PER_MINUTE) {
   const urlParams = new URLSearchParams(window.location.search);
   const isHighlighted = urlParams.get('appt') === appt.id;
 
-  const el = createElement('div', `appointment status-${appt.status} ${isHighlighted ? 'highlighted-appointment' : ''}`, `
+  const el = createElementWithHTML('div', `appointment status-${appt.status} ${isHighlighted ? 'highlighted-appointment' : ''}`, `
     <div class="appt-sidebar">
       <span>${durationMinutes}</span>
     </div>
