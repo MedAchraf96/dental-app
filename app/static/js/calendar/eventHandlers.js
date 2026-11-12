@@ -1,4 +1,4 @@
-import { formatDateForInput, formatTimeForInput, escapeHtml } from "./helper.js";
+import { formatDateForInput, formatTimeForInput, escapeHtml, setClickHandler } from "./helper.js";
 import { cancelAppointment, createAppointment, updateAppointment } from "./API.js";
 
 window.newTreatmentsList = [];
@@ -243,17 +243,27 @@ function initAppointmentForm(context, data = null) {
         };
       }
 
+      if (deleteBtn) {
+        deleteBtn.style.display = 'inline-block';
+        setClickHandler(deleteBtn, async () => {
+          const appointmentId = form.dataset.appointmentId;
+          if (await handleCancelAppointment(appointmentId)) {
+            modal.style.display = 'none';
+          }
+        });
+      }
+
       if (completeBtn) {
         if (data.status !== 'completed') {
           completeBtn.style.display = 'inline-block';
-          completeBtn.onclick = async (e) => {
+          setClickHandler(completeBtn, async (e) => {
             e.preventDefault(); // Prevent default form behavior
             const appointmentId = form.dataset.appointmentId;
             if (appointmentId) {
               // Open the new granular modal instead of completing instantly
               await openGranularModal(appointmentId);
             }
-          };
+          });
         } else {
           completeBtn.style.display = 'none';
         }

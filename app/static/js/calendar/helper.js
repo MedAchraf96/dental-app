@@ -255,6 +255,17 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+// Assign a click handler that REPLACES any previously-set handler.
+// Matches `el.onclick = handler` semantics but uses addEventListener.
+// Needed for persistent buttons that get re-wired on each edit-open.
+const clickHandlers = new WeakMap();
+function setClickHandler(element, handler) {
+  const prev = clickHandlers.get(element);
+  if (prev) element.removeEventListener('click', prev);
+  clickHandlers.set(element, handler);
+  element.addEventListener('click', handler);
+}
+
 export {
   getStartOfWeek,
   formatDate,
@@ -269,5 +280,6 @@ export {
   createElement,
   updateWeekDisplay,
   escapeHtml,
-  createElementWithHTML
+  createElementWithHTML,
+  setClickHandler
 }

@@ -4,7 +4,8 @@ import {
   updateWeekDisplay,
   checkRunway,
   getTimeSlots,
-  escapeHtml
+  escapeHtml,
+  setClickHandler
 } from "./helper.js";
 import {
   fetchAppointments,
@@ -178,21 +179,21 @@ function setupModal() {
   const completeBtn = document.getElementById('completeAppointmentBtn');
 
   if (deleteBtn) {
-    deleteBtn.onclick = async () => {
+    setClickHandler(deleteBtn, async () => {
       const appointmentId = form.dataset.appointmentId;
       if (await handleCancelAppointment(appointmentId, appointments, initCalendar)) {
         modal.style.display = 'none';
       }
-    };
+    });
   }
 
   if (completeBtn) {
-    completeBtn.onclick = async () => {
+    setClickHandler(completeBtn, async () => {
       const appointmentId = form.dataset.appointmentId;
       if (await handleCompleteAppointment(appointmentId, initCalendar)) {
         modal.style.display = 'none';
       }
-    };
+    });
   }
 
   // Date validation remains the same
