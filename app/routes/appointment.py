@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
+from app.auth.routes import role_required
 from app.models import Appointment, Patient, User
 from app.enums import AppointmentStatus, UserRole
 from datetime import datetime
@@ -61,6 +62,7 @@ from datetime import datetime
 
 @appointment_bp.route('/appointments/cancel/<int:appointment_id>', methods=['POST'])
 @login_required
+@role_required('secretary', 'dentist', 'admin')
 def cancel_appointment(appointment_id):
     appointment = Appointment.query.get_or_404(appointment_id)
 
@@ -88,6 +90,7 @@ def cancel_appointment(appointment_id):
 
 @appointment_bp.route('/appointments/bulk_hard_delete', methods=['POST'])
 @login_required
+@role_required('admin')
 def bulk_hard_delete_appointment():
     if current_user.role.lower() not in [UserRole.DENTIST, UserRole.ADMIN]:
         flash('You do not have permission to delete appointments.', 'error')
@@ -136,6 +139,7 @@ def bulk_hard_delete_appointment():
 
 @appointment_bp.route('/appointments/hard_delete/<int:appointment_id>', methods=['POST'])
 @login_required
+@role_required('admin')
 def hard_delete_appointment(appointment_id):
     # Fetch the appointment
     appointment = Appointment.query.get_or_404(appointment_id)

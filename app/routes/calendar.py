@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
+from app.auth.routes import role_required
 from app.models import Appointment, Patient, Treatment, TreatmentCatalog, PatientPayment
 from app.enums import AppointmentStatus, TreatmentStatus, UserRole
 from datetime import datetime
@@ -68,6 +69,7 @@ def get_appointments():
 
 @calendar_bp.route('/appointments', methods=['POST'])
 @login_required
+@role_required('secretary', 'dentist', 'admin')
 def create_appointment():
     data = request.get_json()
     print(" RECEIVED PAYLOAD:", data) # DEBUG
@@ -210,6 +212,7 @@ def get_planned_treatments(patient_id):
 
 @calendar_bp.route('/appointments/<int:appointment_id>', methods=['PUT'])
 @login_required
+@role_required('secretary', 'dentist', 'admin')
 def update_appointment(appointment_id):
     data = request.get_json()
     print("🔄 UPDATE PAYLOAD:", data)
@@ -322,6 +325,7 @@ def update_appointment(appointment_id):
     
 @calendar_bp.route('/appointments/<int:appointment_id>/cancel', methods=['POST'])
 @login_required
+@role_required('secretary', 'dentist', 'admin')
 def cancel_appointment(appointment_id):
     try:
         appointment = Appointment.query.get_or_404(appointment_id)
@@ -350,6 +354,7 @@ def cancel_appointment(appointment_id):
     
 @calendar_bp.route('/appointments/<int:appointment_id>/complete', methods=['POST'])
 @login_required
+@role_required('dentist', 'admin')
 def complete_appointment(appointment_id):
     try:
         data = request.get_json()

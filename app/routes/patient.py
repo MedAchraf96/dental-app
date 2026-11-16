@@ -46,6 +46,7 @@ def add_patient():
 
 @patient_bp.route("/add", methods=["POST"])
 @login_required
+@role_required('secretary', 'dentist', 'admin')
 def add_patient_route():
     try:
         first_name = request.form.get("first_name", "").strip()
@@ -137,6 +138,7 @@ def edit_patient(id):
 
 @patient_bp.route('/<int:id>/update', methods=['POST'])
 @login_required
+@role_required('secretary', 'dentist', 'admin')
 def update_patient(id):
     try:
         patient = db.session.get(Patient, id)
@@ -178,7 +180,7 @@ def update_patient(id):
 
 @patient_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@role_required('admin')
+@role_required('dentist', 'admin')
 def delete_patient(id):
     try:
         patient = db.session.get(Patient, id)
@@ -228,6 +230,7 @@ def treatments(patient_id):
 
 @patient_bp.route('/<int:patient_id>/treatments/add', methods=['POST'])
 @login_required
+@role_required('dentist', 'assistant', 'admin')
 def add_treatment(patient_id):
     # ✅ 1. Get the ID from the dropdown instead of raw text
     procedure_id = request.form.get('procedure_id', type=int)
@@ -259,6 +262,7 @@ def add_treatment(patient_id):
 
 @patient_bp.route('/treatments/<int:treatment_id>/update-status', methods=['POST'])
 @login_required
+@role_required('dentist', 'assistant', 'admin')
 def update_treatment_status(treatment_id):
     treatment = Treatment.query.get_or_404(treatment_id)
     new_status_str = request.form.get('status')
@@ -302,6 +306,7 @@ def update_treatment_status(treatment_id):
     
 @patient_bp.route('/treatments/<int:treatment_id>/delete', methods=['POST'])
 @login_required
+@role_required('dentist', 'admin')
 def delete_treatment(treatment_id):
     treatment = Treatment.query.get_or_404(treatment_id)
     patient_id = treatment.patient_id
@@ -371,6 +376,7 @@ def financial(patient_id):
 
 @patient_bp.route('/<int:patient_id>/financial/add-payment', methods=['POST'])
 @login_required
+@role_required('secretary', 'dentist', 'admin')
 def add_payment(patient_id):
     treatment_id = request.form.get('treatment_id')
     amount = request.form.get('amount', 0, type=float)
@@ -520,6 +526,7 @@ def get_teeth_chart(patient_id):
 
 @patient_bp.route('/<int:patient_id>/api/teeth-chart', methods=['POST'])
 @login_required
+@role_required('dentist', 'assistant', 'admin')
 def save_teeth_chart(patient_id):
     data = request.get_json()
     tooth_number = str(data.get('tooth_number'))
@@ -542,6 +549,7 @@ def save_teeth_chart(patient_id):
 
 @patient_bp.route('/<int:patient_id>/api/teeth-chart', methods=['DELETE'])
 @login_required
+@role_required('dentist', 'assistant', 'admin')
 def reset_teeth_chart(patient_id):
     ToothRecord.query.filter_by(patient_id=patient_id).delete()
     db.session.commit()
@@ -556,6 +564,7 @@ def get_prosthetics(patient_id):
 
 @patient_bp.route('/<int:patient_id>/api/prosthetics', methods=['POST'])
 @login_required
+@role_required('dentist', 'assistant', 'admin')
 def save_prosthetic(patient_id):
     data = request.get_json()
     p_type = data.get('type')
@@ -574,6 +583,7 @@ def save_prosthetic(patient_id):
 
 @patient_bp.route('/<int:patient_id>/api/prosthetics/<int:prosthetic_id>', methods=['DELETE'])
 @login_required
+@role_required('dentist', 'assistant', 'admin')
 def delete_prosthetic(patient_id, prosthetic_id):
     prosthetic = Prosthetic.query.get_or_404(prosthetic_id)
     db.session.delete(prosthetic)
@@ -582,6 +592,7 @@ def delete_prosthetic(patient_id, prosthetic_id):
 
 @patient_bp.route('/<int:patient_id>/api/prosthetics', methods=['DELETE'])
 @login_required
+@role_required('dentist', 'assistant', 'admin')
 def delete_all_prosthetics(patient_id):
     Prosthetic.query.filter_by(patient_id=patient_id).delete()
     db.session.commit()
@@ -708,6 +719,7 @@ def patient_details_api(patient_id):
 # ==========================================
 @patient_bp.route('/treatments/<int:treatment_id>/update-notes', methods=['POST'])
 @login_required
+@role_required('dentist', 'assistant', 'admin')
 def update_treatment_notes(treatment_id):
     data = request.get_json() # We will send JSON from the frontend now
     content = data.get('content', '').strip()
@@ -739,6 +751,7 @@ def update_treatment_notes(treatment_id):
 # ✅ NEW Route: Manually mark a treatment as fully completed
 @patient_bp.route('/treatments/<int:treatment_id>/mark-complete', methods=['POST'])
 @login_required
+@role_required('dentist', 'admin')
 def mark_treatment_complete(treatment_id):
     treatment = Treatment.query.get_or_404(treatment_id)
     try:

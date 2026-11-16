@@ -47,13 +47,13 @@ def logout():
     flash('You have been logged out', 'info')
     return redirect(url_for('auth.login'))
 
-def role_required(role):
+def role_required(*roles):
     def wrapper(fn):
         @wraps(fn)
         def decorated_view(*args, **kwargs):
             if not current_user.is_authenticated:
                 return redirect(url_for('auth.login', next=request.url))
-            if current_user.role != role:
+            if current_user.role not in roles:
                 flash('You do not have permission to access this page', 'error')
                 return redirect(url_for('dashboard.dashboard_home'))
             return fn(*args, **kwargs)
