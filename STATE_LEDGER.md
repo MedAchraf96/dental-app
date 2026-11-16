@@ -100,6 +100,22 @@ This document serves as the master reference for data flow, state management, an
 3. **CSRF Protection:** All POST/DELETE forms in HTML must include `<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">`.
 4. **Tooth Numbering:** Always use FDI two-digit notation (11-18, 21-28, 31-38, 41-48).
 
+## Role-Based Access Matrix (SEC-002)
+
+| Route class                        | admin | dentist | secretary | assistant |
+| :--------------------------------- | :---: | :-----: | :-------: | :-------: |
+| Patient CRUD                       |  ✅  |   ✅   |    ✅    |    ❌    |
+| Patient delete                     |  ✅  |   ✅   |    ❌    |    ❌    |
+| Treatment add/status/notes         |  ✅  |   ✅   |    ❌    |    ✅    |
+| Treatment delete / mark-complete   |  ✅  |   ✅   |    ❌    |    ❌    |
+| Patient payment                    |  ✅  |   ✅   |    ✅    |    ❌    |
+| Teeth chart / prosthetics          |  ✅  |   ✅   |    ❌    |    ✅    |
+| Appointment create / edit / cancel |  ✅  |   ✅   |    ✅    |    ❌    |
+| Appointment complete               |  ✅  |   ✅   |    ❌    |    ❌    |
+| Appointment hard delete            |  ✅  |   ❌   |    ❌    |    ❌    |
+| Finance (clinic)                   |  ✅  |   ❌   |    ❌    |    ❌    |
+| Settings (user mgmt)               |  ✅  |   ❌   |    ❌    |    ❌    |
+
 ---
 
 ## 5. System Status Checklist

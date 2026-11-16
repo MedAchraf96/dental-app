@@ -15,6 +15,17 @@
 - **Data Integrity:** Enforce patient-treatment ownership in payment and calendar ID handling (DATA-001/DATA-002). Do not use float amounts for financial calculations (DATA-003).
 - **XSS:** Do not interpolate user-controlled JSON values directly into `innerHTML` (SEC-003).
 - **CSRF:** Global CSRF is enabled; ensure any new browser-facing endpoints handling unsafe requests have tokens.
+- **RBAC (SEC-002, implemented):** Use `@role_required(*roles)` from `app.auth.routes` — it is variadic and must be stacked AFTER `@login_required` on every mutating route.
+
+  - Roles: `admin`, `dentist`, `assistant`, `secretary` (`StrEnum`, lowercase values).
+  - `admin` — full access.
+  - `dentist` — admin parity on patient scope (patients CRUD, payments, treatments, chart, prosthetics, calendar); NO finance routes.
+  - `secretary` — patients, payments, appointments, calendar; NO clinical edits, NO hard deletes.
+  - `assistant` — clinical only (chart teeth, add treatments, update notes/status); NO deletes, payments, appointments.
+  - Appointment hard-deletes (`/appointments/bulk_hard_delete`, `/appointments/hard_delete/*`) → `admin` only.
+  - All `/finance` and `/api/finance/*` routes → `admin` only.
+  - All `/settings/*` routes → `admin` only.
+  - Any new mutating route MUST be decorated — grep `methods=['POST'|'DELETE'|'PUT']` before merging.
 
 ## Workflow Expectations
 
