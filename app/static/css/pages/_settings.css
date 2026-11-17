@@ -255,3 +255,53 @@
     /* Price column */
     white-space: nowrap;
 }
+
+/* Add to app/static/css/pages/_settings.css */
+
+/* Flexbox to align the H2 and the Search bar */
+.card-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Reset margin since the flex container handles it */
+.card-header-flex h2 {
+    margin: 0;
+}
+
+/* The search input wrapper */
+.search-input-wrapper {
+    position: relative;
+    width: 250px;
+    /* Adjust width as needed */
+}
+
+/* The magnifying glass icon inside the input */
+.search-input-wrapper .bi-search {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+    font-size: 0.9rem;
+}
+
+/* The actual input field */
+.search-input-wrapper input {
+    width: 100%;
+    padding: 0.45rem 0.8rem 0.45rem 2rem;
+    /* Left padding makes room for the icon */
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    /* Pill shape looks modern */
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.search-input-wrapper input:focus {
+    outline: none;
+    border-color: #2a7ae2;
+    box-shadow: 0 0 0 3px rgba(42, 122, 226, 0.15);
+}

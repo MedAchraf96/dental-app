@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash
 
 from app.extensions import db
 from app.models import User,Appointment,ClinicalNote,Patient, TreatmentCatalog
-from app.enums import UserRole
+from app.enums import UserRole, TreatmentCategory
 from app.auth.routes import role_required
 
 
@@ -111,7 +111,12 @@ def delete_user(user_id):
 @role_required('admin')
 def catalog_list():
     items = TreatmentCatalog.query.order_by(TreatmentCatalog.name.asc()).all()
-    return render_template('settings/catalog.html', items=items, active_tab='catalog')
+    return render_template(
+        'settings/catalog.html',
+        items=items,
+        categories=list(TreatmentCategory),
+        active_tab='catalog'
+    )
 
 @settings_bp.route('/catalog/save', methods=['POST'])
 @login_required
@@ -135,6 +140,11 @@ def catalog_save():
 
     if not name:
         flash('Treatment name is required.', 'error')
+        return redirect(url_for('settings.catalog_list'))
+
+    valid_categories = {category.value for category in TreatmentCategory}
+    if category not in valid_categories:
+        flash('Please select a valid treatment category.', 'error')
         return redirect(url_for('settings.catalog_list'))
 
     if item_id:

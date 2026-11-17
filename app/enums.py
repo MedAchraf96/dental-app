@@ -2,6 +2,16 @@
 from enum import StrEnum, IntEnum
 
 # --- Clinical & Dental ---
+class TreatmentCategory(StrEnum):
+    GENERAL = "General"
+    RESTORATIVE = "Dentisterie restauratrice"
+    ENDODONTICS = "Endodontie"
+    PERIODONTOLOGY = "Parodontologie"
+    ORAL_SURGERY = "Chirurgie orale"
+    PROSTHODONTICS = "Prothèse dentaire"
+    ORTHODONTICS = "Orthodontie"
+    PEDODONTICS = "Pédodontie"
+
 class ToothState(StrEnum):
     HEALTHY = "healthy"
     DECAYED = "decayed"
