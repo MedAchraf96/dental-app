@@ -1,68 +1,137 @@
-# Project Rules for dental_app
+# AGENTS.md — Dental App Project Rules
 
-## Stack and Commands
+**Last reviewed:** 2026-11-17  
+**Audit basis:** Static inspection of the supplied `dental_app_audit.zip`. These rules describe intended engineering behavior; audit findings in `AUDIT_REPORT.md` remain open until fixed and regression-tested.
 
-- Language: Python 3, Flask 2.3.2, Jinja, vanilla JS/CSS.
-- Database: SQLite via Flask-SQLAlchemy (uses `DATABASE_URL` if set).
-- Test Command: Currently, there are no automated tests in the repository (QUAL-001). If you propose adding tests, use `pytest` and run them against a verified disposable database, never the configured production SQLite file.
-- Run/Startup: `wsgi.py` constructs the app. Do not run or import the app against the user's configured DB during static work, as startup calls `db.create_all()` and may seed a fixed-password admin (REL-001).
+## 1. Stack and project entry points
 
-## Core Boundaries & Security (Never Violate)
+- Python 3; Flask application factory in `app/__init__.py` (`create_app`).
+- Jinja templates under `app/templates/`; vanilla JavaScript under `app/static/js/`; CSS under `app/static/css/`.
+- Persistence: Flask-SQLAlchemy with SQLite by default; `DATABASE_URL` can override the URI.
+- Schema migrations: Flask-Migrate/Alembic under `migrations/`.
+- WSGI entry point: `wsgi.py`.
+- Main models: `app/models.py`; enums: `app/enums.py`; extensions: `app/extensions.py`.
+- Application map: `APP_MAP.md`. Structural inventory: `STRUCTURE.md`. Clinical and workflow invariants: `STATE_LEDGER.md`. Known findings: `AUDIT_REPORT.md`. Priorities: `ROADMAP.md`.
 
-- **Do not refactor** unless explicitly authorized. Preserve unrelated existing behavior.
-- **Never modify files** without explicit user authorization for that specific task.
-- **Security:** Do not introduce or expose secrets. Be aware of known default admin fallbacks (SEC-001) and avoid expanding sensitive routes without role enforcement (SEC-002).
-- **Data Integrity:** Enforce patient-treatment ownership in payment and calendar ID handling (DATA-001/DATA-002). Do not use float amounts for financial calculations (DATA-003).
-- **XSS:** Do not interpolate user-controlled JSON values directly into `innerHTML` (SEC-003).
-- **CSRF:** Global CSRF is enabled; ensure any new browser-facing endpoints handling unsafe requests have tokens.
-- **RBAC (SEC-002, implemented):** Use `@role_required(*roles)` from `app.auth.routes` — it is variadic and must be stacked AFTER `@login_required` on every mutating route.
+## 2. Safety and change-control boundaries
 
-  - Roles: `admin`, `dentist`, `assistant`, `secretary` (`StrEnum`, lowercase values).
-  - `admin` — full access.
-  - `dentist` — admin parity on patient scope (patients CRUD, payments, treatments, chart, prosthetics, calendar); NO finance routes.
-  - `secretary` — patients, payments, appointments, calendar; NO clinical edits, NO hard deletes.
-  - `assistant` — clinical only (chart teeth, add treatments, update notes/status); NO deletes, payments, appointments.
-  - Appointment hard-deletes (`/appointments/bulk_hard_delete`, `/appointments/hard_delete/*`) → `admin` only.
-  - All `/finance` and `/api/finance/*` routes → `admin` only.
-  - All `/settings/*` routes → `admin` only.
-  - Any new mutating route MUST be decorated — grep `methods=['POST'|'DELETE'|'PUT']` before merging.
+- Do not refactor unless explicitly authorized. Preserve unrelated behavior.
+- Never modify project files or the database without explicit authorization for that specific task.
+- Explain the intended change and affected files before proposing code changes.
+- Inspect the relevant route, model, template, JavaScript and tests before changing behavior.
+- Prefer the smallest appropriate patch. Do not rewrite whole files unnecessarily.
+- Do not claim a vulnerability is fixed until a regression test or reproducible verification passes.
+- Treat patient, clinical, appointment and financial information as sensitive. Never include real patient data, credentials, tokens, `.env` contents, database files or raw logs in audit archives or Git commits.
 
-## Workflow Expectations
+## 3. Startup and database safeguards
 
-- **Explain first:** Before suggesting code, explain the intended change and identify affected files.
-- **Inspect first:** Inspect relevant existing code before proposing modifications. Never assume database structure or application behavior without evidence.
-- **Smallest change:** Prefer the smallest appropriate change. Do not rewrite entire files unnecessarily.
-- **Beginner-friendly:** Explain code changes in beginner-friendly language.
-- **Patches:** When asked for a patch, return a minimal unified diff for the smallest possible set of files.
+- **Do not run or import the app against the user's configured database during static work.** App startup configures the instance folder and logging; the CLI `init-db` command calls `db.create_all()` and may create an administrator from configured credentials.
+- Use a verified disposable SQLite database for tests and migration experiments. Never point tests at the clinic database.
+- Before any database operation, identify the exact database path and verify it is a disposable copy or obtain explicit authorization.
+- Back up before approved schema/data changes; verify backup and rollback behavior.
+- The configured default database path is under `app/instance/`, unless `DATABASE_URL` overrides it.
 
-## CSS Guidelines
+## 4. Security requirements
 
-- Prefer external stylesheets located in `app/static/css/` for all static styling.
-- Inline `<style>` tags are **not allowed** in HTML templates.
-- The `style` attribute is **only permitted** for dynamic styling driven by Jinja variables (e.g., changing a color based on a status).
+### Authentication and authorization
 
-## JavaScript Guidelines
+- Require authentication for protected application routes.
+- Apply `@role_required(*roles)` after `@login_required` on every mutating route, following the role matrix below. The decorator order matters.
+- Do not assume RBAC is fully correct: route-level authorization and object-level ownership must both be reviewed. See open findings in `AUDIT_REPORT.md`.
+- Enforce object ownership in every lookup that uses IDs supplied by a URL, form, JSON payload or browser. A patient-scoped endpoint must verify that every treatment, prosthetic, appointment, payment or clinical note belongs to the patient in that route.
+- Do not trust client-supplied patient IDs, treatment IDs, appointment IDs, dentist IDs or payment allocations without server-side relationship validation.
+- Validate login `next` redirects as safe local URLs.
+- Logout must use POST with CSRF protection, not a state-changing GET.
 
-- Prefer external JavaScript files located in `app/static/js/` for all application logic.
-- Inline `<script>` blocks are **only permitted** for passing server-side data from Jinja to JavaScript (e.g., using `window.APP_DATA = {{ data | tojson }};`).
-- Inline event handlers (e.g., `onclick="..."`) are **not allowed**. Use `addEventListener()` in your external JS files instead.
+### Current intended role matrix
 
-## Frontend Data Passing (Flask to JavaScript)
+| Capability | admin | dentist | secretary | assistant |
+|---|---:|---:|---:|---:|
+| Patient CRUD | Yes | Yes | Yes | No |
+| Patient hard delete | Yes | Yes | No | No |
+| Treatment add/status/notes | Yes | Yes | No | Yes (within authorized patient scope) |
+| Treatment delete/mark-complete | Yes | Yes | No | No |
+| Patient payment | Yes | Yes | Yes | No |
+| Teeth chart/prosthetics | Yes | Yes | No | Yes (no delete unless explicitly approved) |
+| Appointment create/edit/cancel | Yes | Yes | Yes | No |
+| Appointment complete | Yes | Yes | No | No |
+| Appointment hard delete | Yes | No | No | No |
+| Clinic finance | Yes | No | No | No |
+| Settings/user management/catalog | Yes | No | No | No |
 
-- **Never use inline `<script>` tags to pass Jinja variables to JavaScript.** (e.g., do not use `window.APP_DATA = { ... }`).
-- **Always use HTML `data-*` attributes** on a hidden element to pass server-side data.
-- **In JavaScript, read these values using the `dataset` property.**
+This is the intended policy, not proof that every current route enforces it. Reconcile route decorators and object-level checks against this table during security work.
 
-### Correct Pattern Example:
+### Request and browser security
 
-**In the HTML template:**
+- Global CSRF protection is enabled. All unsafe browser requests (POST/PUT/PATCH/DELETE) must carry valid CSRF tokens.
+- Never interpolate user-controlled values into `innerHTML`, `insertAdjacentHTML`, template strings used as HTML, or other HTML sinks. Build DOM nodes and assign untrusted text with `textContent`.
+- Do not add inline event handlers. Use `addEventListener()` in external JS.
+- Do not add inline `<style>` blocks. Keep styling in external CSS. A `style` attribute is only acceptable for genuinely dynamic Jinja-driven values; prefer classes.
+- Do not expose stack traces, SQL, secrets or patient payloads in user-facing errors or logs.
+- Configure CORS narrowly; disable it if not needed.
 
-<div id="page-data" 
-     data-patient-id="{{ patient.id }}" 
-     data-csrf-token="{{ csrf_token() }}" 
-     style="display: none;"></div>
+## 5. Data integrity and domain rules
 
-**In the external JavaScript file:**
-const dataDiv = document.getElementById('page-data');
-const patientId = dataDiv ? dataDiv.dataset.patientId : '';
-const csrfToken = dataDiv ? dataDiv.dataset.csrfToken : '';
+### Patient ownership
+
+- Every treatment belongs to exactly one patient (`Treatment.patient_id`).
+- Every patient-scoped operation must validate ownership server-side, including nested links such as appointments ↔ treatments and clinical notes ↔ treatment/appointment.
+- Do not assume that a foreign key existing is sufficient: verify cross-entity relationships before mutation.
+
+### Treatment and appointment statuses
+
+Treatment statuses are `planned`, `scheduled`, `in_progress`, `completed`, `cancelled`. Appointment statuses are `scheduled`, `in_progress`, `completed`, `cancelled`, `deleted`.
+
+**Approved scheduling rule:** when a treatment in `planned` state is linked to an active appointment whose status is `scheduled`, change the treatment to `scheduled`. This is intentional. Do not preserve the old contradictory rule that appointment linking must never change treatment status.
+
+- Linking a treatment already `in_progress` must not downgrade it to `scheduled`.
+- `scheduled` means a visit is booked; it does not mean clinical work has begun or that treatment is complete.
+- `in_progress` means clinical work has started but is not finished.
+- `completed` means the treatment itself is clinically complete. Completing an appointment must not blindly complete all linked treatments; record each treatment's actual clinical outcome. Multi-visit treatments may remain `in_progress`.
+- A treatment may be linked to multiple appointments for multi-visit care.
+- When a treatment is unlinked from or loses an appointment, inspect all its other appointment links. Keep it `scheduled` if any other active (`scheduled` or `in_progress`) appointment still links it. Only revert `scheduled` → `planned` when no active appointment remains.
+- Never automatically downgrade `in_progress`, `completed` or `cancelled` to `planned`.
+- Appointment editing must reconcile the complete final association set atomically, including removed treatment links.
+- Appointment cancellation paths must use the same reconciliation rule.
+- GET endpoints are read-only. Never repair or persist workflow state during GET; reconcile only in an authorized write transaction.
+- Centralize legal state transitions where practical and reject arbitrary client-selected state values.
+- See `STATE_LEDGER.md` for the complete lifecycle/invariant table.
+
+### Clinical and financial data
+
+- Use FDI two-digit tooth numbering (11–18, 21–28, 31–38, 41–48).
+- Validate tooth numbers, ranges, arch constraints and prosthetic endpoints on the server, not only in JavaScript.
+- Use `Decimal` for all monetary parsing, arithmetic and persistence. Do not use `float` for money.
+- Validate finite amounts, precision, sign, bounds, patient ownership, treatment eligibility, remaining balance and transaction rollback.
+- Define one authoritative patient ledger/credit invariant before changing credit calculations. Avoid double counting stored credit and derived balances.
+- Do not hard-delete clinical history without an approved retention/archive policy.
+
+## 6. Frontend architecture and data passing
+
+- Keep application logic in external JS under `app/static/js/` and styles in `app/static/css/`.
+- Do not pass Jinja values through inline JS variables. Put server values in appropriate HTML `data-*` attributes and read them via `element.dataset`.
+- Avoid global mutable state where possible; when existing calendar state globals are involved, preserve modal reset behavior and inspect all consumers before changing them.
+- Treat all browser payloads as untrusted. Validate on the server even when the UI validates first.
+- Preserve keyboard access, focus behavior, responsive layouts and useful empty/error states.
+
+## 7. Testing and verification
+
+- The supplied repository snapshot has no automated test suite. Add pytest coverage before or alongside remediation; track this as `QUAL-001` in `ROADMAP.md`.
+- Tests must use a verified disposable database and must never load `.env` settings that point at the clinic DB.
+- Minimum regression coverage for sensitive changes: authorization/role matrix, CSRF, cross-patient IDOR, XSS-safe rendering, appointment/treatment state transitions, Decimal/payment invariants, transaction rollback and migration behavior.
+- Run Python syntax checks, JavaScript syntax checks and `git diff --check` as baseline checks, but do not treat these as substitutes for functional tests.
+- Record exact commands and results. Distinguish static inspection, syntax checks, automated tests, manual runtime checks and penetration testing.
+
+## 8. Git and documentation hygiene
+
+- Keep `AGENTS.md`, `APP_MAP.md`, `ARCHITECTURE.md`, `STRUCTURE.md`, `STATE_LEDGER.md`, `AUDIT_REPORT.md` and `ROADMAP.md` versioned and synchronized.
+- Inspect `.gitignore` before changing it; do not accidentally commit secrets, `.env`, instance databases, logs, virtual environments, caches or user uploads.
+- Review `git status` and staged diffs before every commit. Stage explicit paths rather than `git add .` for sensitive projects.
+- Do not commit `patients.db`, database backups, `.env`, logs, `.venv`, `__pycache__` or patient exports.
+
+## 9. Current audit status
+
+- The source archive was statically inspected on 2026-11-17.
+- Findings and remediation priorities are tracked in `AUDIT_REPORT.md` and `ROADMAP.md`.
+- No application code or live database was modified as part of the documentation audit.
+- High-priority findings remain open until fixed and verified. Do not describe the application as production-ready until all High findings and required recovery/security checks are complete.
