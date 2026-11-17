@@ -1,6 +1,8 @@
-from flask import Flask, url_for, redirect
+from flask import Flask, url_for, redirect, current_app
 from pathlib import Path
 import os
+import click
+from flask.cli import with_appcontext
 from .extensions import db, login_manager, migrate, cors
 from .config import DevelopmentConfig, basedir
 from flask_wtf.csrf import CSRFProtect
@@ -25,7 +27,7 @@ def create_app(config_class=DevelopmentConfig):
     register_blueprints(app)
     
     # Setup database
-    initialize_database(app)
+    app.cli.add_command(init_db_command)
     
 
     logging.basicConfig(
@@ -97,45 +99,45 @@ def register_blueprints(app):
     def index():
         return redirect(url_for('dashboard.dashboard_home'))
 
-def initialize_database(app):
-    """Initialize database with sample data"""
-    with app.app_context():
-        try:
-            # 1. Ensure instance directory exists
-            instance_path = Path(app.instance_path)
-            instance_path.mkdir(exist_ok=True, parents=True)
-            
-            # 2. Create all tables
-            db.create_all()
-            print(f"✓ Database initialized at: {app.config['SQLALCHEMY_DATABASE_URI']}")
-            
-            from .models import User
-            from .enums import UserRole
-            from werkzeug.security import generate_password_hash
-            
-            # 3. Check for existing admin user more robustly
-            admin = User.query.filter_by(username=app.config['ADMIN_USERNAME']).first() 
+@click.command('init-db')
+@with_appcontext
+def init_db_command():
+    """Create database tables and seed the admin user."""
+    from .models import User
+    from .enums import UserRole
+    from werkzeug.security import generate_password_hash
 
-            if admin:
-                print(f"✓ Admin user exists (ID: {admin.id}, Role: {admin.role})")
-            else:
-                try:
-                    # 4. Create new admin with additional details
-                    new_admin = User(
-                        username=app.config['ADMIN_USERNAME'],
-                        password=generate_password_hash(app.config['ADMIN_PASSWORD']),
-                        role=UserRole.ADMIN,
-                        name='System Administrator'
-                    )
-                    db.session.add(new_admin)
-                    db.session.commit()
-                    print("✓ Admin user created successfully")
-                except Exception as create_error:
-                    db.session.rollback()
-                    print(f"⚠️ Failed to create admin user: {create_error}")
-                    raise
-                
-        except Exception as e:
-            print(f"⚠️ Database initialization failed: {str(e)}")
-            db.session.rollback()
-            raise
+    try:
+        # 1. Ensure instance directory exists
+        instance_path = Path(current_app.instance_path)
+        instance_path.mkdir(exist_ok=True, parents=True)
+        
+        # 2. Create all tables
+        db.create_all()
+        click.echo(f"✓ Database initialized at: {current_app.config['SQLALCHEMY_DATABASE_URI']}")
+        
+        # 3. Check for existing admin user
+        admin = User.query.filter_by(username=current_app.config['ADMIN_USERNAME']).first() 
+
+        if admin:
+            click.echo(f"✓ Admin user exists (ID: {admin.id}, Role: {admin.role})")
+        else:
+            try:
+                new_admin = User(
+                    username=current_app.config['ADMIN_USERNAME'],
+                    password=generate_password_hash(current_app.config['ADMIN_PASSWORD']),
+                    role=UserRole.ADMIN,
+                    name='System Administrator'
+                )
+                db.session.add(new_admin)
+                db.session.commit()
+                click.echo("✓ Admin user created successfully")
+            except Exception as create_error:
+                db.session.rollback()
+                click.echo(f"⚠️ Failed to create admin user: {create_error}")
+                raise
+            
+    except Exception as e:
+        click.echo(f"⚠️ Database initialization failed: {str(e)}")
+        db.session.rollback()
+        raise
