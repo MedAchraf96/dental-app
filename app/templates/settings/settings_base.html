@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - {% block settings_title %}{% endblock %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Settings</h1>
+    <p>Manage clinic configurations, staff, and clinical data.</p>
+</div>
+
+<!-- Settings Navigation Tabs -->
+<div class="settings-tabs">
+    <a href="{{ url_for('settings.users_list') }}" class="settings-tab {% if active_tab == 'users' %}active{% endif %}">
+        <i class="bi bi-people"></i> User Management
+    </a>
+    <a href="{{ url_for('settings.catalog_list') }}"
+        class="settings-tab {% if active_tab == 'catalog' %}active{% endif %}">
+        <i class="bi bi-journal-medical"></i> Treatment Catalog
+    </a>
+</div>
+
+<!-- Tab Content -->
+<div class="settings-tab-content">
+    {% block settings_content %}{% endblock %}
+</div>
+{% endblock %}

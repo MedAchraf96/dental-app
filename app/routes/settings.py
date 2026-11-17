@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 
 from app.extensions import db
-from app.models import User,Appointment,ClinicalNote,Patient
+from app.models import User,Appointment,ClinicalNote,Patient, TreatmentCatalog
 from app.enums import UserRole
 from app.auth.routes import role_required
 
@@ -21,7 +21,8 @@ def users_list():
     return render_template(
         'settings/users.html',
         users=users,
-        roles=list(UserRole),   # passed to template for the dropdown
+        roles=list(UserRole),
+        active_tab='users'   # passed to template for the dropdown
     )
 
 
@@ -102,3 +103,82 @@ def delete_user(user_id):
     
     flash(f'User "{username}" has been deleted.', 'success')
     return redirect(url_for('settings.users_list'))
+
+# --- TREATMENT CATALOG ROUTES ---
+
+@settings_bp.route('/catalog', methods=['GET'])
+@login_required
+@role_required('admin')
+def catalog_list():
+    items = TreatmentCatalog.query.order_by(TreatmentCatalog.name.asc()).all()
+    return render_template('settings/catalog.html', items=items, active_tab='catalog')
+
+@settings_bp.route('/catalog/save', methods=['POST'])
+@login_required
+@role_required('admin')
+def catalog_save():
+    """Handles both Adding and Editing a catalog item."""
+    item_id = request.form.get('id')
+    name = (request.form.get('name') or '').strip()
+    category = (request.form.get('category') or '').strip()
+    code = (request.form.get('code') or '').strip()
+    cotation = (request.form.get('cotation') or '').strip()
+    
+    # Default price must be parsed safely
+    try:
+        default_price = float(request.form.get('default_price') or 0)
+    except ValueError:
+        flash('Invalid price format.', 'error')
+        return redirect(url_for('settings.catalog_list'))
+
+    target_type = request.form.get('target_type') or 'single_tooth'
+
+    if not name:
+        flash('Treatment name is required.', 'error')
+        return redirect(url_for('settings.catalog_list'))
+
+    if item_id:
+        # EDIT MODE
+        item = db.session.get(TreatmentCatalog, int(item_id))
+        if not item:
+            flash('Item not found.', 'error')
+            return redirect(url_for('settings.catalog_list'))
+        item.name = name
+        item.category = category
+        item.code = code
+        item.cotation = cotation
+        item.default_price = default_price
+        item.target_type = target_type
+        flash('Treatment updated successfully.', 'success')
+    else:
+        # ADD MODE
+        if TreatmentCatalog.query.filter_by(name=name).first():
+            flash('A treatment with this name already exists.', 'error')
+            return redirect(url_for('settings.catalog_list'))
+            
+        new_item = TreatmentCatalog(
+            name=name,
+            category=category,
+            code=code,
+            cotation=cotation,
+            default_price=default_price,
+            target_type=target_type,
+            is_active=True
+        )
+        db.session.add(new_item)
+        flash('Treatment added successfully.', 'success')
+
+    db.session.commit()
+    return redirect(url_for('settings.catalog_list'))
+
+@settings_bp.route('/catalog/<int:item_id>/toggle', methods=['POST'])
+@login_required
+@role_required('admin')
+def catalog_toggle(item_id):
+    item = db.session.get(TreatmentCatalog, item_id)
+    if item:
+        item.is_active = not item.is_active
+        db.session.commit()
+        state = "activated" if item.is_active else "deactivated"
+        flash(f'"{item.name}" has been {state}.', 'success')
+    return redirect(url_for('settings.catalog_list'))
