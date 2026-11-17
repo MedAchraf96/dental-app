@@ -35,8 +35,15 @@ export async function createAppointment(appointmentData) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to create appointment');
+      const text = await response.text();
+      let errorMsg = `HTTP ${response.status}`;
+      try {
+        const json = JSON.parse(text);
+        errorMsg = json.error || errorMsg;
+      } catch (e) {
+        console.error("Server HTML Error:", text); // <--- THIS WILL REVEAL THE REAL ERROR
+      }
+      throw new Error(errorMsg);
     }
     return await response.json();
   } catch (error) {
@@ -56,7 +63,17 @@ export async function updateAppointment(appointmentId, appointmentData) {
       body: JSON.stringify(appointmentData)
     });
 
-    if (!response.ok) throw new Error('Failed to update appointment');
+    if (!response.ok) {
+      const text = await response.text();
+      let errorMsg = `HTTP ${response.status}`;
+      try {
+        const json = JSON.parse(text);
+        errorMsg = json.error || errorMsg;
+      } catch (e) {
+        console.error("Server HTML Error:", text);
+      }
+      throw new Error(errorMsg);
+    }
     return await response.json();
   } catch (error) {
     console.error('Error updating appointment:', error);

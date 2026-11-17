@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from functools import wraps
@@ -51,11 +51,20 @@ def role_required(*roles):
     def wrapper(fn):
         @wraps(fn)
         def decorated_view(*args, **kwargs):
+            # 1. Check if logged in (Safety net, even if @login_required is used)
             if not current_user.is_authenticated:
+                if request.path.startswith('/api/') or request.is_json:
+                    return jsonify({'error': 'Authentication required'}), 401
                 return redirect(url_for('auth.login', next=request.url))
+            
+            # 2. Check if they have the right role
             if current_user.role not in roles:
+                if request.path.startswith('/api/') or request.is_json:
+                    return jsonify({'error': 'You do not have permission to perform this action'}), 403
+                
                 flash('You do not have permission to access this page', 'error')
                 return redirect(url_for('dashboard.dashboard_home'))
+                
             return fn(*args, **kwargs)
         return decorated_view
     return wrapper

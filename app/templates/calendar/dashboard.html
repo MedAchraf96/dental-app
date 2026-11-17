@@ -181,6 +181,21 @@
                     </div>
                 </div>
 
+                {% if dentists %}
+                <div class="form-group" id="dentist-assignment-group">
+                    <label for="appointmentDentist">Assign to Dentist</label>
+                    {% if dentists | length > 1 %}
+                    <select id="appointmentDentist" name="dentist_id">
+                        {% for d in dentists %}
+                        <option value="{{ d.id }}">{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <input type="text" id="appointmentDentistDisplay" value="{{ dentists[0].name }}" readonly>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <!-- ✅ NEW SMART TREATMENT SECTION ✅ -->
                 <div class="form-group">
                     <label style="font-weight: 600; margin-bottom: 8px; display: block;">Treatments for this

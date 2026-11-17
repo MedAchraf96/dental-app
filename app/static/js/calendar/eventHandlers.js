@@ -177,6 +177,9 @@ function initAppointmentForm(context, data = null) {
 
   delete form.dataset.appointmentId;
   delete form.dataset.originalValues;
+  // ✅ DENTIST PICKER: visible by default (new + timeslot modes)
+  const dentistGroup = document.getElementById('dentist-assignment-group');
+  if (dentistGroup) dentistGroup.style.display = 'block';
 
   // ✅ RESET QUICK ADD ROWS
   window.newTreatmentsList = [];
@@ -226,22 +229,12 @@ function initAppointmentForm(context, data = null) {
 
     case 'edit':
       if (!data) return;
+      if (dentistGroup) dentistGroup.style.display = 'none';
 
       // ✅ 1. MOVED TO TOP: Define Date objects first so they can be used anywhere below
       const startTime = new Date(data.start_time);
       const endTime = new Date(data.end_time);
       const duration = Math.round((endTime - startTime) / 60000);
-
-      // 2. Button visibility logic
-      if (deleteBtn) {
-        deleteBtn.style.display = 'inline-block';
-        deleteBtn.onclick = async () => {
-          const appointmentId = form.dataset.appointmentId;
-          if (await handleCancelAppointment(appointmentId)) {
-            modal.style.display = 'none';
-          }
-        };
-      }
 
       if (deleteBtn) {
         deleteBtn.style.display = 'inline-block';
@@ -962,6 +955,15 @@ document.addEventListener('DOMContentLoaded', () => {
       new_treatments: newTreatments,
       treatments_to_unlink: treatmentsToUnlink
     };
+
+    // ✅ DENTIST: include for NEW appointments when multiple dentists exist
+    if (!currentApptId) {
+      const dentistSelect = document.getElementById('appointmentDentist');
+      if (dentistSelect && dentistSelect.value) {
+        appointmentData.dentist_id = parseInt(dentistSelect.value, 10);
+      }
+    }
+
 
     // ✅ 5. UI Feedback: Disable button
     submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';

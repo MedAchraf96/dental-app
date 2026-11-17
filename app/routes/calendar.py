@@ -1,18 +1,45 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from app.auth.routes import role_required
-from app.models import Appointment, Patient, Treatment, TreatmentCatalog, PatientPayment
+from app.models import Appointment, Patient, Treatment, TreatmentCatalog, PatientPayment, User
 from app.enums import AppointmentStatus, TreatmentStatus, UserRole
 from datetime import datetime
 from app.extensions import db
 from app.utils.tooth_helpers import update_tooth_chart_on_completion
+
+def _resolve_dentist_id(payload_dentist_id=None):
+    """Resolve dentist_id for a new appointment.
+
+    - Exactly 1 candidate (dentist or admin) → auto-assign that user.
+    - Multiple candidates → require payload_dentist_id, validate it.
+    - Zero candidates → error (should not happen; admin seed guarantees 1).
+    """
+    candidates = User.query.filter(
+        User.role.in_([UserRole.DENTIST.value, UserRole.ADMIN.value])
+    ).all()
+    if not candidates:
+        raise ValueError('No dentist or admin users exist.')
+    if len(candidates) == 1:
+        return candidates[0].id
+    if not payload_dentist_id:
+        raise ValueError('Multiple dentists exist; dentist_id is required.')
+    try:
+        chosen = User.query.get(int(payload_dentist_id))
+    except (TypeError, ValueError):
+        raise ValueError('Invalid dentist_id format.')
+    if not chosen or chosen.role not in (UserRole.DENTIST.value, UserRole.ADMIN.value):
+        raise ValueError('Invalid dentist_id.')
+    return chosen.id
 
 calendar_bp = Blueprint('calendar_api', __name__, url_prefix='/api')
 
 @calendar_bp.route('/calendar')
 @login_required
 def dashboard():
-    return render_template('calendar/dashboard.html')
+    dentists = User.query.filter(
+        User.role.in_([UserRole.DENTIST.value, UserRole.ADMIN.value])
+    ).order_by(User.name).all()
+    return render_template('calendar/dashboard.html', dentists=dentists)
 
 @calendar_bp.route('/health')
 def health_check():
@@ -35,7 +62,7 @@ def get_appointments():
     if start and end:
         query = query.filter(Appointment.start_time >= start, Appointment.end_time <= end)
     
-    if current_user.role.lower() not in [UserRole.ADMIN, UserRole.DENTIST]:
+    if current_user.role.lower() == UserRole.DENTIST.value:
         query = query.filter(Appointment.dentist_id == current_user.id)
     
     appointments = query.all()
@@ -84,7 +111,7 @@ def create_appointment():
         end_time = datetime.fromisoformat(end_time_str)
         
         appointment = Appointment(
-            dentist_id=current_user.id,
+            dentist_id=_resolve_dentist_id(data.get('dentist_id')),
             patient_id=data['patient_id'],
             start_time=start_time,
             end_time=end_time,
@@ -97,7 +124,7 @@ def create_appointment():
         # 1. Link EXISTING planned treatments and mark them as SCHEDULED
         existing_ids = data.get('treatment_ids', [])
         if existing_ids:
-            existing_treatments = Treatment.query.filter(Treatment.id.in_(existing_ids)).all()
+            existing_treatments = Treatment.query.filter(Treatment.id.in_(existing_ids),Treatment.patient_id == data['patient_id'],Treatment.status.in_([TreatmentStatus.PLANNED,TreatmentStatus.IN_PROGRESS,])).all()
             for t in existing_treatments:
                 if t.status == TreatmentStatus.PLANNED:
                     t.status = TreatmentStatus.SCHEDULED
@@ -296,8 +323,7 @@ def update_appointment(appointment_id):
         treatment_ids = data.get('treatment_ids', [])
         if treatment_ids:
             print(f"📋 Linking {len(treatment_ids)} treatments from checkboxes")
-            existing_treatments = Treatment.query.filter(Treatment.id.in_(treatment_ids)).all()
-            
+            existing_treatments = Treatment.query.filter(Treatment.id.in_(treatment_ids),Treatment.patient_id == appointment.patient_id,Treatment.status.in_([TreatmentStatus.PLANNED,TreatmentStatus.IN_PROGRESS,])).all()
             for t in existing_treatments:
                 if t.status == TreatmentStatus.PLANNED:
                     t.status = TreatmentStatus.SCHEDULED
@@ -365,10 +391,10 @@ def complete_appointment(appointment_id):
         payment_date_str = data.get('payment_date')
         allocation_mode = data.get('allocation_mode', 'waterfall')
         
-        appointment = Appointment.query.filter_by(
-            id=appointment_id,
-            dentist_id=current_user.id
-        ).first_or_404()
+        query = Appointment.query.filter(Appointment.id == appointment_id)
+        if current_user.role.lower() == UserRole.DENTIST.value:
+            query = query.filter(Appointment.dentist_id == current_user.id)
+        appointment = query.first_or_404()
         
         appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
@@ -514,10 +540,10 @@ def complete_appointment(appointment_id):
 @calendar_bp.route('/appointments/<int:appointment_id>', methods=['GET'])
 @login_required
 def get_appointment(appointment_id):
-    appointment = Appointment.query.filter(
-        Appointment.id == appointment_id,
-        Appointment.dentist_id == current_user.id
-    ).first_or_404()
+    query = Appointment.query.filter(Appointment.id == appointment_id)
+    if current_user.role.lower() == UserRole.DENTIST.value:
+        query = query.filter(Appointment.dentist_id == current_user.id)
+    appointment = query.first_or_404()
     
     # ✅ ULTIMATE SELF-HEAL: Fix stuck 'PLANNED' treatments immediately
     needs_commit = False
