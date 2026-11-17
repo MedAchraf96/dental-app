@@ -86,6 +86,8 @@ def register_blueprints(app):
     from .routes.dashboard import dashboard_bp
     from .routes.appointment import appointment_bp
     from .routes.finance import finance_bp
+    from .routes.settings import settings_bp
+
     # Register with URL prefixes
     app.register_blueprint(auth_bp)
     app.register_blueprint(patient_bp) 
@@ -93,6 +95,7 @@ def register_blueprints(app):
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(appointment_bp)
     app.register_blueprint(finance_bp)
+    app.register_blueprint(settings_bp)
 
     # Add root route
     @app.route('/')

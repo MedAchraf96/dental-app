@@ -82,6 +82,14 @@
                     <span class="nav-text">Finance</span>
                 </a>
             </li>
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            <li>
+                <a href="{{ url_for('settings.users_list') }}" class="nav-link" title="Settings">
+                    <i class="bi bi-gear" aria-hidden="true"></i>
+                    <span class="nav-text">Settings</span>
+                </a>
+            </li>
+            {% endif %}
             <li>
                 <a href="{{ url_for('auth.logout') }}" class="nav-link" title="Logout">
                     <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
