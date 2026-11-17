@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
-from app.models import DailyIncome, Expense, CashBalance, Payment, db,OwnerDraw
+from app.models import DailyIncome, Expense, CashBalance, Payment, db, OwnerDraw
 from app.enums import ExpenseCategory
-from app.auth.routes import role_required # <-- ADD THIS LINE
+from app.auth.routes import role_required
 from sqlalchemy import func
 from datetime import datetime
+from decimal import Decimal
 import calendar
 
 finance_bp = Blueprint('finance', __name__, template_folder='templates')
@@ -30,11 +31,11 @@ def get_finance_dashboard():
     current_year = datetime.now().year
     cy_revenue = db.session.query(func.sum(DailyIncome.amount)).filter(
         func.strftime('%Y', DailyIncome.date) == str(current_year)
-    ).scalar() or 0.0
+    ).scalar() or Decimal('0.00')
     
     cy_expenses = db.session.query(func.sum(Expense.total_amount)).filter(
         func.strftime('%Y', Expense.date) == str(current_year)
-    ).scalar() or 0.0
+    ).scalar() or Decimal('0.00')
     
     cy_net_profit = cy_revenue - cy_expenses
 
@@ -53,27 +54,27 @@ def get_finance_dashboard():
         
         rev = db.session.query(func.sum(DailyIncome.amount)).filter(
             func.strftime('%Y-%m', DailyIncome.date) == month_str
-        ).scalar() or 0.0
+        ).scalar() or Decimal('0.00')
         
         exp = db.session.query(func.sum(Expense.total_amount)).filter(
             func.strftime('%Y-%m', Expense.date) == month_str
-        ).scalar() or 0.0
+        ).scalar() or Decimal('0.00')
         
         monthly_data.append({
             "month": month_str,
             "label": month_label,
             "revenue": float(rev),
             "expenses": float(exp),
-            "net": float(rev) - float(exp)
+            "net": float(rev - exp)
         })
 
     return jsonify({
         "cash_on_hand": cash_on_hand,
         "bank_account": bank_account,
         "total_liquidity": cash_on_hand + bank_account,
-        "current_year_revenue": cy_revenue,
-        "current_year_expenses": cy_expenses,
-        "current_year_net_profit": cy_net_profit,
+        "current_year_revenue": float(cy_revenue),
+        "current_year_expenses": float(cy_expenses),
+        "current_year_net_profit": float(cy_net_profit),
         "monthly_data": monthly_data
     })
 
@@ -83,8 +84,8 @@ def get_finance_dashboard():
 @role_required('admin')
 def update_balance_api():
     data = request.get_json()
-    new_cash = data.get('cash_on_hand', 0)
-    new_bank = data.get('bank_account', 0)
+    new_cash = Decimal(str(data.get('cash_on_hand', '0.00')))
+    new_bank = Decimal(str(data.get('bank_account', '0.00')))
     
     latest = CashBalance.query.order_by(CashBalance.date.desc()).first()
     
@@ -108,8 +109,8 @@ def update_balance_api():
 @role_required('admin')
 def update_cash_balance():
     data = request.get_json()
-    cash_on_hand = float(data.get('cash_on_hand', 0))
-    bank_account = float(data.get('bank_account', 0))
+    cash_on_hand = Decimal(str(data.get('cash_on_hand', '0.00')))
+    bank_account = Decimal(str(data.get('bank_account', '0.00')))
 
     # Find existing record or create a new one
     balance = CashBalance.query.first()
@@ -132,11 +133,11 @@ def get_income():
     
     income_data = [{
         "id": record.id,
-        "date": record.date.strftime('%Y-%m-%d'), # For the input field
-        "date_display": record.date.strftime('%d/%m/%Y'), # For the table display
+        "date": record.date.strftime('%Y-%m-%d'),
+        "date_display": record.date.strftime('%d/%m/%Y'),
         "day_type": record.day_type,
         "num_patients": record.num_patients,
-        "amount": record.amount
+        "amount": float(record.amount)  # <-- FIXED: Cast to float for JSON
     } for record in records]
     
     return jsonify(income_data)
@@ -156,7 +157,7 @@ def save_income():
         record.month = date_obj.month
         record.day_type = data['day_type']
         record.num_patients = int(data['num_patients'])
-        record.amount = float(data['amount'])
+        record.amount = Decimal(str(data['amount']))
     else:
         # Create new
         new_record = DailyIncome(
@@ -164,7 +165,7 @@ def save_income():
             month=date_obj.month,
             day_type=data['day_type'],
             num_patients=int(data['num_patients']),
-            amount=float(data['amount'])
+            amount=Decimal(str(data['amount']))
         )
         db.session.add(new_record)
         
@@ -193,10 +194,13 @@ def get_expenses():
         "due_date_display": r.due_date.strftime('%d/%m/%Y') if r.due_date else '-',
         "category": r.category, "supplier": r.supplier,
         "bill_number": r.bill_number, "description": r.description,
-        "total_amount": r.total_amount, "paid_amount": r.paid_amount,
-        "balance": r.balance, "status": r.status,
-        "is_declarable": r.is_declarable, "vat_amount": r.vat_amount,
-        "payments": [{"id": p.id, "date": p.date.strftime('%d/%m/%Y'), "amount": p.amount, "note": p.note} for p in r.payments]
+        "total_amount": float(r.total_amount), 
+        "paid_amount": float(r.paid_amount),
+        "balance": float(r.balance), 
+        "status": r.status,
+        "is_declarable": r.is_declarable, 
+        "vat_amount": float(r.vat_amount),
+        "payments": [{"id": p.id, "date": p.date.strftime('%d/%m/%Y'), "amount": float(p.amount), "note": p.note} for p in r.payments]
     } for r in records])
 
 @finance_bp.route('/api/finance/expenses', methods=['POST'])
@@ -211,15 +215,17 @@ def save_expense():
         exp = Expense.query.get_or_404(data['id'])
         exp.date, exp.due_date, exp.category = date_obj, due_date_obj, data['category']
         exp.supplier, exp.bill_number, exp.description = data.get('supplier'), data.get('bill_number'), data.get('description')
-        exp.total_amount = float(data['total_amount'])
+        exp.total_amount = Decimal(str(data['total_amount']))
         exp.is_declarable = data.get('is_declarable', True)
-        exp.vat_amount = float(data.get('vat_amount', 0))
+        exp.vat_amount = Decimal(str(data.get('vat_amount', '0.00')))
     else:
         db.session.add(Expense(
             date=date_obj, due_date=due_date_obj, category=data['category'],
             supplier=data.get('supplier'), bill_number=data.get('bill_number'),
-            description=data.get('description'), total_amount=float(data['total_amount']),
-            is_declarable=data.get('is_declarable', True), vat_amount=float(data.get('vat_amount', 0))
+            description=data.get('description'), 
+            total_amount=Decimal(str(data['total_amount'])),
+            is_declarable=data.get('is_declarable', True), 
+            vat_amount=Decimal(str(data.get('vat_amount', '0.00')))
         ))
     db.session.commit()
     return jsonify({"message": "Expense saved"}), 200
@@ -239,7 +245,7 @@ def add_payment(exp_id):
     exp = Expense.query.get_or_404(exp_id)
     data = request.get_json()
     date_obj = datetime.strptime(data['date'], '%Y-%m-%d').date()
-    db.session.add(Payment(expense_id=exp.id, date=date_obj, amount=float(data['amount']), note=data.get('note', '')))
+    db.session.add(Payment(expense_id=exp.id, date=date_obj, amount=Decimal(str(data['amount'])), note=data.get('note', '')))
     db.session.commit()
     return jsonify({"message": "Payment added"}), 200
 
@@ -260,16 +266,16 @@ def get_monthly_summary():
     # 1. CASH IN
     cash_in = db.session.query(func.sum(DailyIncome.amount)).filter(
         func.strftime('%Y-%m', DailyIncome.date) == month_str
-    ).scalar() or 0.0
+    ).scalar() or Decimal('0.00')
 
     # 2. MANUAL VAT (Actual cash paid to 'Tax/VAT' category)
     manual_vat = db.session.query(func.sum(Payment.amount)).join(Expense).filter(
         func.strftime('%Y-%m', Payment.date) == month_str,
         Expense.category == ExpenseCategory.TAX_VAT
-    ).scalar() or 0.0
+    ).scalar() or Decimal('0.00')
 
     # 3. THEORETICAL VAT CALCULATION (For the tooltip info icon)
-    vat_collected = cash_in * 0.07
+    vat_collected = cash_in * Decimal('0.07')
     
     payments_with_expenses = db.session.query(Payment, Expense).join(Expense).filter(
         func.strftime('%Y-%m', Payment.date) == month_str,
@@ -277,7 +283,7 @@ def get_monthly_summary():
         Expense.total_amount > 0
     ).all()
     
-    vat_deductible = 0.0
+    vat_deductible = Decimal('0.00')
     for pay, exp in payments_with_expenses:
         if exp.total_amount > 0:
             vat_deductible += (pay.amount / exp.total_amount) * exp.vat_amount
@@ -289,7 +295,7 @@ def get_monthly_summary():
         func.strftime('%Y-%m', Payment.date) == month_str,
         Expense.category != ExpenseCategory.TAX_VAT,
         Expense.category != ExpenseCategory.OWNERS_DRAW
-    ).scalar() or 0.0
+    ).scalar() or Decimal('0.00')
 
     # 5. Expense Breakdown (Operating Only)
     breakdown_query = db.session.query(
@@ -305,24 +311,24 @@ def get_monthly_summary():
 
     # 6. Owner's Draw
     draw_record = OwnerDraw.query.filter_by(month=month_str).first()
-    actual_draw = draw_record.amount if draw_record else 0.0
+    actual_draw = draw_record.amount if draw_record else Decimal('0.00')
 
     # 7. Operating Cash Flow & Available Liquidity
     operating_cash_flow = cash_in - cash_out
     available_draw = operating_cash_flow - manual_vat
 
-    # 8. Return everything to the frontend
+    # 8. Return everything to the frontend (MUST CAST TO FLOAT)
     return jsonify({
         "month": month_str,
-        "cash_in": cash_in,
-        "cash_out": cash_out,
-        "operating_cash_flow": operating_cash_flow,
-        "manual_vat": manual_vat,
-        "vat_collected": vat_collected,       # Now it is calculated and defined!
-        "vat_deductible": vat_deductible,     # Now it is calculated and defined!
-        "calculated_vat_due": calculated_vat_due,
-        "available_draw": available_draw,
-        "actual_draw": actual_draw,
+        "cash_in": float(cash_in),
+        "cash_out": float(cash_out),
+        "operating_cash_flow": float(operating_cash_flow),
+        "manual_vat": float(manual_vat),
+        "vat_collected": float(vat_collected),
+        "vat_deductible": float(vat_deductible),
+        "calculated_vat_due": float(calculated_vat_due),
+        "available_draw": float(available_draw),
+        "actual_draw": float(actual_draw),
         "expense_breakdown": expense_breakdown
     })
 
@@ -332,7 +338,7 @@ def get_monthly_summary():
 def save_owner_draw():
     data = request.get_json()
     month_str = data.get('month')
-    amount = float(data.get('amount', 0))
+    amount = Decimal(str(data.get('amount', '0.00')))
 
     draw_record = OwnerDraw.query.filter_by(month=month_str).first()
     if not draw_record:

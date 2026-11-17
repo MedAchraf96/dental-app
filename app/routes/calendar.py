@@ -1,3 +1,4 @@
+from decimal import Decimal
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from app.auth.routes import role_required
@@ -102,8 +103,6 @@ def create_appointment():
     print(" RECEIVED PAYLOAD:", data) # DEBUG
     
     try:
-        # ✅ FIX: Use fromisoformat() to handle ISO 8601 with milliseconds and Z
-        # Remove the 'Z' and replace with '+00:00' for Python compatibility
         start_time_str = data['start_time'].replace('Z', '+00:00')
         end_time_str = data['end_time'].replace('Z', '+00:00')
         
@@ -137,7 +136,7 @@ def create_appointment():
         for t_data in new_treatments_data:
             name = t_data.get('name', '').strip()
             tooth = t_data.get('tooth', '').strip() if t_data.get('tooth') else None
-            cost = float(t_data.get('cost', 0.0))
+            cost = Decimal(str(t_data.get('cost', '0.00'))) # <-- Fixed
             
             if not name:
                 continue
@@ -213,7 +212,7 @@ def search_treatment_catalog():
             'name': item.name,
             'code': item.code,
             'cotation': item.cotation,
-            'default_cost': item.default_price, # Assuming your column is named 'cost'
+            'default_cost': float(item.default_price), # <-- Cast to float for JSON
             'requires_tooth': item.target_type == 'single_tooth' if hasattr(item, 'target_type') else False
         })
     
@@ -222,18 +221,16 @@ def search_treatment_catalog():
 @calendar_bp.route('/patients/<int:patient_id>/planned-treatments')
 @login_required
 def get_planned_treatments(patient_id):
-    # ✅ STRICT FILTER: Only return treatments that are truly 'planned'
-    # This prevents scheduled, in-progress, or completed treatments from showing up in the "Add" list
     treatments = Treatment.query.filter_by(
         patient_id=patient_id,
-        status='planned'  # <--- THE CRITICAL CHANGE
+        status='planned'
     ).all()
     
     return jsonify([{
         'id': t.id, 
         'name': t.procedure_name, 
         'tooth': t.tooth_number or 'General', 
-        'cost': t.cost,
+        'cost': float(t.cost), # <-- Cast to float for JSON
         'status': t.status
     } for t in treatments])
 
@@ -247,39 +244,35 @@ def update_appointment(appointment_id):
     try:
         appointment = Appointment.query.get_or_404(appointment_id)
         
-        # Update basic appointment details
         start_time_str = data['start_time'].replace('Z', '+00:00')
         end_time_str = data['end_time'].replace('Z', '+00:00')
         
         appointment.start_time = datetime.fromisoformat(start_time_str)
         appointment.end_time = datetime.fromisoformat(end_time_str)
         
-        # ✅ STEP 0: Handle treatments to unlink (User unchecked them)
+        # ✅ STEP 0: Handle treatments to unlink
         treatments_to_unlink = data.get('treatments_to_unlink', [])
         if treatments_to_unlink:
             print(f"🔗 Unlinking {len(treatments_to_unlink)} treatments")
             for treatment_id in treatments_to_unlink:
                 treatment = Treatment.query.get(treatment_id)
-                # Check if it exists and is actually linked to this appointment
                 if treatment and treatment in appointment.treatments.all():
-                    # Revert status back to PLANNED so it shows up in the treatment plan again
                     treatment.status = TreatmentStatus.PLANNED
                     appointment.treatments.remove(treatment)
                     print(f"  ✓ Unlinked treatment: {treatment.procedure_name} (ID: {treatment_id})")
         
-        # ✅ STEP 1: Handle new treatments (Quick Add)
+        # ✅ STEP 1: Handle new treatments
         new_treatments_data = data.get('new_treatments', [])
         print(f"🆕 Processing {len(new_treatments_data)} new treatments")
         
         for t_data in new_treatments_data:
             name = t_data.get('name', '').strip()
             tooth = t_data.get('tooth', '').strip() if t_data.get('tooth') else None
-            cost = float(t_data.get('cost', 0.0))
+            cost = Decimal(str(t_data.get('cost', '0.00'))) # <-- Fixed
             
             if not name:
                 continue
             
-            # Check if this treatment is already linked to this appointment
             already_linked = False
             for existing_t in appointment.treatments.all():
                 if existing_t.procedure_name == name and existing_t.tooth_number == tooth:
@@ -290,7 +283,6 @@ def update_appointment(appointment_id):
             if already_linked:
                 continue
             
-            # Check if a PLANNED treatment with this name exists for this patient
             existing_planned = Treatment.query.filter_by(
                 patient_id=appointment.patient_id,
                 procedure_name=name,
@@ -298,7 +290,6 @@ def update_appointment(appointment_id):
             ).first()
             
             if existing_planned:
-                # Update the planned treatment and mark as scheduled
                 if tooth:
                     existing_planned.tooth_number = tooth
                 existing_planned.cost = cost
@@ -306,7 +297,6 @@ def update_appointment(appointment_id):
                 appointment.treatments.append(existing_planned)
                 print(f"  ✓ Linked existing planned treatment: {name} (ID: {existing_planned.id})")
             else:
-                # Create a brand new treatment
                 new_t = Treatment(
                     patient_id=appointment.patient_id,
                     procedure_name=name,
@@ -315,11 +305,11 @@ def update_appointment(appointment_id):
                     status=TreatmentStatus.SCHEDULED
                 )
                 db.session.add(new_t)
-                db.session.flush()  # Get the ID immediately
+                db.session.flush()
                 appointment.treatments.append(new_t)
                 print(f"  ✓ Created and linked NEW treatment: {name} (ID: {new_t.id})")
         
-        # ✅ STEP 2: Handle treatment_ids from checkboxes (Treatment Plan)
+        # ✅ STEP 2: Handle treatment_ids from checkboxes
         treatment_ids = data.get('treatment_ids', [])
         if treatment_ids:
             print(f"📋 Linking {len(treatment_ids)} treatments from checkboxes")
@@ -386,7 +376,7 @@ def complete_appointment(appointment_id):
         data = request.get_json()
         treatment_updates = data.get('treatment_statuses', [])
         treatment_payments = data.get('treatment_payments', [])
-        total_payment = float(data.get('total_payment', 0))
+        total_payment = Decimal(str(data.get('total_payment', '0.00'))) # <-- Fixed
         payment_method = data.get('payment_method', 'Cash')
         payment_date_str = data.get('payment_date')
         allocation_mode = data.get('allocation_mode', 'waterfall')
@@ -408,9 +398,7 @@ def complete_appointment(appointment_id):
             if treatment and treatment in appointment.treatments.all():
                 new_status = TreatmentStatus(new_status_str)
                 
-                # ✅ CRITICAL FIX: Prevent early completion
                 if new_status == TreatmentStatus.COMPLETED:
-                    # Check if this treatment is linked to any FUTURE appointment for this patient
                     future_appt = Appointment.query.join(Appointment.treatments).filter(
                         Appointment.patient_id == appointment.patient_id,
                         Treatment.id == t_id,
@@ -419,7 +407,6 @@ def complete_appointment(appointment_id):
                     ).first()
                     
                     if future_appt:
-                        # Rollback status changes made in this loop so far
                         db.session.rollback() 
                         return jsonify({
                             'error': f"Cannot complete '{treatment.procedure_name}'. It is scheduled for a future visit on {future_appt.start_time.strftime('%d/%m/%Y')}."
@@ -444,13 +431,13 @@ def complete_appointment(appointment_id):
                     if remaining <= 0:
                         break
                     t_id = payment.get('treatment_id')
-                    amount = payment.get('amount')
+                    amount = Decimal(str(payment.get('amount', '0.00'))) # <-- Fixed
                     treatment = Treatment.query.get(t_id)
                     
                     if treatment:
                         # Prevent overpaying a specific treatment manually beyond its balance
-                        already_paid = sum(p.amount for p in treatment.payments)
-                        balance = (treatment.cost - (treatment.insurance_amount or 0)) - already_paid
+                        already_paid = sum((p.amount for p in treatment.payments), Decimal('0.00')) # <-- Fixed
+                        balance = (treatment.cost - (treatment.insurance_amount or Decimal('0.00'))) - already_paid # <-- Fixed
                         apply_amount = min(amount, balance)
                         
                         if apply_amount > 0:
@@ -467,10 +454,10 @@ def complete_appointment(appointment_id):
                 completed_treatments = [t for t in appointment.treatments.all() 
                                        if t.status == TreatmentStatus.COMPLETED]
                 if completed_treatments and remaining > 0:
-                    split_amount = remaining / len(completed_treatments)
+                    split_amount = remaining / Decimal(str(len(completed_treatments))) # <-- Fixed
                     for t in completed_treatments:
-                        already_paid = sum(p.amount for p in t.payments)
-                        balance = (t.cost - (t.insurance_amount or 0)) - already_paid
+                        already_paid = sum((p.amount for p in t.payments), Decimal('0.00')) # <-- Fixed
+                        balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid # <-- Fixed
                         if balance > 0:
                             apply_amount = min(split_amount, balance)
                             new_payment = PatientPayment(
@@ -482,15 +469,14 @@ def complete_appointment(appointment_id):
                             db.session.add(new_payment)
                             remaining -= apply_amount
 
-                # ✅ C. NEW: Apply remaining to IN_PROGRESS treatments (Partial Payment)
-                # This prevents creating "Credit" when the user just wants to pay part of an ongoing treatment
+                # C. Apply remaining to IN_PROGRESS treatments (Partial Payment)
                 in_progress_treatments = [t for t in appointment.treatments.all() 
                                           if t.status == TreatmentStatus.IN_PROGRESS]
                 if in_progress_treatments and remaining > 0:
-                    split_amount = remaining / len(in_progress_treatments)
+                    split_amount = remaining / Decimal(str(len(in_progress_treatments))) # <-- Fixed
                     for t in in_progress_treatments:
-                        already_paid = sum(p.amount for p in t.payments)
-                        balance = (t.cost - (t.insurance_amount or 0)) - already_paid
+                        already_paid = sum((p.amount for p in t.payments), Decimal('0.00')) # <-- Fixed
+                        balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid # <-- Fixed
                         if balance > 0:
                             apply_amount = min(split_amount, balance)
                             new_payment = PatientPayment(
@@ -510,8 +496,8 @@ def complete_appointment(appointment_id):
                 for t in all_treatments:
                     if remaining <= 0:
                         break
-                    already_paid = sum(p.amount for p in t.payments)
-                    balance = (t.cost - (t.insurance_amount or 0)) - already_paid
+                    already_paid = sum((p.amount for p in t.payments), Decimal('0.00')) # <-- Fixed
+                    balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid # <-- Fixed
                     
                     if balance > 0:
                         apply_amount = min(remaining, balance)
@@ -527,7 +513,7 @@ def complete_appointment(appointment_id):
             # 3. Handle TRUE overflow (Only if payment exceeds TOTAL cost of all treatments in visit)
             if remaining > 0.01:
                 patient = Patient.query.get(appointment.patient_id)
-                patient.credit_balance = (patient.credit_balance or 0.0) + remaining
+                patient.credit_balance = (patient.credit_balance or Decimal('0.00')) + remaining # <-- Fixed
                 print(f" Added {remaining} DT to Patient Credit Balance")
         
         db.session.commit()
@@ -556,18 +542,17 @@ def get_appointment(appointment_id):
         db.session.commit()
         print(f"🔧 Self-healed {appointment_id}: Changed stuck PLANNED treatments to SCHEDULED")
 
-    # ... [Keep your existing treatments_data serialization here] ...
     treatments_data = []
     for t in appointment.treatments.all():
         # Calculate total paid for this specific treatment
-        paid_amount = sum(p.amount for p in t.payments)
+        paid_amount = sum((p.amount for p in t.payments), Decimal('0.00')) # <-- Fixed
         # Calculate remaining balance (never negative)
-        balance = max(0, (t.cost - (t.insurance_amount or 0)) - paid_amount)
+        balance = max(Decimal('0.00'), (t.cost - (t.insurance_amount or Decimal('0.00'))) - paid_amount) # <-- Fixed
         
         # Format payments for the frontend
         payments_list = [{
             'id': p.id,
-            'amount': p.amount,
+            'amount': float(p.amount), # <-- Cast to float for JSON
             'method': p.method,
             'date': p.date.strftime('%Y-%m-%d') if p.date else None
         } for p in t.payments]
@@ -577,10 +562,10 @@ def get_appointment(appointment_id):
             'name': t.procedure_name,
             'tooth': t.tooth_number,
             'status': t.status,
-            'cost': t.cost,
-            'insurance_amount': t.insurance_amount or 0,
-            'paid_amount': paid_amount,
-            'balance': balance, # ✅ Frontend can use this directly!
+            'cost': float(t.cost), # <-- Cast to float for JSON
+            'insurance_amount': float(t.insurance_amount or 0), # <-- Cast to float for JSON
+            'paid_amount': float(paid_amount), # <-- Cast to float for JSON
+            'balance': float(balance), # <-- Cast to float for JSON
             'payments': payments_list
         })
 
@@ -589,7 +574,7 @@ def get_appointment(appointment_id):
         'start_time': appointment.start_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
         'end_time': appointment.end_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
         'treatment_type': ", ".join([t['name'] for t in treatments_data]) if treatments_data else "Consultation",
-        'treatments': treatments_data,       # <--- THIS IS THE MISSING PIECE
+        'treatments': treatments_data, 
         'treatment_ids': [t['id'] for t in treatments_data],
         'status': appointment.status,
         'patient_id': appointment.patient_id,
@@ -597,7 +582,6 @@ def get_appointment(appointment_id):
         'patient_last_name': appointment.patient.last_name,
         'patient_phone': appointment.patient.phone,
         'patient_dob': appointment.patient.date_of_birth.strftime('%Y-%m-%d') if appointment.patient.date_of_birth else None,
-
     })
 
 @calendar_bp.route('/patients/search')

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
+from decimal import Decimal
 from sqlalchemy import select, delete, func, or_
 import app.enums as enums
 from app.auth.routes import role_required
@@ -235,7 +236,7 @@ def add_treatment(patient_id):
     # ✅ 1. Get the ID from the dropdown instead of raw text
     procedure_id = request.form.get('procedure_id', type=int)
     tooth_number = request.form.get('tooth_number', '').strip()
-    cost = request.form.get('cost', 0.0, type=float)
+    cost = Decimal(str(request.form.get('cost', '0.00')))
     status = request.form.get('status', TreatmentStatus.PLANNED.value)
     
     # ✅ 2. Fetch the official procedure from the catalog
@@ -350,15 +351,15 @@ def financial(patient_id):
     ).order_by(Appointment.completed_at.desc()).all()
 
     # ✅ UPDATED: Calculate totals (NO INSURANCE)
-    total_billed = sum(t.cost for t in ledger_entries if t.cost)
-    total_paid = sum(p.amount for p in all_payments)
+    total_billed = sum((t.cost for t in ledger_entries if t.cost), Decimal('0.00'))
+    total_paid = sum((p.amount for p in all_payments), Decimal('0.00'))
     
     # Reste Dû = What's still owed on treatments (never negative)
-    reste_du = max(0, total_billed - total_paid)
+    reste_du = max(Decimal('0.00'), total_billed - total_paid)
     
     # Solde Patient (Bank Style) = Credit Balance + (Paid - Billed)
-    credit_balance = patient.credit_balance or 0.0
-    solde_patient = patient.credit_balance or 0.0 
+    credit_balance = patient.credit_balance or Decimal('0.00')
+    solde_patient = patient.credit_balance or Decimal('0.00') 
 
     return render_template(
         'patient/financial.html',
@@ -379,7 +380,7 @@ def financial(patient_id):
 @role_required('secretary', 'dentist', 'admin')
 def add_payment(patient_id):
     treatment_id = request.form.get('treatment_id')
-    amount = request.form.get('amount', 0, type=float)
+    amount = Decimal(str(request.form.get('amount', '0.00')))
     method = request.form.get('method', 'Cash')
     date_str = request.form.get('payment_date')
 
@@ -397,8 +398,8 @@ def add_payment(patient_id):
 
     # ✅ BULLETPROOF CREDIT DEDUCTION
     if method == 'credit_balance':
-        # Force float to prevent SQLAlchemy Decimal type issues
-        current_credit = float(patient.credit_balance or 0.0)
+        # Safely handle Decimal
+        current_credit = patient.credit_balance or Decimal('0.00')
         
         if current_credit < amount:
             flash(f'Crédit insuffisant. Disponible: {current_credit:.2f} DT', 'error')
@@ -437,30 +438,30 @@ def financial_summary(patient_id):
         Treatment.status.in_([TreatmentStatus.COMPLETED, TreatmentStatus.IN_PROGRESS])
     ).all()
     
-    total_billed = sum(t.cost for t in treatments if t.cost)
+    total_billed = sum((t.cost for t in treatments if t.cost), Decimal('0.00'))
     
     all_payments = PatientPayment.query.join(Treatment).filter(
         Treatment.patient_id == patient_id
     ).all()
-    total_paid = sum(p.amount for p in all_payments)
+    total_paid = sum((p.amount for p in all_payments), Decimal('0.00'))
     
     # 2. ✅ NEW: Sum of Planned + Scheduled (Future work not yet started)
     future_treatments = Treatment.query.filter(
         Treatment.patient_id == patient_id,
         Treatment.status.in_([TreatmentStatus.PLANNED, TreatmentStatus.SCHEDULED])
     ).all()
-    future_plan_sum = sum(t.cost for t in future_treatments if t.cost)
+    future_plan_sum = sum((t.cost for t in future_treatments if t.cost), Decimal('0.00'))
     
     # 3. Raw credit balance (decoupled from ledger)
-    total_balance = patient.credit_balance or 0.0
+    total_balance = patient.credit_balance or Decimal('0.00')
     
     return jsonify({
-        'total_billed': total_billed,
-        'total_paid': total_paid,
-        'total_balance': total_balance,
-        'future_plan_sum': future_plan_sum  # ✅ For the modal header
+        'total_billed': float(total_billed),
+        'total_paid': float(total_paid),
+        'total_balance': float(total_balance),
+        'future_plan_sum': float(future_plan_sum)  # ✅ For the modal header
     })
-
+    
 @patient_bp.route('/<int:patient_id>/outstanding-treatments')
 @login_required
 def get_outstanding_treatments(patient_id):
@@ -478,10 +479,10 @@ def get_outstanding_treatments(patient_id):
         if exclude_appt_id and t.id in [tr.id for tr in Appointment.query.get(exclude_appt_id).treatments.all()]:
             continue
             
-        paid = sum(p.amount for p in t.payments)
-        balance = (t.cost - (t.insurance_amount or 0)) - paid
+        paid = sum((p.amount for p in t.payments), Decimal('0.00'))
+        balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - paid
         
-        if balance > 0.01:
+        if balance > Decimal('0.01'):
             date_obj = t.completed_date if t.completed_date else t.created_at
             date_str = date_obj.strftime('%d/%m/%Y') if date_obj else '-'
             
@@ -490,7 +491,7 @@ def get_outstanding_treatments(patient_id):
                 'name': t.procedure_name,
                 'tooth': t.tooth_number,
                 'date': date_str,
-                'balance': balance
+                'balance': float(balance)
             })
             
     result.sort(key=lambda x: x['id'])
@@ -632,8 +633,8 @@ def clinical_log(patient_id):
     planned_data = []
     
     # 3. Initialize Grand Totals (Kept just in case you need them later)
-    grand_total_cost = 0.0
-    grand_total_paid = 0.0
+    grand_total_cost = Decimal('0.00')
+    grand_total_paid = Decimal('0.00')
     counted_treatment_ids = set()
 
     # --- SECTION A: Process Appointments (Scheduled & Completed) ---
@@ -642,17 +643,17 @@ def clinical_log(patient_id):
         for t in appt_treatments:
             linked_treatment_ids.add(t.id)
             
-        visit_cost = sum(t.cost for t in appt_treatments)
-        total_paid_appt = 0
+        visit_cost = sum((t.cost for t in appt_treatments), Decimal('0.00'))
+        total_paid_appt = Decimal('0.00')
         for t in appt_treatments:
             payments = PatientPayment.query.filter_by(treatment_id=t.id).all()
-            total_paid_appt += sum(p.amount for p in payments)
+            total_paid_appt += sum((p.amount for p in payments), Decimal('0.00'))
             
         for t in appt_treatments:
             if t.id not in counted_treatment_ids:
                 grand_total_cost += t.cost
                 payments = PatientPayment.query.filter_by(treatment_id=t.id).all()
-                grand_total_paid += sum(p.amount for p in payments)
+                grand_total_paid += sum((p.amount for p in payments), Decimal('0.00'))
                 counted_treatment_ids.add(t.id)
 
         # ✅ Append to the appointments list
@@ -670,7 +671,7 @@ def clinical_log(patient_id):
     orphan_treatments = [t for t in all_treatments if t.id not in linked_treatment_ids and t.status in [TreatmentStatus.PLANNED, TreatmentStatus.IN_PROGRESS]]
     
     if orphan_treatments:
-        orphan_cost = sum(t.cost for t in orphan_treatments)
+        orphan_cost = sum((t.cost for t in orphan_treatments), Decimal('0.00'))
         
         for t in orphan_treatments:
             if t.id not in counted_treatment_ids:

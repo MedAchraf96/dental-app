@@ -1,5 +1,6 @@
 from flask_login import UserMixin
 from datetime import datetime
+from decimal import Decimal
 from .extensions import db
 from .enums import (
     UserRole, AppointmentStatus, TreatmentStatus,
@@ -30,7 +31,7 @@ class Patient(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
-    credit_balance = db.Column(db.Float, default=0.0) 
+    credit_balance = db.Column(db.Numeric(10, 2), default=0.00) 
 
     # Relationship with appointments
     appointments = db.relationship('Appointment', backref='patient', lazy=True)
@@ -55,8 +56,8 @@ class Patient(db.Model):
         # Get all treatments for this patient
         all_treatments = Treatment.query.filter_by(patient_id=self.id).all()
         
-        total_billed = sum(t.cost for t in all_treatments if t.cost)
-        total_paid = sum(p.amount for t in all_treatments for p in t.payments)
+        total_billed = sum((t.cost for t in all_treatments if t.cost), Decimal('0.00'))
+        total_paid = sum((p.amount for t in all_treatments for p in t.payments), Decimal('0.00'))
         
         return total_billed - total_paid
     def __repr__(self):
@@ -99,13 +100,12 @@ class Treatment(db.Model):
     procedure_name = db.Column(db.String(150), nullable=False) 
     procedure_code = db.Column(db.String(20), nullable=True)
     cotation = db.Column(db.String(20), nullable=True)
-    cost = db.Column(db.Float, nullable=False)
-
+    cost = db.Column(db.Numeric(10, 2), nullable=False)
     status = db.Column(db.String(20), default=TreatmentStatus.PLANNED)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     clinical_notes = db.Column(db.Text, nullable=True)
-    insurance_amount = db.Column(db.Float, default=0.0)
-    
+    insurance_amount = db.Column(db.Numeric(10, 2), default=0.00)    
+
     # The Clinical Date (The day of the appointment)
     completed_date = db.Column(db.Date, nullable=True)
     
@@ -129,7 +129,7 @@ class TreatmentCatalog(db.Model):
     # Official Tunisian Nomenclature
     code = db.Column(db.String(20)) # e.g., "DCH010110"
     cotation = db.Column(db.String(20)) # e.g., "D 30"
-    default_price = db.Column(db.Float, default=0.0) # Price in TND
+    default_price = db.Column(db.Numeric(10, 2), default=0.00) # Price in TND
     
     # Clinical Logic
     target_type = db.Column(db.String(20), default='single_tooth') # 'single_tooth', 'general', 'arch'
@@ -144,7 +144,7 @@ class PatientPayment(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     treatment_id = db.Column(db.Integer, db.ForeignKey('treatment.id'), nullable=False)
-    amount = db.Column(db.Float, nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
     date = db.Column(db.Date, default=datetime.utcnow)
     method = db.Column(db.String(20), default='Cash') # Cash, Card, Check
     note = db.Column(db.String(100))
@@ -206,7 +206,7 @@ class DailyIncome(db.Model):
     month = db.Column(db.Integer, nullable=False)
     day_type = db.Column(db.String(20), default=IncomeDayType.WORKING_DAY)
     num_patients = db.Column(db.Integer, default=0)
-    amount = db.Column(db.Float, default=0.0)
+    amount = db.Column(db.Numeric(10, 2), default=0.00)
 
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -216,15 +216,14 @@ class Expense(db.Model):
     supplier = db.Column(db.String(100))
     bill_number = db.Column(db.String(50))
     description = db.Column(db.String(200))
-    total_amount = db.Column(db.Float, nullable=False)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
     is_declarable = db.Column(db.Boolean, default=True)
-    vat_amount = db.Column(db.Float, default=0.0)
-    
+    vat_amount = db.Column(db.Numeric(10, 2), default=0.00)    
     payments = db.relationship('Payment', backref='expense', lazy=True, cascade="all, delete-orphan")
 
     @property
     def paid_amount(self):
-        return sum(p.amount for p in self.payments)
+        return sum((p.amount for p in self.payments), Decimal('0.00'))
 
     @property
     def balance(self):
@@ -242,7 +241,7 @@ class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     expense_id = db.Column(db.Integer, db.ForeignKey('expense.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    amount = db.Column(db.Float, nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
     note = db.Column(db.String(100))
 
 class LabWork(db.Model):
@@ -252,24 +251,24 @@ class LabWork(db.Model):
     patient_name = db.Column(db.String(100))
     procedure = db.Column(db.String(100))
     quantity = db.Column(db.Integer, default=1)
-    lab_cost = db.Column(db.Float)
-    total_cost = db.Column(db.Float)
-    billed_amount = db.Column(db.Float)
+    lab_cost = db.Column(db.Numeric(10, 2))
+    total_cost = db.Column(db.Numeric(10, 2))
+    billed_amount = db.Column(db.Numeric(10, 2))
     billed_date = db.Column(db.Date)
-    collected_amount = db.Column(db.Float)
-    discount = db.Column(db.Float, default=0.0)
-    remaining = db.Column(db.Float, default=0.0)
-    actual_lab_paid = db.Column(db.Float)
+    collected_amount = db.Column(db.Numeric(10, 2))
+    discount = db.Column(db.Numeric(10, 2), default=0.00)
+    remaining = db.Column(db.Numeric(10, 2), default=0.00)
+    actual_lab_paid = db.Column(db.Numeric(10, 2))
     bill_reference = db.Column(db.String(50))
 
 class CashBalance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
-    cash_on_hand = db.Column(db.Float, default=0.0)
-    bank_account = db.Column(db.Float, default=0.0)
+    cash_on_hand = db.Column(db.Numeric(10, 2), default=0.00)
+    bank_account = db.Column(db.Numeric(10, 2), default=0.00)
     note = db.Column(db.String(200))
 
 class OwnerDraw(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     month = db.Column(db.String(7), unique=True, nullable=False)  # Stores 'YYYY-MM'
-    amount = db.Column(db.Float, default=0.0)
+    amount = db.Column(db.Numeric(10, 2), default=0.00)

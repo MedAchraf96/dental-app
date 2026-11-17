@@ -46,7 +46,11 @@ def dashboard_home():
         'no_appointments_message': no_appointments_message
     }
     
-    return render_template('dashboard/home.html', 
+    # ✅ FIXED: Formatted the render_template call and closed the parenthesis
+    return render_template(
+        'dashboard/home.html', 
         stats=stats,
         user=current_user, 
-        now=now,        timedelta=timedelta)
+        now=now,
+        timedelta=timedelta
+    )
