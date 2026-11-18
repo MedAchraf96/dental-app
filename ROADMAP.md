@@ -1,6 +1,6 @@
 # Dental App — Remediation Roadmap
 
-**Updated:** 2026-11-17  
+**Updated:** 2026-11-17
 **Basis:** Static audit of `dental_app_audit.zip`. See `AUDIT_REPORT.md` for evidence, file locations, impacts and limitations.
 
 ## Guiding rules
@@ -13,30 +13,35 @@
 
 ## Phase 0 — Audit baseline
 
-- [x] **AUDIT-001:** Static source audit of routes, models, migrations, configuration, templates, JavaScript and CSS.
-- [x] **DOC-001:** Correct the State Ledger scheduling rule to match the intended business behavior: booking a treatment to an active scheduled appointment changes `planned` → `scheduled`.
-- [x] **DOC-002:** Document cancellation/unlink reconciliation, multi-visit semantics and GET read-only requirements.
+- [X] **AUDIT-001:** Static source audit of routes, models, migrations, configuration, templates, JavaScript and CSS.
+- [X] **DOC-001:** Correct the State Ledger scheduling rule to match the intended business behavior: booking a treatment to an active scheduled appointment changes `planned` → `scheduled`.
+- [X] **DOC-002:** Document cancellation/unlink reconciliation, multi-visit semantics and GET read-only requirements.
 - [ ] **DOC-003:** Review `.gitignore`; required governance docs and `migrations/` are currently ignored by patterns. Inspect tracked files before changing ignore rules.
 - [ ] **QUAL-001:** Create a pytest baseline using a disposable SQLite test database.
 
 ## Phase 1 — Critical security and patient privacy
 
 1. **SEC-001 — High — Stored XSS in clinical notes:** Replace `insertAdjacentHTML()` interpolation of note content in `app/static/js/patient/clinical_log.js` with safe DOM construction and `textContent`. Audit all dynamic HTML sinks in calendar/finance scripts.
-2. **SEC-002 — High — Prosthetic IDOR:** In `app/routes/patient.py`, require the prosthetic to belong to the `patient_id` in the route before deleting.
+
+2. [X] **SEC-002** — Prosthetic IDOR: Ownership validation added
+
 3. **SEC-003 — High — Clinical note relationship validation:** In `update_treatment_notes`, validate treatment and optional appointment exist and belong to the same patient; validate their relationship/context.
 4. **SEC-004 — High — Payment allocation IDOR:** In `calendar.py`, constrain client-provided payment treatment IDs to the appointment's patient and eligible treatments.
 5. **SEC-005 — High — Appointment authorization:** Correct the invalid `appointment.patient_id == current_user.id` check in `app/routes/appointment.py`; implement role-specific appointment scope consistently.
-6. **SEC-006 — High — Appointment update/cancel scope:** Enforce dentist assignment and agreed secretary/admin permissions consistently across read, update, cancel and complete routes.
-7. **SEC-007 — Medium — Logout method:** Change logout from GET to POST and retain CSRF validation.
-8. **SEC-008 — Medium — Open redirect:** Validate login `next` as a safe local URL before redirecting.
-9. **SEC-009 — Medium — Role matrix consistency:** Check every mutating route against `AGENTS.md`; in particular, assistant access to prosthetic deletion conflicts with the stated no-delete policy.
+6. **SEC-006 — High — Appointment update/cancel scope:** Enforce dentist assignment and agreed secretary/admin permissions consistently across read, update, cancel and complete routes
+
+7. [X] **SEC-007** — Assistant role: Removed from destructive operations
+8. [X] **SEC-008 —** Logout method: Changed to POST with CSRF
+9. [X] **SEC-009 —** Open redirect: URL validation added
+
 10. **SEC-010 — Medium — Frontend policy:** Remove inline event handlers and inline `<style>`/script logic according to project rules; ensure CSP-compatible behavior.
 
 ## Phase 2 — Appointment and treatment state integrity
 
 **Approved business rule:** If a treatment is linked to an active appointment whose status is `scheduled`, a `planned` treatment becomes `scheduled`. `in_progress` remains `in_progress`. This is intentional and must not be reverted to the old State Ledger rule.
 
-1. **LOGIC-001 — High — GET purity:** Remove state mutation/commit from `GET /api/appointments/<id>`. GET must only read.
+1. [X] **LOGIC-001 — GET purity: State mutation removed from GET endpoint**
+
 2. **LOGIC-002 — High — Cancellation reconciliation:** On cancellation, keep a treatment `scheduled` if another active (`scheduled` or `in_progress`) appointment still links it. Revert `scheduled` → `planned` only when no active link remains.
 3. **LOGIC-003 — High — Unlink reconciliation:** Apply the same remaining-active-appointment check when a treatment is removed from an appointment.
 4. **LOGIC-004 — High — Final association set:** Make appointment editing reconcile the complete desired treatment link set atomically; do not rely on partial or ambiguous unlink payloads.
@@ -51,7 +56,8 @@
 3. **DATA-003 — High — Payment allocation:** Validate ownership, linked treatment membership, remaining balance and credit behavior. Test overpayment, partial payment, refunds and allocation rollback.
 4. **DATA-004 — Medium — Decimal boundaries:** Parse catalog prices with Decimal (not float). Keep Decimal in calculations and persistence; serialize with a documented JSON precision contract.
 5. **DATA-005 — Medium — Expense payment ownership:** Verify `Payment.expense_id == exp_id` before deleting a payment using `/expenses/<exp_id>/payment/<pay_id>`.
-6. **DATA-006 — Medium — Finance business rules:** Validate daily income uniqueness, expense payment totals, VAT formula and owner draw calculations with the clinic's accountant and applicable Tunisian rules.
+
+6. [X] **DATA-006** — Expense payment ownership: Validation added
 
 ## Phase 4 — Database integrity and clinical data lifecycle
 

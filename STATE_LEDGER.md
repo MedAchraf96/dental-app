@@ -16,18 +16,18 @@ This document serves as the master reference for data flow, state management, an
 
 ### B. Treatment & Scheduling (The Engine)
 
-| Model                                | Key Fields                                                                                  | Purpose & Relationships                                                                                                              |
-| :----------------------------------- | :------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------- |
+| Model                                | Key Fields                                                                                  | Purpose & Relationships                                                                                                                             |
+| :----------------------------------- | :------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`Treatment`**              | `id`, `patient_id`, `procedure_name`, `tooth_number`, `cost`, `status`          | **The Clinical Bridge.** Links work to billing/scheduling. Status: `planned`, `scheduled`, `in_progress`, `completed`, `cancelled`. |
-| **`Appointment`**            | `id`, `patient_id`, `dentist_id`, `start_time`, `end_time`, `status`, `notes` | Time slots. Status:`scheduled`, `in_progress`, `completed`, `cancelled`, `deleted`.                                                         |
-| **`appointment_treatments`** | `appointment_id`, `treatment_id`                                                        | **Many-to-Many Join Table.** Allows multiple treatments per visit, and multiple visits per treatment.                          |
+| **`Appointment`**            | `id`, `patient_id`, `dentist_id`, `start_time`, `end_time`, `status`, `notes` | Time slots. Status:`scheduled`, `in_progress`, `completed`, `cancelled`, `deleted`.                                                       |
+| **`appointment_treatments`** | `appointment_id`, `treatment_id`                                                        | **Many-to-Many Join Table.** Allows multiple treatments per visit, and multiple visits per treatment.                                         |
 
 ### C. Patient Financials (The Ledger)
 
-| Model                        | Key Fields                                         | Purpose & Relationships                                                                                   |
-| :--------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- |
-| **`Treatment`**      | `cost`, `status`, `insurance_amount`         | Acts as the invoice. The cost minus insurance amount is the total billed.                                 |
-| **`PatientPayment`** | `treatment_id`, `amount`, `date`, `method` | Tracks payments made by the patient against a specific treatment.                                         |
+| Model                        | Key Fields                                         | Purpose & Relationships                                                                                  |
+| :--------------------------- | :------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| **`Treatment`**      | `cost`, `status`, `insurance_amount`         | Acts as the invoice. The cost minus insurance amount is the total billed.                                |
+| **`PatientPayment`** | `treatment_id`, `amount`, `date`, `method` | Tracks payments made by the patient against a specific treatment.                                        |
 | **`Patient`**        | `credit_balance`                                 | `Numeric(10,2)` balance tracking patient credit/overpayments that may be applied to future treatments. |
 
 ### D. Clinic Financials (Admin)
@@ -119,6 +119,9 @@ This document serves as the master reference for data flow, state management, an
 | Finance (clinic)                   |  ✅  |   ❌   |    ❌    |    ❌    |
 | Settings (user mgmt)               |  ✅  |   ❌   |    ❌    |    ❌    |
 
+
+**Note (Updated 2026-11-18):** Assistant role removed from prosthetic deletion and teeth chart reset operations to align with no-delete policy.
+
 ---
 
 ## 5. System Status Checklist
@@ -130,26 +133,26 @@ This document serves as the master reference for data flow, state management, an
 - [X] **Patient Financials UI:** Building the Payment Ledger and credit tracking system.
 - [X] **Clinic Financials:** Admin dashboard for expenses, lab work, and cash balances.
 
-
 ## 6. Scheduling State Invariants (Reviewed 2026-11-17)
 
 The intended business rule is that an appointment booking changes the linked treatment's workflow state to `scheduled` when the appointment is active and scheduled. This is a persisted workflow state, not merely a visual label.
 
-| Event | Appointment state | Treatment state effect |
-|---|---|---|
-| Create appointment and link a `planned` treatment | `scheduled` | `planned` → `scheduled` |
-| Link a treatment already `in_progress` | `scheduled` | Remains `in_progress` |
-| Edit/reschedule an appointment without unlinking treatment | `scheduled` | Remains `scheduled` (or `in_progress`) |
-| Unlink a treatment | unchanged | Reconcile against all other active appointments; if none remain, `scheduled` → `planned` |
-| Cancel an appointment | `cancelled` | Reconcile against all other active appointments; if none remain, `scheduled` → `planned` |
-| Complete an appointment | `completed` | Dentist records actual per-treatment outcome: `completed` or `in_progress` |
-| Read appointment details (GET) | unchanged | No state mutation is allowed |
+| Event                                                      | Appointment state | Treatment state effect                                                                        |
+| ---------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------- |
+| Create appointment and link a `planned` treatment        | `scheduled`     | `planned` → `scheduled`                                                                  |
+| Link a treatment already `in_progress`                   | `scheduled`     | Remains `in_progress`                                                                       |
+| Edit/reschedule an appointment without unlinking treatment | `scheduled`     | Remains `scheduled` (or `in_progress`)                                                    |
+| Unlink a treatment                                         | unchanged         | Reconcile against all other active appointments; if none remain, `scheduled` → `planned` |
+| Cancel an appointment                                      | `cancelled`     | Reconcile against all other active appointments; if none remain, `scheduled` → `planned` |
+| Complete an appointment                                    | `completed`     | Dentist records actual per-treatment outcome: `completed` or `in_progress`                |
+| Read appointment details (GET)                             | unchanged         | No state mutation is allowed                                                                  |
 
 **Active appointment definition:** `scheduled` or `in_progress`. Cancelled, deleted and completed appointments do not keep a treatment in `scheduled` state. The implementation must inspect all links before reverting a treatment, because the association is many-to-many and a treatment may be booked for multiple visits.
 
 **Important distinction:** `scheduled` means a visit is booked. `in_progress` means clinical work has begun but is not finished. `completed` means the treatment itself is clinically complete. Appointment completion and treatment completion are related but are not interchangeable.
 
 **Current implementation gaps to resolve:**
+
 - Appointment create/update already set linked planned treatments to `scheduled` in the inspected source.
 - Appointment GET currently performs a database commit to self-heal planned treatments; move this mutation into write transactions and keep GET read-only.
 - Unlink and cancellation currently revert linked scheduled treatments to planned without checking whether another active appointment still links the treatment.

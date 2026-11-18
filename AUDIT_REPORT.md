@@ -1,8 +1,8 @@
 # Dental App — Static Audit Report
 
-**Audit date:** 2026-11-17  
-**Source:** `dental_app_audit.zip` supplied in this conversation  
-**Scope:** Flask application source, SQLAlchemy models, route modules, templates, JavaScript/CSS, configuration, migrations, and project governance documents.  
+**Audit date:** 2026-11-17
+**Source:** `dental_app_audit.zip` supplied in this conversation
+**Scope:** Flask application source, SQLAlchemy models, route modules, templates, JavaScript/CSS, configuration, migrations, and project governance documents.
 **Method:** Static inspection only. No live database was opened, no app server was started, and no code was changed.
 
 ## Executive summary
@@ -39,6 +39,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 **Impact:** An authenticated user with the relevant role may delete a prosthetic belonging to a different patient by changing the URL identifiers.
 
 **Remediation:** Fetch with both IDs (or explicitly compare ownership) before deletion. Add a cross-patient negative test.
+
+**Status: ✅ FIXED** — Prosthetic deletion now validates `prosthetic.patient_id == patient_id` before deletion.
 
 ### SEC-003 — Clinical note creation does not validate treatment/appointment ownership — High
 
@@ -79,6 +81,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 **Impact:** A read operation has side effects; previews, retries, prefetching or crawlers can mutate clinical workflow state. This hides inconsistent writes instead of fixing their source.
 
 **Remediation:** Keep GET read-only. Perform treatment state transitions inside appointment create/update/cancel/unlink write transactions.
+
+**Status: ✅ FIXED** — Removed state mutation from `get_appointment()` GET endpoint. GET is now read-only.
 
 ### LOGIC-002 — Cancellation/unlink can incorrectly revert a multi-visit treatment — High
 
@@ -136,6 +140,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Decide whether assistants may delete/reset chart structures. If not, remove assistant from those decorators; if yes, explicitly update the policy and add confirmation/audit logging.
 
+**Status: ✅ FIXED** — Removed `assistant` from `delete_prosthetic()`, `delete_all_prosthetics()`, and `reset_teeth_chart()` decorators.
+
 ### SEC-008 — Logout uses GET — Medium
 
 **Evidence:** `app/auth/routes.py`, `/logout` is a GET route that calls `logout_user()`.
@@ -144,6 +150,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Change to POST with CSRF token and update the navigation form/button.
 
+**Status: ✅ FIXED** — Logout changed from GET to POST with CSRF token validation.
+
 ### SEC-009 — Login `next` redirect is not validated — Medium
 
 **Evidence:** `app/auth/routes.py`, login redirects to `request.args.get('next')` directly after successful authentication.
@@ -151,6 +159,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 **Impact:** Open redirect to an external site is possible if a crafted `next` URL is supplied.
 
 **Remediation:** Validate that the target is a safe local relative URL (host/scheme constrained) before redirecting.
+
+**Status: ✅ FIXED** — Login `next` parameter validated to ensure it's a relative URL (no external redirects).
 
 ### OPS-001 — Development configuration is the only selected config — High
 
@@ -231,6 +241,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 **Impact:** An admin can accidentally or intentionally delete a payment belonging to another expense by altering the URL. This is an integrity flaw even though the route is admin-only.
 
 **Remediation:** Query by both IDs and add a mismatch test.
+
+**Status: ✅ FIXED** — Expense payment deletion now validates `Payment.expense_id == exp_id` before deletion.
 
 ### DATA-007 — Appointment completion transaction/business validation needs strengthening — High
 
