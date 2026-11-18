@@ -4,6 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from functools import wraps
 from flask_wtf.csrf import validate_csrf, CSRFError
 from app.models import User
+from urllib.parse import urlparse
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -23,11 +24,19 @@ def login():
             
             user = User.query.filter_by(username=username).first()
             
+            # ✅ Check credentials FIRST
             if user and check_password_hash(user.password, password):
                 login_user(user)
                 flash('Logged in successfully!', 'success')
+                
+                # SEC-009: Validate that 'next' is a safe local URL (no external redirects)
                 next_page = request.args.get('next')
-                return redirect(next_page or url_for('dashboard.dashboard_home'))
+                if next_page and urlparse(next_page).netloc == '':
+                    # netloc is empty → it's a relative URL (safe)
+                    return redirect(next_page)
+                
+                # Default safe redirect
+                return redirect(url_for('dashboard.dashboard_home'))
             else:
                 flash('Invalid username or password', 'error')
                 
@@ -40,7 +49,7 @@ def login():
     
     return render_template('auth/login.html')
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()

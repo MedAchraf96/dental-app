@@ -253,7 +253,13 @@ def add_payment(exp_id):
 @login_required
 @role_required('admin')
 def delete_payment(exp_id, pay_id):
-    db.session.delete(Payment.query.get_or_404(pay_id))
+    # DATA-006: scope the lookup to the expense in the URL.
+    # A payment belonging to another expense is treated as "not found" here.
+    payment = Payment.query.filter_by(
+        id=pay_id,
+        expense_id=exp_id,
+    ).first_or_404()
+    db.session.delete(payment)
     db.session.commit()
     return jsonify({"message": "Payment deleted"}), 200
 

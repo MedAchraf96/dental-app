@@ -550,7 +550,7 @@ def save_teeth_chart(patient_id):
 
 @patient_bp.route('/<int:patient_id>/api/teeth-chart', methods=['DELETE'])
 @login_required
-@role_required('dentist', 'assistant', 'admin')
+@role_required('dentist', 'admin')
 def reset_teeth_chart(patient_id):
     ToothRecord.query.filter_by(patient_id=patient_id).delete()
     db.session.commit()
@@ -584,16 +584,18 @@ def save_prosthetic(patient_id):
 
 @patient_bp.route('/<int:patient_id>/api/prosthetics/<int:prosthetic_id>', methods=['DELETE'])
 @login_required
-@role_required('dentist', 'assistant', 'admin')
+@role_required('dentist','admin')
 def delete_prosthetic(patient_id, prosthetic_id):
-    prosthetic = Prosthetic.query.get_or_404(prosthetic_id)
+    # SEC-002: scope the lookup to the patient in the URL.
+    # A prosthetic belonging to another patient is treated as "not found" here.
+    prosthetic = Prosthetic.query.filter_by(id=prosthetic_id,patient_id=patient_id,).first_or_404()
     db.session.delete(prosthetic)
     db.session.commit()
     return jsonify({"success": True})
 
 @patient_bp.route('/<int:patient_id>/api/prosthetics', methods=['DELETE'])
 @login_required
-@role_required('dentist', 'assistant', 'admin')
+@role_required('dentist', 'admin')
 def delete_all_prosthetics(patient_id):
     Prosthetic.query.filter_by(patient_id=patient_id).delete()
     db.session.commit()

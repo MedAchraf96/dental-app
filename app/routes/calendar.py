@@ -100,8 +100,7 @@ def get_appointments():
 @role_required('secretary', 'dentist', 'admin')
 def create_appointment():
     data = request.get_json()
-    print(" RECEIVED PAYLOAD:", data) # DEBUG
-    
+
     try:
         start_time_str = data['start_time'].replace('Z', '+00:00')
         end_time_str = data['end_time'].replace('Z', '+00:00')
@@ -131,8 +130,7 @@ def create_appointment():
 
         # 2. Create and link NEW treatments on the fly (Dynamic Rows)
         new_treatments_data = data.get('new_treatments', [])
-        print("🆕 NEW TREATMENTS DATA:", new_treatments_data) # DEBUG
-        
+      
         for t_data in new_treatments_data:
             name = t_data.get('name', '').strip()
             tooth = t_data.get('tooth', '').strip() if t_data.get('tooth') else None
@@ -154,7 +152,6 @@ def create_appointment():
                 existing.cost = cost 
                 existing.status = TreatmentStatus.SCHEDULED
                 treatments_to_link.append(existing)
-                print(f"  ↳ Linked & Updated existing planned treatment: {name}")
             else:
                 new_t = Treatment(
                     patient_id=data['patient_id'],
@@ -166,14 +163,12 @@ def create_appointment():
                 db.session.add(new_t)
                 db.session.flush()
                 treatments_to_link.append(new_t)
-                print(f"  ↳ Created NEW treatment: {name}")
 
         # 3. Attach all treatments to the appointment
         for t in treatments_to_link:
             appointment.treatments.append(t)
             
         db.session.commit()
-        print("✅ Appointment and treatments saved successfully!")
         
         patient = Patient.query.get(data['patient_id'])
         treatment_names = [t.procedure_name for t in appointment.treatments.all()]
@@ -189,7 +184,6 @@ def create_appointment():
         
     except Exception as e:
         db.session.rollback()
-        print("❌ ERROR SAVING APPOINTMENT:", str(e)) # DEBUG
         return jsonify({'error': str(e)}), 400
 
 @calendar_bp.route('/catalog/search')
@@ -239,8 +233,7 @@ def get_planned_treatments(patient_id):
 @role_required('secretary', 'dentist', 'admin')
 def update_appointment(appointment_id):
     data = request.get_json()
-    print("🔄 UPDATE PAYLOAD:", data)
-    
+   
     try:
         appointment = Appointment.query.get_or_404(appointment_id)
         
@@ -253,17 +246,14 @@ def update_appointment(appointment_id):
         # ✅ STEP 0: Handle treatments to unlink
         treatments_to_unlink = data.get('treatments_to_unlink', [])
         if treatments_to_unlink:
-            print(f"🔗 Unlinking {len(treatments_to_unlink)} treatments")
             for treatment_id in treatments_to_unlink:
                 treatment = Treatment.query.get(treatment_id)
                 if treatment and treatment in appointment.treatments.all():
                     treatment.status = TreatmentStatus.PLANNED
                     appointment.treatments.remove(treatment)
-                    print(f"  ✓ Unlinked treatment: {treatment.procedure_name} (ID: {treatment_id})")
         
         # ✅ STEP 1: Handle new treatments
         new_treatments_data = data.get('new_treatments', [])
-        print(f"🆕 Processing {len(new_treatments_data)} new treatments")
         
         for t_data in new_treatments_data:
             name = t_data.get('name', '').strip()
@@ -277,7 +267,6 @@ def update_appointment(appointment_id):
             for existing_t in appointment.treatments.all():
                 if existing_t.procedure_name == name and existing_t.tooth_number == tooth:
                     already_linked = True
-                    print(f"  ⚠️ Treatment '{name}' already linked, skipping")
                     break
             
             if already_linked:
@@ -295,7 +284,6 @@ def update_appointment(appointment_id):
                 existing_planned.cost = cost
                 existing_planned.status = TreatmentStatus.SCHEDULED
                 appointment.treatments.append(existing_planned)
-                print(f"  ✓ Linked existing planned treatment: {name} (ID: {existing_planned.id})")
             else:
                 new_t = Treatment(
                     patient_id=appointment.patient_id,
@@ -307,24 +295,19 @@ def update_appointment(appointment_id):
                 db.session.add(new_t)
                 db.session.flush()
                 appointment.treatments.append(new_t)
-                print(f"  ✓ Created and linked NEW treatment: {name} (ID: {new_t.id})")
         
         # ✅ STEP 2: Handle treatment_ids from checkboxes
         treatment_ids = data.get('treatment_ids', [])
         if treatment_ids:
-            print(f"📋 Linking {len(treatment_ids)} treatments from checkboxes")
             existing_treatments = Treatment.query.filter(Treatment.id.in_(treatment_ids),Treatment.patient_id == appointment.patient_id,Treatment.status.in_([TreatmentStatus.PLANNED,TreatmentStatus.IN_PROGRESS,])).all()
             for t in existing_treatments:
                 if t.status == TreatmentStatus.PLANNED:
                     t.status = TreatmentStatus.SCHEDULED
                 if t not in appointment.treatments:
                     appointment.treatments.append(t)
-                    print(f"  ✓ Linked treatment from plan: {t.procedure_name} (ID: {t.id})")
         
         # ✅ STEP 3: COMMIT ALL CHANGES
-        print("💾 Committing changes to database...")
         db.session.commit()
-        print("✅ Appointment updated successfully!")
         
         return jsonify({
             'id': appointment.id,
@@ -334,9 +317,6 @@ def update_appointment(appointment_id):
         
     except Exception as e:
         db.session.rollback()
-        print("❌ ERROR UPDATING APPOINTMENT:", str(e))
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
     
 @calendar_bp.route('/appointments/<int:appointment_id>/cancel', methods=['POST'])
@@ -350,13 +330,11 @@ def cancel_appointment(appointment_id):
         for treatment in appointment.treatments.all():
             if treatment.status == TreatmentStatus.SCHEDULED.value:
                 treatment.status = TreatmentStatus.PLANNED.value
-                print(f"  ↩️ Reverted treatment '{treatment.procedure_name}' to PLANNED")
 
         # ✅ STEP 2: Soft-cancel the appointment (keeps history for the delete page)
         appointment.status = AppointmentStatus.CANCELLED
         db.session.commit()
 
-        print(f"✅ Appointment {appointment_id} cancelled successfully")
 
         return jsonify({
             'success': True,
@@ -365,7 +343,6 @@ def cancel_appointment(appointment_id):
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERROR cancelling appointment: {str(e)}")
         return jsonify({'error': str(e)}), 400
     
 @calendar_bp.route('/appointments/<int:appointment_id>/complete', methods=['POST'])
@@ -514,7 +491,6 @@ def complete_appointment(appointment_id):
             if remaining > 0.01:
                 patient = Patient.query.get(appointment.patient_id)
                 patient.credit_balance = (patient.credit_balance or Decimal('0.00')) + remaining # <-- Fixed
-                print(f" Added {remaining} DT to Patient Credit Balance")
         
         db.session.commit()
         return jsonify({'success': True, 'appointment': {'id': appointment.id}})
@@ -530,18 +506,6 @@ def get_appointment(appointment_id):
     if current_user.role.lower() == UserRole.DENTIST.value:
         query = query.filter(Appointment.dentist_id == current_user.id)
     appointment = query.first_or_404()
-    
-    # ✅ ULTIMATE SELF-HEAL: Fix stuck 'PLANNED' treatments immediately
-    needs_commit = False
-    for t in appointment.treatments.all():
-        if t.status == TreatmentStatus.PLANNED:
-            t.status = TreatmentStatus.SCHEDULED
-            needs_commit = True
-            
-    if needs_commit:
-        db.session.commit()
-        print(f"🔧 Self-healed {appointment_id}: Changed stuck PLANNED treatments to SCHEDULED")
-
     treatments_data = []
     for t in appointment.treatments.all():
         # Calculate total paid for this specific treatment
