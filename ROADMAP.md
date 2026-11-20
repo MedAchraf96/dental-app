@@ -23,8 +23,8 @@
 
 1. [X] **SEC-001 —** Stored XSS in clinical notes: Replaced `insertAdjacentHTML()` with safe DOM construction using `textContent` (2026-11-18).
 2. [X] **SEC-002** — Prosthetic IDOR: Ownership validation added
+3. [X] **SEC-003 —** Clinical note relationship validation: Validate treatment/appointment ownership and same-patient constraint (2026-11-18).
 
-3. **SEC-003 — High — Clinical note relationship validation:** In `update_treatment_notes`, validate treatment and optional appointment exist and belong to the same patient; validate their relationship/context.
 4. **SEC-004 — High — Payment allocation IDOR:** In `calendar.py`, constrain client-provided payment treatment IDs to the appointment's patient and eligible treatments.
 5. **SEC-005 — High — Appointment authorization:** Correct the invalid `appointment.patient_id == current_user.id` check in `app/routes/appointment.py`; implement role-specific appointment scope consistently.
 6. **SEC-006 — High — Appointment update/cancel scope:** Enforce dentist assignment and agreed secretary/admin permissions consistently across read, update, cancel and complete routes

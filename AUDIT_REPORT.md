@@ -52,6 +52,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Load the treatment; if appointment_id is supplied, load the appointment and require matching patient IDs and valid relationship/context before creating the note.
 
+**Status: ✅ FIXED 2026-11-18** — `update_treatment_notes()` now validates treatment existence, appointment existence (if provided), and ensures both belong to the same patient before creating the clinical note. Returns 404 for missing records and 400 for cross-patient mismatches.
+
 ### SEC-004 — Appointment completion payment allocation trusts client treatment IDs — High
 
 **Evidence:** `app/routes/calendar.py`, `complete_appointment()`. In the manual waterfall allocation, a treatment is fetched by client-supplied `treatment_id`; the code checks existence but does not require the treatment to belong to the appointment's patient or be linked to that appointment.
