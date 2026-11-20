@@ -378,51 +378,76 @@ def complete_appointment(appointment_id):
         data = request.get_json()
         treatment_updates = data.get('treatment_statuses', [])
         treatment_payments = data.get('treatment_payments', [])
-        total_payment = Decimal(str(data.get('total_payment', '0.00'))) # <-- Fixed
+        total_payment = Decimal(str(data.get('total_payment', '0.00')))
         payment_method = data.get('payment_method', 'Cash')
         payment_date_str = data.get('payment_date')
         allocation_mode = data.get('allocation_mode', 'waterfall')
         
+        # Load appointment with dentist scope
         query = Appointment.query.filter(Appointment.id == appointment_id)
         if current_user.role.lower() == UserRole.DENTIST.value:
             query = query.filter(Appointment.dentist_id == current_user.id)
         appointment = query.first_or_404()
         
+        # ✅ SEC-004: Build set of valid treatment IDs for this appointment
+        valid_treatment_ids = {t.id for t in appointment.treatments.all()}
+        
+        # ✅ DATA-007: Validate all treatment updates BEFORE applying any changes
+        for update in treatment_updates:
+            t_id = update.get('id')
+            new_status_str = update.get('status')
+            
+            # Verify treatment is linked to this appointment
+            if t_id not in valid_treatment_ids:
+                return jsonify({'error': f'Treatment {t_id} is not linked to this appointment'}), 400
+            
+            treatment = Treatment.query.get(t_id)
+            new_status = TreatmentStatus(new_status_str)
+            
+            # Validate future appointment guard
+            if new_status == TreatmentStatus.COMPLETED:
+                future_appt = Appointment.query.join(Appointment.treatments).filter(
+                    Appointment.patient_id == appointment.patient_id,
+                    Treatment.id == t_id,
+                    Appointment.start_time > appointment.start_time,
+                    Appointment.id != appointment.id,
+                    Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS])
+                ).first()
+                
+                if future_appt:
+                    return jsonify({
+                        'error': f"Cannot complete '{treatment.procedure_name}'. It is scheduled for a future visit on {future_appt.start_time.strftime('%d/%m/%Y')}."
+                    }), 400
+        
+        # ✅ DATA-007: Validate all payment allocations BEFORE applying
+        if total_payment > 0:
+            for payment in treatment_payments:
+                t_id = payment.get('treatment_id')
+                if t_id not in valid_treatment_ids:
+                    return jsonify({'error': f'Payment allocation references treatment {t_id} which is not linked to this appointment'}), 400
+        
+        # ✅ All validation passed — now apply changes atomically
+        
+        # 1. Mark appointment as completed
         appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
         
-        # 1. Update treatment statuses & VALIDATE
+        # 2. Update treatment statuses
         for update in treatment_updates:
             t_id = update.get('id')
             new_status_str = update.get('status')
             treatment = Treatment.query.get(t_id)
+            new_status = TreatmentStatus(new_status_str)
             
-            if treatment and treatment in appointment.treatments.all():
-                new_status = TreatmentStatus(new_status_str)
-                
-                if new_status == TreatmentStatus.COMPLETED:
-                    future_appt = Appointment.query.join(Appointment.treatments).filter(
-                        Appointment.patient_id == appointment.patient_id,
-                        Treatment.id == t_id,
-                        Appointment.start_time > appointment.start_time,
-                        Appointment.id != appointment.id
-                    ).first()
-                    
-                    if future_appt:
-                        db.session.rollback() 
-                        return jsonify({
-                            'error': f"Cannot complete '{treatment.procedure_name}'. It is scheduled for a future visit on {future_appt.start_time.strftime('%d/%m/%Y')}."
-                        }), 400
-
-                treatment.status = new_status
-                
-                if new_status == TreatmentStatus.COMPLETED:
-                    treatment.completed_date = appointment.start_time.date()
-                    treatment.admin_completed_at = datetime.utcnow()
-                    if treatment.tooth_number:
-                        update_tooth_chart_on_completion(treatment)
+            treatment.status = new_status
+            
+            if new_status == TreatmentStatus.COMPLETED:
+                treatment.completed_date = appointment.start_time.date()
+                treatment.admin_completed_at = datetime.utcnow()
+                if treatment.tooth_number:
+                    update_tooth_chart_on_completion(treatment)
         
-        # 2. Process payments
+        # 3. Process payments
         if total_payment > 0:
             payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date() if payment_date_str else datetime.now().date()
             remaining = total_payment
@@ -433,13 +458,13 @@ def complete_appointment(appointment_id):
                     if remaining <= 0:
                         break
                     t_id = payment.get('treatment_id')
-                    amount = Decimal(str(payment.get('amount', '0.00'))) # <-- Fixed
+                    amount = Decimal(str(payment.get('amount', '0.00')))
                     treatment = Treatment.query.get(t_id)
                     
-                    if treatment:
-                        # Prevent overpaying a specific treatment manually beyond its balance
-                        already_paid = sum((p.amount for p in treatment.payments), Decimal('0.00')) # <-- Fixed
-                        balance = (treatment.cost - (treatment.insurance_amount or Decimal('0.00'))) - already_paid # <-- Fixed
+                    # ✅ SEC-004: Already validated above, but double-check
+                    if treatment and treatment.id in valid_treatment_ids:
+                        already_paid = sum((p.amount for p in treatment.payments), Decimal('0.00'))
+                        balance = (treatment.cost - (treatment.insurance_amount or Decimal('0.00'))) - already_paid
                         apply_amount = min(amount, balance)
                         
                         if apply_amount > 0:
@@ -456,10 +481,10 @@ def complete_appointment(appointment_id):
                 completed_treatments = [t for t in appointment.treatments.all() 
                                        if t.status == TreatmentStatus.COMPLETED]
                 if completed_treatments and remaining > 0:
-                    split_amount = remaining / Decimal(str(len(completed_treatments))) # <-- Fixed
+                    split_amount = remaining / Decimal(str(len(completed_treatments)))
                     for t in completed_treatments:
-                        already_paid = sum((p.amount for p in t.payments), Decimal('0.00')) # <-- Fixed
-                        balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid # <-- Fixed
+                        already_paid = sum((p.amount for p in t.payments), Decimal('0.00'))
+                        balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid
                         if balance > 0:
                             apply_amount = min(split_amount, balance)
                             new_payment = PatientPayment(
@@ -475,10 +500,10 @@ def complete_appointment(appointment_id):
                 in_progress_treatments = [t for t in appointment.treatments.all() 
                                           if t.status == TreatmentStatus.IN_PROGRESS]
                 if in_progress_treatments and remaining > 0:
-                    split_amount = remaining / Decimal(str(len(in_progress_treatments))) # <-- Fixed
+                    split_amount = remaining / Decimal(str(len(in_progress_treatments)))
                     for t in in_progress_treatments:
-                        already_paid = sum((p.amount for p in t.payments), Decimal('0.00')) # <-- Fixed
-                        balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid # <-- Fixed
+                        already_paid = sum((p.amount for p in t.payments), Decimal('0.00'))
+                        balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid
                         if balance > 0:
                             apply_amount = min(split_amount, balance)
                             new_payment = PatientPayment(
@@ -498,8 +523,8 @@ def complete_appointment(appointment_id):
                 for t in all_treatments:
                     if remaining <= 0:
                         break
-                    already_paid = sum((p.amount for p in t.payments), Decimal('0.00')) # <-- Fixed
-                    balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid # <-- Fixed
+                    already_paid = sum((p.amount for p in t.payments), Decimal('0.00'))
+                    balance = (t.cost - (t.insurance_amount or Decimal('0.00'))) - already_paid
                     
                     if balance > 0:
                         apply_amount = min(remaining, balance)
@@ -512,10 +537,10 @@ def complete_appointment(appointment_id):
                         db.session.add(new_payment)
                         remaining -= apply_amount
             
-            # 3. Handle TRUE overflow (Only if payment exceeds TOTAL cost of all treatments in visit)
-            if remaining > 0.01:
+            # ✅ Handle overflow with Decimal comparison
+            if remaining > Decimal('0.01'):
                 patient = Patient.query.get(appointment.patient_id)
-                patient.credit_balance = (patient.credit_balance or Decimal('0.00')) + remaining # <-- Fixed
+                patient.credit_balance = (patient.credit_balance or Decimal('0.00')) + remaining
         
         db.session.commit()
         return jsonify({'success': True, 'appointment': {'id': appointment.id}})
