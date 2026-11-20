@@ -243,13 +243,28 @@ def update_appointment(appointment_id):
         appointment.start_time = datetime.fromisoformat(start_time_str)
         appointment.end_time = datetime.fromisoformat(end_time_str)
         
-        # ✅ STEP 0: Handle treatments to unlink
+        # ✅ LOGIC-003: Handle treatments to unlink with reconciliation
         treatments_to_unlink = data.get('treatments_to_unlink', [])
         if treatments_to_unlink:
             for treatment_id in treatments_to_unlink:
                 treatment = Treatment.query.get(treatment_id)
+                
+                # Verify it exists and is actually linked to this appointment
                 if treatment and treatment in appointment.treatments.all():
-                    treatment.status = TreatmentStatus.PLANNED
+                    
+                    # Apply the same reconciliation rule
+                    if treatment.status == TreatmentStatus.SCHEDULED:
+                        other_active_appt = Appointment.query.join(Appointment.treatments).filter(
+                            Treatment.id == treatment.id,
+                            Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS]),
+                            Appointment.id != appointment.id
+                        ).first()
+
+                        # If no other active appointments exist, revert to planned
+                        if not other_active_appt:
+                            treatment.status = TreatmentStatus.PLANNED
+                    
+                    # Now safely remove the link
                     appointment.treatments.remove(treatment)
         
         # ✅ STEP 1: Handle new treatments
@@ -326,15 +341,25 @@ def cancel_appointment(appointment_id):
     try:
         appointment = Appointment.query.get_or_404(appointment_id)
 
-        # ✅ STEP 1: Revert all linked treatments back to PLANNED status
+        # ✅ LOGIC-002: Reconcile treatments before cancelling
         for treatment in appointment.treatments.all():
-            if treatment.status == TreatmentStatus.SCHEDULED.value:
-                treatment.status = TreatmentStatus.PLANNED.value
+            # Only evaluate treatments that are currently scheduled
+            if treatment.status == TreatmentStatus.SCHEDULED:
+                
+                # Check if this treatment is linked to ANY OTHER active appointment
+                other_active_appt = Appointment.query.join(Appointment.treatments).filter(
+                    Treatment.id == treatment.id,
+                    Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS]),
+                    Appointment.id != appointment.id
+                ).first()
 
-        # ✅ STEP 2: Soft-cancel the appointment (keeps history for the delete page)
+                # If NO other active appointments exist, revert to planned
+                if not other_active_appt:
+                    treatment.status = TreatmentStatus.PLANNED
+
+        # ✅ STEP 2: Soft-cancel the appointment (keeps history)
         appointment.status = AppointmentStatus.CANCELLED
         db.session.commit()
-
 
         return jsonify({
             'success': True,
