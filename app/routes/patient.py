@@ -724,14 +724,32 @@ def patient_details_api(patient_id):
 @login_required
 @role_required('dentist', 'assistant', 'admin')
 def update_treatment_notes(treatment_id):
-    data = request.get_json() # We will send JSON from the frontend now
+    data = request.get_json()
     content = data.get('content', '').strip()
-    appointment_id = data.get('appointment_id') # Can be None
+    appointment_id = data.get('appointment_id')
     
     if not content:
         return jsonify({'success': False, 'error': 'Note cannot be empty'}), 400
 
     try:
+        # ✅ SEC-003: Validate treatment exists
+        treatment = Treatment.query.get(treatment_id)
+        if not treatment:
+            return jsonify({'success': False, 'error': 'Treatment not found'}), 404
+        
+        # ✅ SEC-003: Validate appointment if provided
+        if appointment_id:
+            appointment = Appointment.query.get(appointment_id)
+            if not appointment:
+                return jsonify({'success': False, 'error': 'Appointment not found'}), 404
+            
+            # ✅ SEC-003: Ensure treatment and appointment belong to the same patient
+            if treatment.patient_id != appointment.patient_id:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Treatment and appointment must belong to the same patient'
+                }), 400
+        
         # Create the new relational note
         new_note = ClinicalNote(
             content=content,
