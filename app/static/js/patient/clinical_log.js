@@ -74,20 +74,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (result.success) {
                     const stack = document.getElementById(`notes-stack-${treatmentId}`);
 
-                    // Inject the COMPACT HTML structure
-                    const newNoteHTML = `
-                            <div class="mini-sticky-note">
-                                <div class="mini-note-header">
-                                    <span class="mini-date">${result.created_at}</span>
-                                    <a href="/api/calendar?appt=${appointmentId}" class="mini-note-appt-link" title="View Appointment">
-                                        <i class="bi bi-calendar-event"></i>
-                                    </a>
-                                </div>
-                                <div class="mini-note-body">${content.replace(/\n/g, '<br>')}</div>
-                            </div>
-                        `;
+                    // 1. Create the main note container
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = 'mini-sticky-note';
 
-                    stack.insertAdjacentHTML('afterbegin', newNoteHTML);
+                    // 2. Create the header
+                    const headerDiv = document.createElement('div');
+                    headerDiv.className = 'mini-note-header';
+
+                    const dateSpan = document.createElement('span');
+                    dateSpan.className = 'mini-date';
+                    dateSpan.textContent = result.created_at; // ✅ SAFE
+
+                    const apptLink = document.createElement('a');
+                    apptLink.href = `/api/calendar?appt=${appointmentId}`;
+                    apptLink.className = 'mini-note-appt-link';
+                    apptLink.title = 'View Appointment';
+
+                    const icon = document.createElement('i');
+                    icon.className = 'bi bi-calendar-event';
+                    apptLink.appendChild(icon);
+
+                    headerDiv.appendChild(dateSpan);
+                    headerDiv.appendChild(apptLink);
+
+                    // 3. Create the body (THE CRITICAL FIX)
+                    const bodyDiv = document.createElement('div');
+                    bodyDiv.className = 'mini-note-body';
+                    bodyDiv.style.whiteSpace = 'pre-wrap'; // ✅ Safely renders \n as line breaks
+                    bodyDiv.textContent = content;         // ✅ Automatically escapes ALL HTML/Scripts
+
+                    // 4. Assemble and insert
+                    noteDiv.appendChild(headerDiv);
+                    noteDiv.appendChild(bodyDiv);
+
+                    // prepend() is the modern, clean equivalent of insertAdjacentHTML('afterbegin', ...)
+                    stack.prepend(noteDiv);
+
                     input.value = ''; // Clear input
 
                     this.innerHTML = '<i class="bi bi-check-circle-fill"></i>';

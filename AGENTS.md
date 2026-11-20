@@ -1,6 +1,6 @@
 # AGENTS.md — Dental App Project Rules
 
-**Last reviewed:** 2026-11-17  
+**Last reviewed:** 2026-11-17
 **Audit basis:** Static inspection of the supplied `dental_app_audit.zip`. These rules describe intended engineering behavior; audit findings in `AUDIT_REPORT.md` remain open until fixed and regression-tested.
 
 ## 1. Stack and project entry points
@@ -45,19 +45,19 @@
 
 ### Current intended role matrix
 
-| Capability | admin | dentist | secretary | assistant |
-|---|---:|---:|---:|---:|
-| Patient CRUD | Yes | Yes | Yes | No |
-| Patient hard delete | Yes | Yes | No | No |
-| Treatment add/status/notes | Yes | Yes | No | Yes (within authorized patient scope) |
-| Treatment delete/mark-complete | Yes | Yes | No | No |
-| Patient payment | Yes | Yes | Yes | No |
-| Teeth chart/prosthetics | Yes | Yes | No | Yes (no delete unless explicitly approved) |
-| Appointment create/edit/cancel | Yes | Yes | Yes | No |
-| Appointment complete | Yes | Yes | No | No |
-| Appointment hard delete | Yes | No | No | No |
-| Clinic finance | Yes | No | No | No |
-| Settings/user management/catalog | Yes | No | No | No |
+| Capability                       | admin | dentist | secretary |                                  assistant |
+| -------------------------------- | ----: | ------: | --------: | -----------------------------------------: |
+| Patient CRUD                     |   Yes |     Yes |       Yes |                                         No |
+| Patient hard delete              |   Yes |     Yes |        No |                                         No |
+| Treatment add/status/notes       |   Yes |     Yes |        No |      Yes (within authorized patient scope) |
+| Treatment delete/mark-complete   |   Yes |     Yes |        No |                                         No |
+| Patient payment                  |   Yes |     Yes |       Yes |                                         No |
+| Teeth chart/prosthetics          |   Yes |     Yes |        No | Yes (no delete unless explicitly approved) |
+| Appointment create/edit/cancel   |   Yes |     Yes |       Yes |                                         No |
+| Appointment complete             |   Yes |     Yes |        No |                                         No |
+| Appointment hard delete          |   Yes |      No |        No |                                         No |
+| Clinic finance                   |   Yes |      No |        No |                                         No |
+| Settings/user management/catalog |   Yes |      No |        No |                                         No |
 
 This is the intended policy, not proof that every current route enforces it. Reconcile route decorators and object-level checks against this table during security work.
 
