@@ -70,6 +70,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Define allowed cancellation scope by role and appointment assignment, then enforce that policy. Add role-by-role tests.
 
+**Status: ✅ FIXED 2026-11-18** — Replaced the broken `appointment.patient_id != current_user.id` check with proper role-based authorization. Admins and Secretaries can cancel any appointment; Dentists are strictly scoped to their own assigned appointments (`appointment.dentist_id == current_user.id`). Additionally, the treatment reconciliation logic (LOGIC-002) was added to this HTML route to ensure state consistency with the API route (closing LOGIC-007).
+
 ### SEC-006 — Appointment update/cancel scope is inconsistent — High
 
 **Evidence:** `app/routes/calendar.py`, `update_appointment()` and `cancel_appointment()`. Mutating routes have role checks, but update/cancel do not consistently constrain dentist users to their assigned appointments. `get_appointment()` and completion do apply a dentist assignment filter.

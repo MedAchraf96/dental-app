@@ -159,3 +159,4 @@ The intended business rule is that an appointment booking changes the linked tre
 - Appointment update currently does not fully reconcile treatments removed from the submitted selection; confirm frontend unlink payload and backend final link set semantics.
 - Treatment status transition validation is not centralized; direct status endpoints can set arbitrary enum values without checking appointment linkage or legal transitions.
 - [RESOLVED 2026-11-18] Unlink and cancellation now reconcile against all active appointments before reverting status.
+- [RESOLVED 2026-11-18] Appointment cancellation authorization fixed. Dentist scope enforced, and HTML/API cancellation routes unified to share the exact same treatment reconciliation logic.

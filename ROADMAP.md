@@ -26,7 +26,9 @@
 3. [X] **SEC-003 —** Clinical note relationship validation: Validate treatment/appointment ownership and same-patient constraint (2026-11-18).
 
 4. **SEC-004 — High — Payment allocation IDOR:** In `calendar.py`, constrain client-provided payment treatment IDs to the appointment's patient and eligible treatments.
-5. **SEC-005 — High — Appointment authorization:** Correct the invalid `appointment.patient_id == current_user.id` check in `app/routes/appointment.py`; implement role-specific appointment scope consistently.
+
+5. [X] **SEC-005 — Appointment authorization:** Replaced broken patient/user ID check with role-based scope (Dentist restricted to own appointments). Unified cancellation logic with API route (LOGIC-007) (2026-11-18).Correct the invalid `appointment.patient_id == current_user.id` check in `app/routes/appointment.py`; implement role-specific appointment scope consistentl
+
 6. **SEC-006 — High — Appointment update/cancel scope:** Enforce dentist assignment and agreed secretary/admin permissions consistently across read, update, cancel and complete routes
 
 7. [X] **SEC-007** — Assistant role: Removed from destructive operations
@@ -46,7 +48,8 @@
 4. **LOGIC-004 — High — Final association set:** Make appointment editing reconcile the complete desired treatment link set atomically; do not rely on partial or ambiguous unlink payloads.
 5. **LOGIC-005 — High — Legal state transitions:** Centralize transitions and prevent arbitrary client-selected status changes. Distinguish appointment completion from treatment completion.
 6. **LOGIC-006 — Medium — Multi-visit behavior:** Preserve `in_progress` treatment status when booking subsequent visits; block completion only when the documented future-visit rule applies.
-7. **LOGIC-007 — Medium — Single cancellation service:** Route every appointment cancellation path through the same domain operation so treatment links/statuses stay consistent.
+
+7. [X] **LOGIC-007 — Single cancellation service:** HTML and API cancellation routes now share the exact same treatment reconciliation logic (2026-11-18).
 
 ## Phase 3 — Financial correctness
 
