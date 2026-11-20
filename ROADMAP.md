@@ -21,8 +21,7 @@
 
 ## Phase 1 — Critical security and patient privacy
 
-1. **SEC-001 — High — Stored XSS in clinical notes:** Replace `insertAdjacentHTML()` interpolation of note content in `app/static/js/patient/clinical_log.js` with safe DOM construction and `textContent`. Audit all dynamic HTML sinks in calendar/finance scripts.
-
+1. [X] **SEC-001 — High — Stored XSS in clinical notes:** Replace `insertAdjacentHTML()` interpolation of note content in `app/static/js/patient/clinical_log.js` with safe DOM construction and `textContent`. Audit all dynamic HTML sinks in calendar/finance scripts.
 2. [X] **SEC-002** — Prosthetic IDOR: Ownership validation added
 
 3. **SEC-003 — High — Clinical note relationship validation:** In `update_treatment_notes`, validate treatment and optional appointment exist and belong to the same patient; validate their relationship/context.
