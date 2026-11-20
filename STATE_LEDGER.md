@@ -102,6 +102,7 @@ This document serves as the master reference for data flow, state management, an
 5. **Always reset modal state. `initAppointmentForm` must clear both `newTreatmentsList` and the `existing-treatments-list` DOM element to prevent state leakage between "New" and "Edit" modes.
 6. **CSRF Protection:** All POST/DELETE forms in HTML must include `<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">`.
 7. **Tooth Numbering:** Always use FDI two-digit notation (11-18, 21-28, 31-38, 41-48).
+8. **Frontend Security (SEC-001):** All user-controlled text (clinical notes, payment descriptions, etc.) must be rendered using `textContent` or equivalent safe DOM methods. Never use `innerHTML`, `insertAdjacentHTML()`, or template literals to inject user data into HTML. Use CSS `white-space: pre-wrap` for line breaks instead of injecting `<br>` tags.
 
 ## Role-Based Access Matrix (SEC-002)
 
@@ -118,7 +119,6 @@ This document serves as the master reference for data flow, state management, an
 | Appointment hard delete            |  ✅  |   ❌   |    ❌    |    ❌    |
 | Finance (clinic)                   |  ✅  |   ❌   |    ❌    |    ❌    |
 | Settings (user mgmt)               |  ✅  |   ❌   |    ❌    |    ❌    |
-
 
 **Note (Updated 2026-11-18):** Assistant role removed from prosthetic deletion and teeth chart reset operations to align with no-delete policy.
 
@@ -158,3 +158,4 @@ The intended business rule is that an appointment booking changes the linked tre
 - Unlink and cancellation currently revert linked scheduled treatments to planned without checking whether another active appointment still links the treatment.
 - Appointment update currently does not fully reconcile treatments removed from the submitted selection; confirm frontend unlink payload and backend final link set semantics.
 - Treatment status transition validation is not centralized; direct status endpoints can set arbitrary enum values without checking appointment linkage or legal transitions.
+- [RESOLVED 2026-11-18] Unlink and cancellation now reconcile against all active appointments before reverting status.

@@ -21,7 +21,7 @@
 
 ## Phase 1 — Critical security and patient privacy
 
-1. [X] **SEC-001 — High — Stored XSS in clinical notes:** Replace `insertAdjacentHTML()` interpolation of note content in `app/static/js/patient/clinical_log.js` with safe DOM construction and `textContent`. Audit all dynamic HTML sinks in calendar/finance scripts.
+1. [X] **SEC-001 —** Stored XSS in clinical notes: Replaced `insertAdjacentHTML()` with safe DOM construction using `textContent` (2026-11-18).
 2. [X] **SEC-002** — Prosthetic IDOR: Ownership validation added
 
 3. **SEC-003 — High — Clinical note relationship validation:** In `update_treatment_notes`, validate treatment and optional appointment exist and belong to the same patient; validate their relationship/context.
@@ -40,9 +40,9 @@
 **Approved business rule:** If a treatment is linked to an active appointment whose status is `scheduled`, a `planned` treatment becomes `scheduled`. `in_progress` remains `in_progress`. This is intentional and must not be reverted to the old State Ledger rule.
 
 1. [X] **LOGIC-001 — GET purity: State mutation removed from GET endpoint**
+2. [X] **LOGIC-002 — High — Cancellation reconciliation:** Implemented active-appointment check (2026-11-18).
+3. [X] **LOGIC-003 — High — Unlink reconciliation:** Applied same remaining-active-appointment check (2026-11-18).
 
-2. **LOGIC-002 — High — Cancellation reconciliation:** On cancellation, keep a treatment `scheduled` if another active (`scheduled` or `in_progress`) appointment still links it. Revert `scheduled` → `planned` only when no active link remains.
-3. **LOGIC-003 — High — Unlink reconciliation:** Apply the same remaining-active-appointment check when a treatment is removed from an appointment.
 4. **LOGIC-004 — High — Final association set:** Make appointment editing reconcile the complete desired treatment link set atomically; do not rely on partial or ambiguous unlink payloads.
 5. **LOGIC-005 — High — Legal state transitions:** Centralize transitions and prevent arbitrary client-selected status changes. Distinguish appointment completion from treatment completion.
 6. **LOGIC-006 — Medium — Multi-visit behavior:** Preserve `in_progress` treatment status when booking subsequent visits; block completion only when the documented future-visit rule applies.

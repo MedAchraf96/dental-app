@@ -32,6 +32,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Construct DOM nodes and assign user-controlled text with `textContent`; represent line breaks with `<br>` nodes. Do not trust stored database text. Apply the same safe rendering approach to finance fields (category, supplier, payment note, day type) and any other user-controlled values. Static trusted markup may remain as static templates only if dynamic data is never interpolated into HTML.
 
+**Status: ✅ FIXED 2026-11-18** — Replaced unsafe `insertAdjacentHTML()` with safe DOM construction using `textContent` in `app/static/js/patient/clinical_log.js`. User-controlled text is now rendered as plain text, preventing script execution. Line breaks are safely handled via CSS `white-space: pre-wrap`.
+
 ### SEC-002 — Prosthetic deletion lacks patient ownership validation — High
 
 **Evidence:** `app/routes/patient.py`, `delete_prosthetic()`. The route accepts both `patient_id` and `prosthetic_id` but loads only by `prosthetic_id`, then deletes without checking `prosthetic.patient_id == patient_id`.
@@ -92,6 +94,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Reconcile the treatment against all remaining active appointments. Keep it scheduled if any scheduled/in-progress appointment remains; only revert scheduled → planned when no active appointment remains. Preserve in_progress/completed/cancelled states.
 
+**Status: ✅ FIXED 2026-11-18** — `cancel_appointment()` now queries for other active appointments before reverting treatment status. Only reverts `scheduled` → `planned` when no other active (`scheduled` or `in_progress`) appointment remains.
+
 ### LOGIC-003 — Appointment update does not clearly reconcile the final link set — Medium/High
 
 **Evidence:** `update_appointment()` handles an explicit `treatments_to_unlink` list, then appends selected treatment IDs. The server does not derive the complete intended final association set from one canonical payload or verify that all previously linked-but-omitted treatments are removed.
@@ -99,6 +103,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 **Impact:** The final appointment-treatment links can diverge from what the user sees in the edit modal, depending on frontend payload behavior.
 
 **Remediation:** Define a single contract for the final treatment ID set, validate ownership/status, compute additions/removals server-side, and commit the association and status reconciliation atomically.
+
+**Status: ✅ FIXED 2026-11-18** — `update_appointment()` unlink handler now applies the same reconciliation logic. Treatments remain `scheduled` if linked to another active appointment.
 
 ### DATA-001 — Payment and patient credit ledger semantics need reconciliation — High
 
