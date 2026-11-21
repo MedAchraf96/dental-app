@@ -233,16 +233,20 @@ def get_planned_treatments(patient_id):
 @role_required('secretary', 'dentist', 'admin')
 def update_appointment(appointment_id):
     data = request.get_json()
-   
+
     try:
-        appointment = Appointment.query.get_or_404(appointment_id)
-        
+        # ✅ SEC-006: Scope appointment access by role
+        query = Appointment.query.filter(Appointment.id == appointment_id)
+        if current_user.role.lower() == UserRole.DENTIST.value:
+            query = query.filter(Appointment.dentist_id == current_user.id)
+        appointment = query.first_or_404()
+
         start_time_str = data['start_time'].replace('Z', '+00:00')
         end_time_str = data['end_time'].replace('Z', '+00:00')
-        
+
         appointment.start_time = datetime.fromisoformat(start_time_str)
         appointment.end_time = datetime.fromisoformat(end_time_str)
-        
+
         # ✅ LOGIC-003: Handle treatments to unlink with reconciliation
         treatments_to_unlink = data.get('treatments_to_unlink', [])
         if treatments_to_unlink:
@@ -339,7 +343,11 @@ def update_appointment(appointment_id):
 @role_required('secretary', 'dentist', 'admin')
 def cancel_appointment(appointment_id):
     try:
-        appointment = Appointment.query.get_or_404(appointment_id)
+        # ✅ SEC-006: Scope appointment access by role
+        query = Appointment.query.filter(Appointment.id == appointment_id)
+        if current_user.role.lower() == UserRole.DENTIST.value:
+            query = query.filter(Appointment.dentist_id == current_user.id)
+        appointment = query.first_or_404()
 
         # ✅ LOGIC-002: Reconcile treatments before cancelling
         for treatment in appointment.treatments.all():

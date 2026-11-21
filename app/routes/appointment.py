@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app.auth.routes import role_required
-from app.models import Appointment, Patient, User
-from app.enums import AppointmentStatus, UserRole
+from app.models import Appointment, Patient, User, Treatment
+from app.enums import AppointmentStatus, UserRole, TreatmentStatus
 from datetime import datetime
 from app.database import db
 import logging
@@ -66,26 +66,41 @@ from datetime import datetime
 def cancel_appointment(appointment_id):
     appointment = Appointment.query.get_or_404(appointment_id)
 
-    # Ensure the user is authorized to cancel this appointment (check patient or admin role)
-    if appointment.patient_id != current_user.id and current_user.role.lower() != UserRole.ADMIN:
-        flash('You do not have permission to cancel this appointment.', 'error')
-        return redirect(url_for('appointment.list_appointments'))
+    # ✅ SEC-005 & SEC-006: Role-based authorization
+    # Admin and Secretary can cancel any appointment.
+    # Dentist can ONLY cancel appointments assigned to them.
+    if current_user.role.lower() == UserRole.DENTIST.value:
+        if appointment.dentist_id != current_user.id:
+            flash('You do not have permission to cancel an appointment assigned to another dentist.', 'error')
+            return redirect(url_for('appointment.list_appointments'))
 
     try:
-        # Set status to canceled and mark the cancellation time
-        appointment.status = AppointmentStatus.CANCELLED
-        appointment.deleted_at = datetime.utcnow()  # Mark when it was canceled
+        # ✅ LOGIC-002 / LOGIC-007: Reconcile treatments before cancelling
+        # (Ensures this HTML route behaves identically to the API route in calendar.py)
+        for treatment in appointment.treatments.all():
+            if treatment.status == TreatmentStatus.SCHEDULED:
+                other_active_appt = Appointment.query.join(Appointment.treatments).filter(
+                    Treatment.id == treatment.id,
+                    Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS]),
+                    Appointment.id != appointment.id
+                ).first()
 
-        # Commit changes to the database
+                # If no other active appointments exist, revert to planned
+                if not other_active_appt:
+                    treatment.status = TreatmentStatus.PLANNED
+
+        # Set status to cancelled
+        appointment.status = AppointmentStatus.CANCELLED
+        appointment.deleted_at = datetime.utcnow()
+
         db.session.commit()
         flash('Appointment canceled successfully.', 'success')
 
     except Exception as e:
-        db.session.rollback()  # Rollback in case of an error
+        db.session.rollback()
         app.logger.error(f"Error during commit: {e}")
-        flash(f"An error occurred: {str(e)}", 'error')
+        flash('An error occurred while canceling the appointment.', 'error')
 
-    # Redirect to the list of appointments after handling the request
     return redirect(url_for('appointment.list_appointments'))
 
 @appointment_bp.route('/appointments/bulk_hard_delete', methods=['POST'])
