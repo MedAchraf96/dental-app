@@ -82,6 +82,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Apply a shared appointment authorization helper to read/update/cancel/complete operations, with role-specific rules from the role matrix.
 
+**Status: ✅ FIXED 2026-11-21** — `update_appointment()` and `cancel_appointment()` in `calendar.py` now scope queries by `dentist_id` when the current user is a dentist. Secretaries and Admins retain full access. This aligns calendar routes with the authorization pattern used in `get_appointment` and `complete_appointment`.
+
 ### LOGIC-001 — Appointment GET endpoint mutates treatment state — High
 
 **Evidence:** `app/routes/calendar.py`, `get_appointment()`, lines 534–543. A GET request changes linked planned treatments to scheduled and commits the database.

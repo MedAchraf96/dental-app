@@ -161,3 +161,4 @@ The intended business rule is that an appointment booking changes the linked tre
 - [RESOLVED 2026-11-18] Unlink and cancellation now reconcile against all active appointments before reverting status.
 - [RESOLVED 2026-11-18] Appointment cancellation authorization fixed. Dentist scope enforced, and HTML/API cancellation routes unified to share the exact same treatment reconciliation logic.
 - [RESOLVED 2026-11-21] Payment allocation IDOR (SEC-004): Backend strictly validates that all `treatment_id`s in payment payloads belong to the target appointment. Verified by automated test suite.
+- [RESOLVED 2026-11-21] Appointment update/cancel routes now consistently enforce role-based scope (dentist restricted to own appointments) (SEC-006).

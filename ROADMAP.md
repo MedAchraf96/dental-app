@@ -26,9 +26,7 @@
 3. [X] **SEC-003 —** Clinical note relationship validation: Validate treatment/appointment ownership and same-patient constraint (2026-11-18).
 4. [X] **SEC-004 — High — Payment allocation IDOR:** Constrained payment treatment IDs to appointment's valid set
 5. [X] **SEC-005 — Appointment authorization:** Replaced broken patient/user ID check with role-based scope (Dentist restricted to own appointments). Unified cancellation logic with API route (LOGIC-007) (2026-11-18).Correct the invalid `appointment.patient_id == current_user.id` check in `app/routes/appointment.py`; implement role-specific appointment scope consistentl
-
-6. **SEC-006 — High — Appointment update/cancel scope:** Enforce dentist assignment and agreed secretary/admin permissions consistently across read, update, cancel and complete routes
-
+6. [X] **SE****C-006 — High — Appointment update/cancel scope:** Enforced dentist assignment filter on PUT /appointments/<id></id> and POST /appointments/<id></id>/cancel in calendar.py (2026-11-21).
 7. [X] **SEC-007** — Assistant role: Removed from destructive operations
 8. [X] **SEC-008 —** Logout method: Changed to POST with CSRF
 9. [X] **SEC-009 —** Open redirect: URL validation added
