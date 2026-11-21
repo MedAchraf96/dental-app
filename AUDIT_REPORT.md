@@ -112,7 +112,17 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Define a single contract for the final treatment ID set, validate ownership/status, compute additions/removals server-side, and commit the association and status reconciliation atomically.
 
-**Status: ✅ FIXED 2026-11-18** — `update_appointment()` unlink handler now applies the same reconciliation logic. Treatments remain `scheduled` if linked to another active appointment.
+**Status: ✅ Fixed 2026-11-21** — Fully resolved by LOGIC-004. The backend now computes the atomic diff of the final desired treatment set, preventing implicit unlink divergence.
+
+### LOGIC-004 — High — Final association set: 
+
+Make appointment editing reconcile the complete desired treatment link set atomically; do not rely on partial or ambiguous unlink payloads.
+**Status: ✅ FIXED 2026-11-21 —** `update_appointment()` now computes the atomic diff (`to_add`/`to_remove`) from a single `treatment_ids` array. Blocks removal of `completed`/`in_progress` treatments per industry standards.
+
+### LOGIC-005 — High — Legal state transitions:
+
+Centralize transitions and prevent arbitrary client-selected status changes. Distinguish appointment completion from treatment completion.
+**Status: ✅ FIXED 2026-11-21 —** Added centralized `validate_treatment_transition()` helper. Pre-flight validation in `complete_appointment()` now rejects illegal downgrades and immutable state changes before any DB mutation.
 
 ### DATA-001 — Payment and patient credit ledger semantics need reconciliation — High
 
@@ -239,6 +249,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 **Impact:** Harder maintenance and weaker CSP compatibility; event handlers can compound XSS risk.
 
 **Remediation:** Move behavior to external JavaScript with `addEventListener()` and static styling to CSS files, consistent with `AGENTS.md`.
+
+**Status: ✅ FIXED 2026-11-21 —** Extracted inline `<style>` blocks to `css/pages/_calendar.css`. Removed inline `onclick` handlers from `dashboard.html` and `appointment/list.html`; centralized event binding in `eventHandlers.js` and `list.js`.
 
 ### DATA-005 — Server-side validation for dental chart inputs is incomplete — Medium
 

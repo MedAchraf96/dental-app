@@ -12,24 +12,25 @@
 
 /* Action buttons container */
 .appointment-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: nowrap;
-  max-width: 100%;
-  position: static;
-  overflow: visible;
-  position: static;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    position: static;
+    overflow: visible;
+    position: static;
 }
 
 /* Base button styles - keep consistent */
 .appointment-actions .btn {
-  flex: 0 0 auto; /* Prevent button shrinking */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  box-sizing: border-box;
+    flex: 0 0 auto;
+    /* Prevent button shrinking */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    box-sizing: border-box;
 }
 
 /* Soft delete (Cancel) button */
@@ -184,6 +185,7 @@
 .form-check-input {
     margin-left: 0;
 }
+
 /* Bulk Actions */
 .bulk-actions-toolbar {
     transition: all 0.3s ease;
@@ -215,4 +217,13 @@
     height: 100%;
     background: rgba(255, 255, 255, 0.5);
     z-index: 1000;
+}
+
+/* ✅ SEC-010: Semantic column widths */
+.col-actions {
+    width: 150px;
+}
+
+.col-notes {
+    max-width: 200px;
 }

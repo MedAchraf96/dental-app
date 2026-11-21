@@ -14,7 +14,8 @@
     </header>
 
     <!-- Bulk Actions Toolbar (hidden by default) -->
-    <div class="bulk-actions-toolbar card mb-3" style="display:none;">
+    <!-- ✅ SEC-010: Replaced inline style="display:none;" with Bootstrap d-none class -->
+    <div class="bulk-actions-toolbar card mb-3 d-none">
         <div class="card-body py-2">
             <form method="POST" action="{{ url_for('appointment.bulk_hard_delete_appointment') }}"
                 id="bulk-delete-form">
@@ -85,7 +86,8 @@
                             <th>Date & Time</th>
                             <th>Status</th>
                             <th>Notes</th>
-                            <th class="text-end" style="width: 150px;">Actions</th>
+                            <!-- ✅ SEC-010: Replaced inline style with semantic class -->
+                            <th class="text-end col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -110,7 +112,8 @@
                                     {{ appointment.status|title }}
                                 </span>
                             </td>
-                            <td class="text-truncate" style="max-width: 200px;">
+                            <!-- ✅ SEC-010: Replaced inline style with semantic class -->
+                            <td class="text-truncate col-notes">
                                 {{ appointment.notes or '--' }}
                             </td>
                             <td>
@@ -137,8 +140,8 @@
                                         action="{{ url_for('appointment.hard_delete_appointment', appointment_id=appointment.id) }}"
                                         class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-sm btn-danger"
-                                            onclick="return confirm('Permanently delete this appointment?')"
+                                        <!-- ✅ SEC-010: Removed inline onclick, added confirm-delete-btn class -->
+                                        <button type="submit" class="btn btn-sm btn-danger confirm-delete-btn"
                                             title="Delete Permanently">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -150,7 +153,7 @@
                         {% endfor %}
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">
+                            <td colspan="6" class="text-center py-4 text-muted">
                                 <i class="bi bi-calendar-x me-2"></i> No appointments found
                             </td>
                         </tr>

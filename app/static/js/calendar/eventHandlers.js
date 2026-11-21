@@ -942,18 +942,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const endDate = new Date(startDate.getTime() + duration * 60000);
 
     // ✅ NEW: Include the continued treatment ID if it exists
-    let finalTreatmentIds = [...existingIds];
+    let finalTreatmentIds = [...existingIds]; // existingIds should be gathered from checked checkboxes
     if (continuedTreatmentId) {
       finalTreatmentIds.push(continuedTreatmentId);
     }
 
+    // ✅ LOGIC-004 FIX: Send ONLY the final desired set. 
+    // The backend will compute additions and removals atomically.
     const appointmentData = {
       patient_id: parseInt(patientId, 10),
       start_time: startDate.toISOString(),
       end_time: endDate.toISOString(),
-      treatment_ids: finalTreatmentIds,
-      new_treatments: newTreatments,
-      treatments_to_unlink: treatmentsToUnlink
+      treatment_ids: finalTreatmentIds, // <-- This is now the single source of truth
+      new_treatments: newTreatments
+      // treatments_to_unlink is REMOVED. Backend handles the diff.
     };
 
     // ✅ DENTIST: include for NEW appointments when multiple dentists exist
@@ -964,13 +966,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-
     // ✅ 5. UI Feedback: Disable button
     submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
     submitBtn.disabled = true;
 
     try {
-      // ✅ 6. Send to backend (NO 'result' variable needed!)
+      // ✅ 6. Send to backend
       if (currentApptId) {
         console.log("🔄 CALLING UPDATE (PUT) for ID:", currentApptId);
         await updateAppointment(currentApptId, appointmentData);
@@ -979,7 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await createAppointment(appointmentData);
       }
 
-      // ✅ 7. SUCCESS! (This runs unconditionally if no error is thrown)
+      // ✅ 7. SUCCESS!
       const modal = document.getElementById('appointmentModal');
       if (modal) modal.style.display = 'none';
 
@@ -997,7 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (error) {
       console.error('Failed to save appointment:', error);
-      alert('Error saving appointment: ' + error.message);
+      alert('Error saving appointment: ' + (error.message || 'Unknown error'));
     } finally {
       // ✅ 9. Always re-enable the button, even if it failed
       submitBtn.innerHTML = originalBtnText;
@@ -1023,13 +1024,34 @@ function initGranularModalListeners() {
     });
   }
 
-  // 2. Close granular modal on outside click
-  // We attach this to the modal itself, not the whole window, for better performance
+  // 2. SEC-010: Define a clean close action and attach to Close/Cancel buttons
+  const closeGranularModalAction = () => {
+    const modal = document.getElementById('granularCompleteModal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  const closeGranularBtn = document.getElementById('closeGranularBtn');
+  const cancelGranularBtn = document.getElementById('cancelGranularBtn');
+
+  if (closeGranularBtn) {
+    closeGranularBtn.addEventListener('click', closeGranularModalAction);
+  }
+  if (cancelGranularBtn) {
+    cancelGranularBtn.addEventListener('click', closeGranularModalAction);
+  }
+
+  // 3. SEC-010: Attach listener to Retry Connection button (replaces inline onclick)
+  const retryConnectionBtn = document.getElementById('retryConnectionBtn');
+  if (retryConnectionBtn) {
+    retryConnectionBtn.addEventListener('click', () => window.location.reload());
+  }
+
+  // 4. Close granular modal on outside click
   const granularModal = document.getElementById('granularCompleteModal');
   if (granularModal) {
     granularModal.addEventListener('click', function (e) {
       if (e.target === granularModal) {
-        granularModal.style.display = 'none';
+        closeGranularModalAction();
       }
     });
   }

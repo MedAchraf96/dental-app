@@ -158,7 +158,10 @@ The intended business rule is that an appointment booking changes the linked tre
 - Unlink and cancellation currently revert linked scheduled treatments to planned without checking whether another active appointment still links the treatment.
 - Appointment update currently does not fully reconcile treatments removed from the submitted selection; confirm frontend unlink payload and backend final link set semantics.
 - Treatment status transition validation is not centralized; direct status endpoints can set arbitrary enum values without checking appointment linkage or legal transitions.
-- [RESOLVED 2026-11-18] Unlink and cancellation now reconcile against all active appointments before reverting status.
-- [RESOLVED 2026-11-18] Appointment cancellation authorization fixed. Dentist scope enforced, and HTML/API cancellation routes unified to share the exact same treatment reconciliation logic.
-- [RESOLVED 2026-11-21] Payment allocation IDOR (SEC-004): Backend strictly validates that all `treatment_id`s in payment payloads belong to the target appointment. Verified by automated test suite.
-- [RESOLVED 2026-11-21] Appointment update/cancel routes now consistently enforce role-based scope (dentist restricted to own appointments) (SEC-006).
+
+- [X] [RESOLVED 2026-11-18] Unlink and cancellation now reconcile against all active appointments before reverting status.
+- [X] [RESOLVED 2026-11-18] Appointment cancellation authorization fixed. Dentist scope enforced, and HTML/API cancellation routes unified to share the exact same treatment reconciliation logic.
+- [X] [RESOLVED 2026-11-21] Payment allocation IDOR (SEC-004): Backend strictly validates that all `treatment_id`s in payment payloads belong to the target appointment. Verified by automated test suite.
+- [X] [RESOLVED 2026-11-21] Appointment update/cancel routes now consistently enforce role-based scope (dentist restricted to own appointments) (SEC-006).
+- [X] [RESOLVED 2026-11-21 via LOGIC-004] Appointment update now fully reconciles treatments removed from the submitted selection. Backend computes the atomic final link set.
+- [X] [RESOLVED 2026-11-21 via LOGIC-005] Treatment status transition validation is now centralized. `complete_appointment()` uses `validate_treatment_transition()` to reject arbitrary client-selected state values.

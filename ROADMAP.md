@@ -16,8 +16,8 @@
 - [X] **AUDIT-001:** Static source audit of routes, models, migrations, configuration, templates, JavaScript and CSS.
 - [X] **DOC-001:** Correct the State Ledger scheduling rule to match the intended business behavior: booking a treatment to an active scheduled appointment changes `planned` → `scheduled`.
 - [X] **DOC-002:** Document cancellation/unlink reconciliation, multi-visit semantics and GET read-only requirements.
-- [ ] **DOC-003:** Review `.gitignore`; required governance docs and `migrations/` are currently ignored by patterns. Inspect tracked files before changing ignore rules.
-- [ ] **QUAL-001:** Create a pytest baseline using a disposable SQLite test database.
+- [X] **DOC-003:** Review `.gitignore`; required governance docs and `migrations/` are currently ignored by patterns. Inspect tracked files before changing ignore rules.
+- [X] **QUAL-001:** Create a pytest baseline using a disposable SQLite test database.
 
 ## Phase 1 — Critical security and patient privacy
 
@@ -31,7 +31,7 @@
 8. [X] **SEC-008 —** Logout method: Changed to POST with CSRF
 9. [X] **SEC-009 —** Open redirect: URL validation added
 
-10. **SEC-010 — Medium — Frontend policy:** Remove inline event handlers and inline `<style>`/script logic according to project rules; ensure CSP-compatible behavior.
+1. [X] **SEC-010 — Medium — Frontend policy:** Removed inline event handlers and `<style>` blocks from calendar and appointment templates; centralized behavior in external JS/CSS (2026-11-21).
 
 ## Phase 2 — Appointment and treatment state integrity
 
@@ -40,9 +40,9 @@
 1. [X] **LOGIC-001 — GET purity: State mutation removed from GET endpoint**
 2. [X] **LOGIC-002 — High — Cancellation reconciliation:** Implemented active-appointment check (2026-11-18).
 3. [X] **LOGIC-003 — High — Unlink reconciliation:** Applied same remaining-active-appointment check (2026-11-18).
+4. [X] **LOGIC-004 — High — Final association set:** Appointment editing now reconciles the complete desired treatment link set atomically; legacy unlink payloads rejected (2026-11-21).
+5. [X] **LOGIC-005 — High — Legal state transitions:** Centralized `validate_treatment_transition()` helper prevents arbitrary client-selected status changes during completion (2026-11-21).
 
-4. **LOGIC-004 — High — Final association set:** Make appointment editing reconcile the complete desired treatment link set atomically; do not rely on partial or ambiguous unlink payloads.
-5. **LOGIC-005 — High — Legal state transitions:** Centralize transitions and prevent arbitrary client-selected status changes. Distinguish appointment completion from treatment completion.
 6. **LOGIC-006 — Medium — Multi-visit behavior:** Preserve `in_progress` treatment status when booking subsequent visits; block completion only when the documented future-visit rule applies.
 
 7. [X] **LOGIC-007 — Single cancellation service:** HTML and API cancellation routes now share the exact same treatment reconciliation logic (2026-11-18).

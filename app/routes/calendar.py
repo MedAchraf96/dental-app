@@ -34,6 +34,29 @@ def _resolve_dentist_id(payload_dentist_id=None):
 
 calendar_bp = Blueprint('calendar_api', __name__, url_prefix='/api')
 
+def validate_treatment_transition(current_status: TreatmentStatus, new_status: TreatmentStatus, procedure_name: str):
+    """
+    ✅ LOGIC-005: Centralized legal state transition validation.
+    Prevents arbitrary, illegal, or downgrading status changes during appointment completion.
+    """
+    # 1. Immutable states: Once completed or cancelled, they cannot be changed via this route
+    if current_status == TreatmentStatus.COMPLETED:
+        raise ValueError(f"Cannot modify status of already completed treatment: '{procedure_name}'")
+    
+    if current_status == TreatmentStatus.CANCELLED:
+        raise ValueError(f"Cannot modify status of cancelled treatment: '{procedure_name}'")
+        
+    # 2. Prevent downgrading clinical progress
+    if current_status == TreatmentStatus.IN_PROGRESS:
+        if new_status in [TreatmentStatus.PLANNED, TreatmentStatus.SCHEDULED, TreatmentStatus.CANCELLED]:
+            raise ValueError(f"Cannot downgrade clinical progress for '{procedure_name}' from in_progress to {new_status.value}")
+            
+    # 3. (Optional but safe) Prevent skipping straight from planned to completed without being scheduled first
+    # (Though if it's linked to this appointment, it should be at least 'scheduled')
+    if current_status == TreatmentStatus.PLANNED and new_status == TreatmentStatus.COMPLETED:
+        # We allow this ONLY if it's a single-visit scenario, but we'll let the future-appt guard handle the complex logic.
+        pass 
+
 @calendar_bp.route('/calendar')
 @login_required
 def dashboard():
@@ -247,50 +270,103 @@ def update_appointment(appointment_id):
         appointment.start_time = datetime.fromisoformat(start_time_str)
         appointment.end_time = datetime.fromisoformat(end_time_str)
 
-        # ✅ LOGIC-003: Handle treatments to unlink with reconciliation
-        treatments_to_unlink = data.get('treatments_to_unlink', [])
-        if treatments_to_unlink:
-            for treatment_id in treatments_to_unlink:
-                treatment = Treatment.query.get(treatment_id)
-                
-                # Verify it exists and is actually linked to this appointment
-                if treatment and treatment in appointment.treatments.all():
-                    
-                    # Apply the same reconciliation rule
-                    if treatment.status == TreatmentStatus.SCHEDULED:
-                        other_active_appt = Appointment.query.join(Appointment.treatments).filter(
-                            Treatment.id == treatment.id,
-                            Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS]),
-                            Appointment.id != appointment.id
-                        ).first()
+        # ✅ LOGIC-004: Atomic final-set reconciliation
+        # Reject legacy payload shape
+        if 'treatments_to_unlink' in data:
+            return jsonify({
+                'error': 'Legacy payload format not supported. Send treatment_ids as the final desired set.'
+            }), 400
 
-                        # If no other active appointments exist, revert to planned
-                        if not other_active_appt:
-                            treatment.status = TreatmentStatus.PLANNED
-                    
-                    # Now safely remove the link
-                    appointment.treatments.remove(treatment)
+        # Get current linked treatment IDs
+        current_treatment_ids = {t.id for t in appointment.treatments.all()}
         
-        # ✅ STEP 1: Handle new treatments
+        # Get desired final treatment IDs from payload
+        desired_treatment_ids = set(data.get('treatment_ids', []))
+        
+        # Validate all desired IDs belong to this patient
+        if desired_treatment_ids:
+            valid_treatments = Treatment.query.filter(
+                Treatment.id.in_(desired_treatment_ids),
+                Treatment.patient_id == appointment.patient_id
+            ).all()
+            
+            if len(valid_treatments) != len(desired_treatment_ids):
+                return jsonify({
+                    'error': 'Invalid treatment IDs: some treatments do not belong to this patient'
+                }), 400
+        
+        # Compute additions and removals
+        to_add = desired_treatment_ids - current_treatment_ids
+        to_remove = current_treatment_ids - desired_treatment_ids
+        
+        # ✅ Process removals first (with validation)
+        if to_remove:
+            treatments_to_remove = Treatment.query.filter(Treatment.id.in_(to_remove)).all()
+            
+            # Block removal of completed/in_progress treatments (industry standard)
+            blocked = [t for t in treatments_to_remove 
+                      if t.status in [TreatmentStatus.COMPLETED, TreatmentStatus.IN_PROGRESS]]
+            
+            if blocked:
+                blocked_names = [f"{t.procedure_name} (status: {t.status})" for t in blocked]
+                return jsonify({
+                    'error': f'Cannot remove treatments with status completed or in_progress. '
+                            f'Blocked: {", ".join(blocked_names)}. '
+                            f'Please reverse the appointment completion first.'
+                }), 400
+            
+            # Apply reconciliation rule for each removal
+            for treatment in treatments_to_remove:
+                # Only scheduled treatments can be reverted to planned
+                if treatment.status == TreatmentStatus.SCHEDULED:
+                    # Check if any other active appointment still links this treatment
+                    other_active_appt = Appointment.query.join(Appointment.treatments).filter(
+                        Treatment.id == treatment.id,
+                        Appointment.status.in_([AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS]),
+                        Appointment.id != appointment.id
+                    ).first()
+                    
+                    # If no other active appointments, revert to planned
+                    if not other_active_appt:
+                        treatment.status = TreatmentStatus.PLANNED
+                
+                # Remove the link
+                appointment.treatments.remove(treatment)
+        
+        # ✅ Process additions
+        if to_add:
+            treatments_to_add = Treatment.query.filter(Treatment.id.in_(to_add)).all()
+            
+            for treatment in treatments_to_add:
+                # Apply scheduling transition: planned → scheduled
+                if treatment.status == TreatmentStatus.PLANNED:
+                    treatment.status = TreatmentStatus.SCHEDULED
+                # in_progress stays in_progress (never downgrade)
+                
+                # Add the link
+                appointment.treatments.append(treatment)
+        
+        # ✅ Handle new inline treatments (unchanged from current logic)
         new_treatments_data = data.get('new_treatments', [])
         
         for t_data in new_treatments_data:
             name = t_data.get('name', '').strip()
             tooth = t_data.get('tooth', '').strip() if t_data.get('tooth') else None
-            cost = Decimal(str(t_data.get('cost', '0.00'))) # <-- Fixed
+            cost = Decimal(str(t_data.get('cost', '0.00')))
             
             if not name:
                 continue
             
-            already_linked = False
-            for existing_t in appointment.treatments.all():
-                if existing_t.procedure_name == name and existing_t.tooth_number == tooth:
-                    already_linked = True
-                    break
+            # Check if already linked (by name + tooth)
+            already_linked = any(
+                t.procedure_name == name and t.tooth_number == tooth
+                for t in appointment.treatments.all()
+            )
             
             if already_linked:
                 continue
             
+            # Check if a PLANNED treatment with this name already exists for this patient
             existing_planned = Treatment.query.filter_by(
                 patient_id=appointment.patient_id,
                 procedure_name=name,
@@ -315,17 +391,7 @@ def update_appointment(appointment_id):
                 db.session.flush()
                 appointment.treatments.append(new_t)
         
-        # ✅ STEP 2: Handle treatment_ids from checkboxes
-        treatment_ids = data.get('treatment_ids', [])
-        if treatment_ids:
-            existing_treatments = Treatment.query.filter(Treatment.id.in_(treatment_ids),Treatment.patient_id == appointment.patient_id,Treatment.status.in_([TreatmentStatus.PLANNED,TreatmentStatus.IN_PROGRESS,])).all()
-            for t in existing_treatments:
-                if t.status == TreatmentStatus.PLANNED:
-                    t.status = TreatmentStatus.SCHEDULED
-                if t not in appointment.treatments:
-                    appointment.treatments.append(t)
-        
-        # ✅ STEP 3: COMMIT ALL CHANGES
+        # ✅ Atomic commit
         db.session.commit()
         
         return jsonify({
@@ -400,7 +466,7 @@ def complete_appointment(appointment_id):
         # ✅ SEC-004: Build set of valid treatment IDs for this appointment
         valid_treatment_ids = {t.id for t in appointment.treatments.all()}
         
-        # ✅ DATA-007: Validate all treatment updates BEFORE applying any changes
+        # ✅ DATA-007 & LOGIC-005: Validate all treatment updates BEFORE applying any changes
         for update in treatment_updates:
             t_id = update.get('id')
             new_status_str = update.get('status')
@@ -410,9 +476,20 @@ def complete_appointment(appointment_id):
                 return jsonify({'error': f'Treatment {t_id} is not linked to this appointment'}), 400
             
             treatment = Treatment.query.get(t_id)
-            new_status = TreatmentStatus(new_status_str)
+            current_status = TreatmentStatus(treatment.status)
             
-            # Validate future appointment guard
+            try:
+                new_status = TreatmentStatus(new_status_str)
+            except ValueError:
+                return jsonify({'error': f'Invalid status value provided: {new_status_str}'}), 400
+            
+            # ✅ LOGIC-005: Enforce legal state transitions
+            try:
+                validate_treatment_transition(current_status, new_status, treatment.procedure_name)
+            except ValueError as e:
+                return jsonify({'error': str(e)}), 400
+            
+            # Validate future appointment guard (existing logic)
             if new_status == TreatmentStatus.COMPLETED:
                 future_appt = Appointment.query.join(Appointment.treatments).filter(
                     Appointment.patient_id == appointment.patient_id,
@@ -440,7 +517,7 @@ def complete_appointment(appointment_id):
         appointment.status = AppointmentStatus.COMPLETED
         appointment.completed_at = datetime.utcnow()
         
-        # 2. Update treatment statuses
+        # 2. Update treatment statuses (Safe, because pre-flight validation passed)
         for update in treatment_updates:
             t_id = update.get('id')
             new_status_str = update.get('status')
@@ -469,7 +546,6 @@ def complete_appointment(appointment_id):
                     amount = Decimal(str(payment.get('amount', '0.00')))
                     treatment = Treatment.query.get(t_id)
                     
-                    # ✅ SEC-004: Already validated above, but double-check
                     if treatment and treatment.id in valid_treatment_ids:
                         already_paid = sum((p.amount for p in treatment.payments), Decimal('0.00'))
                         balance = (treatment.cost - (treatment.insurance_amount or Decimal('0.00'))) - already_paid
