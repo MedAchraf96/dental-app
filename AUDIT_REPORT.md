@@ -62,6 +62,8 @@ This report distinguishes source-confirmed defects from risks that require isola
 
 **Remediation:** Validate every allocation against `appointment.patient_id` and the intended appointment treatment set. Validate amounts and reject invalid IDs rather than silently continuing.
 
+**Status: ✅ FIXED 2026-11-21** — `complete_appointment()` now builds a set of valid `treatment_id`s from the appointment and validates all payment allocations against this set before applying any changes. Prevents cross-patient payment fraud. Verified by automated regression test (QUAL-001).
+
 ### SEC-005 — Appointment cancellation authorization compares unrelated IDs — High
 
 **Evidence:** `app/routes/appointment.py`, `cancel_appointment()`: `appointment.patient_id != current_user.id` is used as the non-admin authorization test.

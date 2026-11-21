@@ -30,5 +30,7 @@
 
 * **Patient-Centric Flow:** `Patient` -> has many `Appointments` -> which are linked to many `Treatments` (via `appointment_treatments`) -> which have many `PatientPayments`.
 * **Clinical Flow:** `Treatments` link to `ToothRecords` (via `tooth_helpers.py`) and `Prosthetics`.
-* **Finance Flow:** `Treatment.cost` + `Patient.credit_balance` - `PatientPayment.amount` = Outstanding Balance.
+* **Finance Flow:** UNRESOLVED (DATA-001). Candidate invariant:
+  * outstanding = Σ(cost − insurance_amount) − Σ(PatientPayment.amount) − credit_applied
+  * Authoritative credit semantics not yet defined; do not treat this as implemented behaviour.
 * **JS to Python Flow:** The frontend uses `data-*` attributes (extracted via Jinja) to send secure JSON payloads back to the Flask routes (e.g., `teeth_chart.js` hitting `/api/teeth-chart`).

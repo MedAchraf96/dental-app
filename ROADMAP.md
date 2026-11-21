@@ -24,9 +24,7 @@
 1. [X] **SEC-001 —** Stored XSS in clinical notes: Replaced `insertAdjacentHTML()` with safe DOM construction using `textContent` (2026-11-18).
 2. [X] **SEC-002** — Prosthetic IDOR: Ownership validation added
 3. [X] **SEC-003 —** Clinical note relationship validation: Validate treatment/appointment ownership and same-patient constraint (2026-11-18).
-
-4. **SEC-004 — High — Payment allocation IDOR:** In `calendar.py`, constrain client-provided payment treatment IDs to the appointment's patient and eligible treatments.
-
+4. [X] **SEC-004 — High — Payment allocation IDOR:** Constrained payment treatment IDs to appointment's valid set
 5. [X] **SEC-005 — Appointment authorization:** Replaced broken patient/user ID check with role-based scope (Dentist restricted to own appointments). Unified cancellation logic with API route (LOGIC-007) (2026-11-18).Correct the invalid `appointment.patient_id == current_user.id` check in `app/routes/appointment.py`; implement role-specific appointment scope consistentl
 
 6. **SEC-006 — High — Appointment update/cancel scope:** Enforce dentist assignment and agreed secretary/admin permissions consistently across read, update, cancel and complete routes
@@ -87,6 +85,8 @@
 4. **TEST-004 — Medium:** Frontend tests for calendar modal reset, treatment selection and safe rendering.
 5. **PERF-001 — Medium:** Profile and address N+1 queries in clinical log and payment aggregation.
 6. **UX-001 — Medium:** Audit responsive behavior, accessibility, keyboard/focus management and validation feedback.
+
+7. [X] **QUAL-001 —** Pytest baseline: Created disposable in-memory SQLite test suite with `conftest.py` and initial SEC-004 regression test (2026-11-21).
 
 ## Completion criteria
 

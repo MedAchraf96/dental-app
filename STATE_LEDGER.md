@@ -160,3 +160,4 @@ The intended business rule is that an appointment booking changes the linked tre
 - Treatment status transition validation is not centralized; direct status endpoints can set arbitrary enum values without checking appointment linkage or legal transitions.
 - [RESOLVED 2026-11-18] Unlink and cancellation now reconcile against all active appointments before reverting status.
 - [RESOLVED 2026-11-18] Appointment cancellation authorization fixed. Dentist scope enforced, and HTML/API cancellation routes unified to share the exact same treatment reconciliation logic.
+- [RESOLVED 2026-11-21] Payment allocation IDOR (SEC-004): Backend strictly validates that all `treatment_id`s in payment payloads belong to the target appointment. Verified by automated test suite.

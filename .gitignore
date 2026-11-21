@@ -38,3 +38,5 @@ scripts/
 INSTALL_README.md
 Legacy/
 generate_structure.py
+
+tests/
